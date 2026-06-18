@@ -1,0 +1,49 @@
+spring:
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+  data:
+    redis:
+      timeout: 2000ms
+
+server:
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
+
+  # HTTPS termination handled by reverse proxy (nginx/Caddy/AWS ALB)
+  # Enable HTTP -> HTTPS redirect if running standalone behind proxy
+  # servlet:
+  #   session:
+  #     cookie:
+  #       secure: true
+  #       http-only: true
+  #       same-site: strict
+  #   encoding:
+  #     charset: UTF-8
+  #     enabled: true
+
+logging:
+  level:
+    com.fstpay: WARN
+    org.springframework.security: WARN
+    org.springframework: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+---
+# Spring Boot Actuator security
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+      show-components: never

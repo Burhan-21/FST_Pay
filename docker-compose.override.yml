@@ -1,0 +1,22 @@
+# FST Pay - Local development overrides
+# This file is auto-appended by docker-compose when present.
+# For production, do NOT include this file or set SPRING_PROFILES_ACTIVE=prod
+services:
+  fstpay-postgres:
+    ports:
+      - "5434:5432"
+
+  fstpay-redis:
+    ports:
+      - "6380:6379"
+
+  fstpay-frontend:
+    ports:
+      - "5173:80"
+
+  fstpay-backend:
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - LOG_LEVEL=DEBUG
+    ports:
+      - "8080:8080"
