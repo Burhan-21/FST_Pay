@@ -1,0 +1,48 @@
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+  datasource:
+    url: jdbc:h2:mem:fstpay;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: false
+  mail:
+    host: localhost
+    port: 25
+    username:
+    password:
+
+app:
+  rate-limit:
+    trust-x-forwarded-for: false
+  admin:
+    email: admin@test.com
+    password: Admin@123
+
+google:
+  recaptcha:
+    secret:
+
+jwt:
+  secret: dGVzdC1qd3Qtc2VjcmV0LXRoYXQtaXMtYXQtbGVhc3QtMjU2LWJpdHMtbG9uZw==
+
+logging:
+  level:
+    com.fstpay: DEBUG
+
+server:
+  error:
+    include-message: always
+    include-binding-errors: always

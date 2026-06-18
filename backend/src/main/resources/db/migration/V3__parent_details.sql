@@ -1,0 +1,6 @@
+ALTER TABLE users ADD COLUMN parent_name VARCHAR(255);
+ALTER TABLE users ADD COLUMN parent_email VARCHAR(255);
+ALTER TABLE users ADD COLUMN parent_phone VARCHAR(255);
+ALTER TABLE users ADD COLUMN parent_dob DATE;
+ALTER TABLE users ADD COLUMN parent_gender VARCHAR(50);
+ALTER TABLE users ADD COLUMN parent_age INTEGER;
