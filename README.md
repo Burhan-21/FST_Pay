@@ -113,6 +113,48 @@ cd frontend && npm run test
 cd frontend && npm run build    # TypeScript + production build
 ```
 
+## Deployment
+
+### GitHub
+
+Repository: https://github.com/Burhan-21/FST_Pay
+
+### Backend → Render
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Burhan-21/FST_Pay)
+
+1. Go to https://dashboard.render.com
+2. Click **New +** → **Web Service**
+3. Connect your `FST_Pay` repo
+4. Render auto-detects `render.yaml` — or manually configure:
+   - **Name:** `fstpay-backend`
+   - **Runtime:** `Docker`
+   - **Dockerfile Path:** `./backend/Dockerfile`
+   - **Health Check Path:** `/actuator/health`
+5. Add environment variables:
+   - `SPRING_DATASOURCE_URL` — use Render's managed PostgreSQL URL
+   - `JWT_SECRET` — generate a 256-bit base64 secret
+   - `CORS_ALLOWED_ORIGINS` — `https://fst-pay.vercel.app`
+   - `ADMIN_EMAIL` + `ADMIN_PASSWORD` — for admin seeding
+6. Deploy
+
+### Frontend → Vercel
+
+[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Burhan-21/FST_Pay)
+
+1. Go to https://vercel.com/new
+2. Import your `FST_Pay` repo
+3. Configure:
+   - **Framework Preset:** Vite
+   - **Root Directory:** `frontend`
+   - **Build Command:** `npm run build`
+   - **Output Directory:** `dist`
+4. Add environment variable:
+   - `VITE_API_URL` — `https://fstpay-backend.onrender.com/api/v1`
+5. Deploy
+
+---
+
 ## Security Features
 
 - **No hardcoded secrets** — all credentials via environment variables
