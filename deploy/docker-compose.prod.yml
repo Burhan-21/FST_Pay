@@ -1,0 +1,76 @@
+services:
+  fstpay-postgres:
+    image: postgres:16-alpine
+    container_name: fstpay-postgres
+    environment:
+      POSTGRES_DB: fstpay
+      POSTGRES_USER: fstpay
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - fstpay_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fstpay -d fstpay"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  fstpay-redis:
+    image: redis:7-alpine
+    container_name: fstpay-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    volumes:
+      - fstpay_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  fstpay-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fstpay-backend
+    expose:
+      - "8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://fstpay-postgres:5432/fstpay
+      - SPRING_DATASOURCE_USERNAME=fstpay
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      - SPRING_REDIS_HOST=fstpay-redis
+      - SPRING_REDIS_PORT=6379
+      - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:?CORS_ALLOWED_ORIGINS is required}
+      - MAIL_HOST=smtp.gmail.com
+      - MAIL_PORT=587
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
+      - ADMIN_FULLNAME=${ADMIN_FULLNAME:-Administrator}
+      - AI_PROVIDER=${AI_PROVIDER:-gemini}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - RECAPTCHA_SECRET_KEY=${RECAPTCHA_SECRET_KEY:-}
+    depends_on:
+      fstpay-postgres:
+        condition: service_healthy
+      fstpay-redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  fstpay-tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: fstpay-tunnel
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN:?CLOUDFLARE_TUNNEL_TOKEN is required}
+    depends_on:
+      - fstpay-backend
+    restart: unless-stopped
+
+volumes:
+  fstpay_pgdata:
+  fstpay_redis:

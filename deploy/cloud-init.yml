@@ -1,0 +1,56 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+
+packages:
+  - docker.io
+  - docker-compose-v2
+  - git
+  - curl
+
+runcmd:
+  # Install cloudflared (Cloudflare Tunnel client)
+  - mkdir -p /usr/local/bin
+  - curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64 -o /usr/local/bin/cloudflared || curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /usr/local/bin/cloudflared
+  - chmod +x /usr/local/bin/cloudflared
+
+  # Start Docker and enable on boot
+  - systemctl enable docker
+  - systemctl start docker
+
+  # Add ubuntu user to docker group
+  - usermod -aG docker ubuntu
+
+  # Clone the repository
+  - cd /home/ubuntu
+  - git clone https://github.com/Burhan-21/FST_Pay.git /home/ubuntu/FST_Pay
+  - chown -R ubuntu:ubuntu /home/ubuntu/FST_Pay
+
+  # Create directory for SSL certs
+  - mkdir -p /home/ubuntu/FST_Pay/ssl
+  - chown -R ubuntu:ubuntu /home/ubuntu/FST_Pay/ssl
+
+  # Create production .env template
+  - cat > /home/ubuntu/FST_Pay/.env << 'EOF'
+# === FST Pay Production Environment Variables ===
+POSTGRES_PASSWORD=change_this_password
+JWT_SECRET=change_this_jwt_secret
+CORS_ALLOWED_ORIGINS=https://your-frontend-domain.pages.dev,https://your-custom-domain.com
+MAIL_USERNAME=
+MAIL_PASSWORD=
+ADMIN_EMAIL=admin@fstpay.com
+ADMIN_PASSWORD=change_this_admin_password
+GEMINI_API_KEY=
+REDIS_PASSWORD=
+CLOUDFLARE_TUNNEL_TOKEN=change_this_token
+SPRING_PROFILES_ACTIVE=prod
+EOF
+  - chown ubuntu:ubuntu /home/ubuntu/FST_Pay/.env
+
+  # Print completion message
+  - echo ""
+  - echo "============================================"
+  - echo "  FST Pay VM setup complete!"
+  - echo "  SSH in and follow the deployment steps."
+  - echo "============================================"
+  - echo ""
