@@ -67,29 +67,27 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # Reverse proxy for HTTPS termination (production only)
-  # Uncomment and configure for production deployment:
-  # fstpay-proxy:
-  #   image: nginx:alpine
-  #   container_name: fstpay-proxy
-  #   ports:
-  #     - "80:80"
-  #     - "443:443"
-  #   volumes:
-  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
-  #     - ./ssl:/etc/nginx/ssl:ro
-  #   depends_on:
-  #     - fstpay-frontend
-  #     - fstpay-backend
-  #   restart: unless-stopped
+  fstpay-proxy:
+    image: nginx:alpine
+    container_name: fstpay-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - fstpay-frontend
+      - fstpay-backend
+    restart: unless-stopped
 
   fstpay-frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: fstpay-frontend
-    ports:
-      - "5173:80"
+    expose:
+      - "80"
     depends_on:
       - fstpay-backend
     restart: unless-stopped
