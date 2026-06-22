@@ -12,7 +12,7 @@ services:
       - key: SPRING_PROFILES_ACTIVE
         value: prod
       - key: SPRING_DATASOURCE_URL
-        value: jdbc:postgresql://
+        sync: false
       - key: SPRING_DATASOURCE_USERNAME
         value: fstpay
       - key: SPRING_DATASOURCE_PASSWORD
