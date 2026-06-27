@@ -1,22 +1,10 @@
-# Build Stage
-FROM maven:3.9-eclipse-temurin-17-alpine AS build
-WORKDIR /app
+# Step 1: Build the application using Maven
+FROM maven:3.8.8-eclipse-temurin-17 AS build
+COPY . .
+RUN mvn clean package -DskipTests
 
-# Copy pom.xml and download dependencies to cache this layer
-COPY pom.xml .
-RUN mvn dependency:go-offline -B
-
-# Copy source code and build package
-COPY src ./src
-RUN mvn clean package -DskipTests -B
-
-# Run Stage
-FROM eclipse-temurin:17-jre-alpine
-WORKDIR /app
-
-# Copy built jar file
-COPY --from=build /app/target/*.jar app.jar
-
+# Step 2: Run the application using a lightweight JDK image
+FROM eclipse-temurin:17-jdk-alpine
+COPY --from=build /target/*.jar app.jar
 EXPOSE 8080
-
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-jar", "/app.jar", "--spring.profiles.active=prod"]
