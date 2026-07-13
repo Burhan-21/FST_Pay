@@ -3,7 +3,7 @@ package com.fstpay.common.rule;
 import com.fstpay.transaction.dto.SimulateSpendRequest;
 import com.fstpay.user.entity.User;
 import com.fstpay.wallet.entity.Wallet;
-import com.fstpay.wallet.service.WalletDailySummaryService;
+import com.fstpay.wallet.api.WalletDailySummaryOperations;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.annotation.Order;
@@ -18,7 +18,7 @@ import java.time.LocalDate;
 @RequiredArgsConstructor
 public class SpendingLimitRule implements TransactionRule {
 
-    private final WalletDailySummaryService summaryService;
+    private final WalletDailySummaryOperations summaryService;
 
     @Override
     public RuleEvaluationResult evaluate(User user, Wallet wallet, SimulateSpendRequest request) {

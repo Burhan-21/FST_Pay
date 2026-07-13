@@ -8,7 +8,7 @@ import com.fstpay.transaction.entity.Transaction;
 import com.fstpay.transaction.repository.TransactionRepository;
 import com.fstpay.wallet.entity.Wallet;
 import com.fstpay.wallet.repository.WalletRepository;
-import com.fstpay.wallet.service.WalletDailySummaryService;
+import com.fstpay.wallet.api.WalletDailySummaryOperations;
 import com.fstpay.user.entity.User;
 import com.fstpay.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +34,7 @@ public class TransactionService {
     private final UserRepository userRepository;
     private final TransactionExportService transactionExportService;
     private final TransactionRuleEngine ruleEngine;
-    private final WalletDailySummaryService summaryService;
+    private final WalletDailySummaryOperations summaryService;
 
     public Page<Transaction> getTransactions(String email, String category, String type, int page, int size) {
         User user = userRepository.findByEmail(email)

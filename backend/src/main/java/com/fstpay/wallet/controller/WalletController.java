@@ -3,7 +3,7 @@ package com.fstpay.wallet.controller;
 import com.fstpay.common.dto.ApiResponse;
 import com.fstpay.wallet.dto.TopUpRequest;
 import com.fstpay.wallet.entity.Wallet;
-import com.fstpay.wallet.service.WalletService;
+import com.fstpay.wallet.api.WalletOperations;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Wallet", description = "Endpoints for wallet balance retrieval and top-up operations")
 public class WalletController {
 
-    private final WalletService walletService;
+    private final WalletOperations walletService;
 
     @GetMapping
     @Operation(summary = "Get wallet details", description = "Retrieves the active wallet balance, ledger reference, currency, and association details of the authenticated user.")

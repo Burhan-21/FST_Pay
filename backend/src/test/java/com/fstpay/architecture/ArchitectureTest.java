@@ -42,7 +42,7 @@ public class ArchitectureTest {
 
     @ArchTest
     public static final ArchRule services_should_not_depend_on_controllers =
-        noClasses().that().resideInAPackage("..service..")
+        noClasses().that().resideInAnyPackage("..service..", "..application..")
             .should().dependOnClassesThat().resideInAPackage("..controller..")
             .allowEmptyShould(true);
 
@@ -50,6 +50,18 @@ public class ArchitectureTest {
     public static final ArchRule domain_entities_must_not_depend_on_web_packages =
         noClasses().that().resideInAPackage("..entity..")
             .should().dependOnClassesThat().resideInAnyPackage("..controller..", "..servlet..", "org.springframework.web..")
+            .allowEmptyShould(true);
+
+    @ArchTest
+    public static final ArchRule wallet_application_should_not_be_accessed_by_other_modules =
+        noClasses().that().resideOutsideOfPackages("com.fstpay.wallet..", "com.fstpay.config..", "com.fstpay.security..", "com.fstpay")
+            .should().dependOnClassesThat().resideInAPackage("com.fstpay.wallet.application..")
+            .allowEmptyShould(true);
+
+    @ArchTest
+    public static final ArchRule card_application_should_not_be_accessed_by_other_modules =
+        noClasses().that().resideOutsideOfPackages("com.fstpay.card..", "com.fstpay.config..", "com.fstpay.security..", "com.fstpay")
+            .should().dependOnClassesThat().resideInAPackage("com.fstpay.card.application..")
             .allowEmptyShould(true);
 
     @ArchTest

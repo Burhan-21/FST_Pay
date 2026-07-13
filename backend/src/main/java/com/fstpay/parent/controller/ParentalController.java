@@ -9,7 +9,7 @@ import com.fstpay.parent.service.*;
 import com.fstpay.user.entity.User;
 import com.fstpay.user.repository.UserRepository;
 import com.fstpay.card.entity.VirtualCard;
-import com.fstpay.card.service.VirtualCardService;
+import com.fstpay.card.api.VirtualCardOperations;
 import com.fstpay.notification.service.NotificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -38,7 +38,7 @@ public class ParentalController {
     private final ApprovalService approvalService;
     private final ParentDashboardService parentDashboardService;
     private final NotificationService notificationService;
-    private final VirtualCardService virtualCardService;
+    private final VirtualCardOperations virtualCardService;
     private final UserRepository userRepository;
 
     // ── Public Endpoints ──

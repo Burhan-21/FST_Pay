@@ -4,7 +4,7 @@ import com.fstpay.card.dto.CreateCardRequest;
 import com.fstpay.card.dto.UpdateLimitRequest;
 import com.fstpay.card.dto.UpdateDesignRequest;
 import com.fstpay.card.entity.VirtualCard;
-import com.fstpay.card.service.VirtualCardService;
+import com.fstpay.card.api.VirtualCardOperations;
 import com.fstpay.common.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,7 +24,7 @@ import java.util.UUID;
 @Tag(name = "Virtual Cards", description = "Endpoints for creating, freezing, configuring limits, and styling virtual prepaid debit cards")
 public class VirtualCardController {
 
-    private final VirtualCardService virtualCardService;
+    private final VirtualCardOperations virtualCardService;
 
     @GetMapping
     @Operation(summary = "Get active virtual cards", description = "Retrieves all active virtual cards associated with the authenticated user.")

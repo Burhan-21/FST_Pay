@@ -1,10 +1,11 @@
-package com.fstpay.wallet.service;
+package com.fstpay.wallet.application;
 
 import com.fstpay.common.exception.BadRequestException;
 import com.fstpay.common.exception.ResourceNotFoundException;
 import com.fstpay.common.event.PocketMoneyTransferredEvent;
 import com.fstpay.user.entity.User;
 import com.fstpay.user.repository.UserRepository;
+import com.fstpay.wallet.api.WalletOperations;
 import com.fstpay.wallet.entity.Wallet;
 import com.fstpay.wallet.repository.WalletRepository;
 import com.fstpay.transaction.entity.Transaction;
@@ -22,7 +23,7 @@ import java.util.UUID;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class WalletService {
+public class WalletService implements WalletOperations {
 
     private static final BigDecimal MAX_TOPUP_AMOUNT = new BigDecimal("100000.00");
     private static final BigDecimal MIN_TOPUP_AMOUNT = new BigDecimal("1.00");
@@ -34,6 +35,7 @@ public class WalletService {
     private final WalletDailySummaryService walletDailySummaryService;
     private final ApplicationEventPublisher eventPublisher;
 
+    @Override
     public Wallet getWalletByUserEmail(String email) {
         if (email == null || email.trim().isEmpty()) {
             throw new BadRequestException("Email cannot be null or empty");
@@ -46,6 +48,7 @@ public class WalletService {
                 .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
     }
 
+    @Override
     @Transactional
     public Wallet topUp(String email, BigDecimal amount, String method) {
         if (amount == null) {
@@ -103,6 +106,7 @@ public class WalletService {
         return savedWallet;
     }
 
+    @Override
     @Transactional
     public String transfer(User fromUser, User toUser, BigDecimal amount, String category, String description, String merchant) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
