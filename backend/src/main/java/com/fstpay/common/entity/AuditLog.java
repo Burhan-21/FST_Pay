@@ -6,11 +6,11 @@ import lombok.*;
 import java.time.Instant;
 import java.util.UUID;
 
-@Entity
-@Table(name = "audit_logs", indexes = {
-    @Index(name = "idx_audit_logs_email", columnList = "email"),
-    @Index(name = "idx_audit_logs_event_type", columnList = "eventType"),
-    @Index(name = "idx_audit_logs_created_at", columnList = "createdAt")
+@Entity(name = "SecurityAuditLog")
+@Table(name = "security_audit_logs", indexes = {
+    @Index(name = "idx_security_audit_logs_email", columnList = "email"),
+    @Index(name = "idx_security_audit_logs_event_type", columnList = "eventType"),
+    @Index(name = "idx_security_audit_logs_created_at", columnList = "createdAt")
 })
 @Getter
 @Setter

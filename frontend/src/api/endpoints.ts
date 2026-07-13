@@ -59,6 +59,8 @@ export const transactionApi = {
   getTransaction: (id: string) => api.get(`/transactions/${id}`),
   simulateSpend: (data: { amount: number; category: string; merchant: string; description?: string }) =>
     api.post('/transactions/simulate', data),
+  exportTransactions: (format: 'csv' | 'pdf') =>
+    api.get('/transactions/export', { params: { format }, responseType: 'blob' }),
 };
 
 // ── Analytics ──
@@ -71,11 +73,84 @@ export const analyticsApi = {
 export const aiApi = {
   chat: (message: string) =>
     api.post('/ai-coach/chat', { message }),
+  getHealthScore: () => api.get('/ai-coach/health-score'),
+  getTips: () => api.get('/ai-coach/tips'),
+  getForecast: () => api.get('/ai-coach/forecast'),
+  getBudgetPlan: () => api.get('/ai-coach/budget'),
+};
+
+// ── Goals ──
+export const goalsApi = {
+  getGoals: () => api.get('/goals'),
+  createGoal: (data: { name: string; description?: string; targetAmount: number; targetDate: string; priority?: string; icon?: string; color?: string }) =>
+    api.post('/goals', data),
+  updateGoal: (id: string, data: Partial<{ name: string; description: string; targetAmount: number; targetDate: string; priority: string; icon: string; color: string; status: string }>) =>
+    api.patch(`/goals/${id}`, data),
+  deleteGoal: (id: string) => api.delete(`/goals/${id}`),
+  allocateFunds: (id: string, amount: number) => api.post(`/goals/${id}/allocate`, { amount }),
+  withdrawFunds: (id: string, amount: number) => api.post(`/goals/${id}/withdraw`, { amount }),
 };
 
 // ── Rewards ──
 export const rewardsApi = {
-  getRewards: () => api.get('/rewards'),
-  getHistory: () => api.get('/rewards/history'),
-  claimStreak: () => api.post('/rewards/claim-streak'),
+  getStatus: () => api.get('/rewards/status'),
+  getBadges: () => api.get('/rewards/badges'),
+  getCatalog: () => api.get('/rewards/catalog'),
+  getRedemptions: () => api.get('/rewards/redemptions'),
+  redeemItem: (itemId: string) => api.post(`/rewards/redeem/${itemId}`),
+  claimStreak: () => api.post('/rewards/streak'),
+};
+
+// ── Reports ──
+export const reportsApi = {
+  requestMonthlyReport: () => api.post('/reports/monthly/request'),
+};
+
+// ── Parental ──
+export const parentalApi = {
+  getInvitation: (token: string) =>
+    api.get(`/parental/invitation/${token}`),
+  acceptInvitation: (data: { token: string; fullName: string; passwordHash?: string; password?: string; phone?: string; dateOfBirth: string; gender?: string; idType?: string; idNumber?: string }) =>
+    api.post('/parental/accept-invitation', data),
+  inviteParent: (data: { parentEmail: string; relationship: string }) =>
+    api.post('/parental/teen/invite-parent', data),
+  getInvitationStatus: () =>
+    api.get('/parental/teen/invitation-status'),
+  cancelInvitation: (id: string) =>
+    api.delete(`/parental/teen/invitation/${id}`),
+  requestApproval: (data: { requestType: string; amount?: number; category?: string; merchant?: string; description: string; targetId?: string }) =>
+    api.post('/parental/teen/request-approval', data),
+  getTeenApprovalHistory: () =>
+    api.get('/parental/teen/approvals'),
+  getDashboard: () =>
+    api.get('/parental/dashboard'),
+  getChildDetails: (childId: string) =>
+    api.get(`/parental/children/${childId}`),
+  sendPocketMoney: (data: { childId: string; amount: number; description?: string }) =>
+    api.post('/parental/pocket-money', {
+      childId: data.childId,
+      amount: data.amount,
+      note: data.description
+    }),
+  setSpendingLimits: (childId: string, data: { parentalControlEnabled?: boolean; parentalMaxTxnAmount?: number; parentalDailyLimit?: number; parentalWeeklyLimit?: number; parentalMonthlyLimit?: number; parentalRestrictedCategories?: string }) =>
+    api.put(`/parental/children/${childId}/limits`, data),
+  getPendingApprovals: () =>
+    api.get('/parental/approvals'),
+  getParentApprovalHistory: () =>
+    api.get('/parental/approvals/history'),
+  decideApproval: (id: string, data: { decision: 'APPROVED' | 'REJECTED'; parentNote?: string }) =>
+    api.put(`/parental/approvals/${id}`, {
+      approved: data.decision === 'APPROVED',
+      note: data.parentNote
+    }),
+  unlinkChild: (childId: string) =>
+    api.delete(`/parental/children/${childId}/unlink`),
+  getNotifications: () =>
+    api.get('/parental/notifications'),
+  markNotificationsAsRead: () =>
+    api.put('/parental/notifications/read'),
+  freezeChildCard: (childId: string, cardId: string) =>
+    api.post(`/parental/children/${childId}/freeze-card/${cardId}`),
+  unfreezeChildCard: (childId: string, cardId: string) =>
+    api.post(`/parental/children/${childId}/unfreeze-card/${cardId}`),
 };

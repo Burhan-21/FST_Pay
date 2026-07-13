@@ -11,7 +11,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 @Slf4j
-@Service
+@Service("commonAuditService")
 @RequiredArgsConstructor
 public class AuditService {
 

@@ -8,6 +8,9 @@ public class ParentalControlDto {
     private Boolean parentalControlEnabled;
     private BigDecimal parentalMaxTxnAmount;
     private String parentalRestrictedCategories;
+    private BigDecimal parentalDailyLimit;
+    private BigDecimal parentalWeeklyLimit;
+    private BigDecimal parentalMonthlyLimit;
     private String parentalPin;
     private String parentName;
     private String parentEmail;

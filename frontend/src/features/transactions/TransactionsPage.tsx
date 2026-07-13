@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { formatCurrency, getCategoryEmoji, formatRelativeTime, parseMoneyInput } from '../../utils/helpers';
-import { Search, Filter, ArrowUpRight, ArrowDownRight, Plus, Loader2, Sparkles, AlertCircle } from 'lucide-react';
+import { Search, ArrowUpRight, ArrowDownRight, Plus, AlertCircle, Download, Inbox } from 'lucide-react';
 import { transactionApi } from '../../api/endpoints';
 import type { Transaction } from '../../types';
+import { PageTransition, EmptyState, Modal, Button } from '../../components/ui';
+import { TransactionSkeleton } from '../../components/skeletons/PageSkeletons';
 
 const categories = ['ALL', 'FOOD', 'TRANSPORT', 'SHOPPING', 'ENTERTAINMENT', 'EDUCATION', 'HEALTH', 'BILLS', 'OTHER'];
 const simulateCategories = ['FOOD', 'TRANSPORT', 'SHOPPING', 'ENTERTAINMENT', 'EDUCATION', 'HEALTH', 'BILLS', 'OTHER'];
@@ -12,6 +14,7 @@ export default function TransactionsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSimulateLoading, setIsSimulateLoading] = useState(false);
   const [showSimulate, setShowSimulate] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Filters
   const [filter, setFilter] = useState('ALL');
@@ -24,6 +27,24 @@ export default function TransactionsPage() {
   const [merchant, setMerchant] = useState('');
   const [description, setDescription] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+
+  const handleExport = async (format: 'csv' | 'pdf') => {
+    try {
+      setIsExporting(true);
+      const response = await transactionApi.exportTransactions(format);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `transactions_${new Date().toISOString().split('T')[0]}.${format}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error('Export failed:', err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const fetchTransactions = async () => {
     try {
@@ -90,16 +111,36 @@ export default function TransactionsPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <PageTransition className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-display font-bold text-white">Transactions</h1>
           <p className="text-surface-400 mt-1">Track all your spending and income</p>
         </div>
-        <button onClick={() => setShowSimulate(true)} className="btn-primary flex items-center gap-2 text-sm">
-          <Plus className="w-4 h-4" /> Simulate Spend
-        </button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => handleExport('csv')}
+            disabled={isExporting}
+            leftIcon={<Download className="w-4 h-4" />}
+          >
+            Export CSV
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => handleExport('pdf')}
+            disabled={isExporting}
+            leftIcon={<Download className="w-4 h-4" />}
+          >
+            Export PDF
+          </Button>
+          <Button variant="primary" size="sm" onClick={() => setShowSimulate(true)} leftIcon={<Plus className="w-4 h-4" />}>
+            Simulate Spend
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -126,17 +167,23 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      {/* Transaction List */}
       <div className="glass-card divide-y divide-surface-700/30 page-section">
         {isLoading && filtered.length === 0 ? (
-          <div className="flex items-center justify-center p-12">
-            <Loader2 className="w-6 h-6 animate-spin text-primary-400" />
-          </div>
+          <TransactionSkeleton />
         ) : filtered.length === 0 ? (
-          <div className="p-12 text-center">
-            <Filter className="w-12 h-12 text-surface-600 mx-auto mb-3" />
-            <p className="text-surface-400">No transactions found</p>
-          </div>
+          <EmptyState
+            icon={Inbox}
+            title="No transactions found"
+            description="No transactions match your current search or filter criteria."
+            action={filter !== 'ALL' || typeFilter !== 'ALL' || searchTerm ? {
+              label: 'Clear Filters',
+              onClick: () => {
+                setFilter('ALL');
+                setTypeFilter('ALL');
+                setSearchTerm('');
+              }
+            } : undefined}
+          />
         ) : (
           filtered.map((txn) => (
             <div key={txn.id} className="flex items-center gap-4 p-4 hover:bg-surface-800/30 transition-colors">
@@ -162,57 +209,50 @@ export default function TransactionsPage() {
       </div>
 
       {/* Simulate Modal */}
-      {showSimulate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <form onSubmit={handleSimulate} className="glass-card p-6 w-full max-w-md space-y-4 animate-slide-up">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-display font-semibold text-white flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-primary-400" /> Simulate Spend
-              </h3>
-              <button type="button" onClick={() => setShowSimulate(false)} className="text-surface-400 hover:text-white text-xl">✕</button>
+      <Modal isOpen={showSimulate} onClose={() => setShowSimulate(false)} title="Simulate Spend">
+        <form onSubmit={handleSimulate} className="space-y-4">
+          {errorMsg && (
+            <div className="p-3 rounded-xl bg-danger-500/10 border border-danger-500/20 text-danger-400 text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{errorMsg}</span>
             </div>
+          )}
 
-            {errorMsg && (
-              <div className="p-3 rounded-xl bg-danger-500/10 border border-danger-500/20 text-danger-400 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span>{errorMsg}</span>
-              </div>
-            )}
+          <div>
+            <label className="input-label">Merchant Name</label>
+            <input type="text" value={merchant} onChange={(e) => setMerchant(e.target.value)} placeholder="e.g. Swiggy, Netflix, Uber" className="input-field" required />
+          </div>
 
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="input-label">Merchant Name</label>
-              <input type="text" value={merchant} onChange={(e) => setMerchant(e.target.value)} placeholder="e.g. Swiggy, Netflix, Uber" className="input-field" required />
+              <label className="input-label">Amount (₹)</label>
+              <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="input-field" min="1" step="any" required />
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="input-label">Amount (₹)</label>
-                <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="input-field" min="1" step="any" required />
-              </div>
-              <div>
-                <label className="input-label">Category</label>
-                <select value={category} onChange={(e) => setCategory(e.target.value)} className="input-field">
-                  {simulateCategories.map((cat) => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
             <div>
-              <label className="input-label">Description (Optional)</label>
-              <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. dinner with friends" className="input-field" />
+              <label className="input-label">Category</label>
+              <select value={category} onChange={(e) => setCategory(e.target.value)} className="select-field">
+                {simulateCategories.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
             </div>
+          </div>
 
-            <div className="flex gap-3 pt-2">
-              <button type="button" onClick={() => setShowSimulate(false)} className="btn-secondary flex-1">Cancel</button>
-              <button type="submit" disabled={isSimulateLoading} className="btn-primary flex-1 flex items-center justify-center gap-2">
-                {isSimulateLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Simulate</>}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-    </div>
+          <div>
+            <label className="input-label">Description (Optional)</label>
+            <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. dinner with friends" className="input-field" />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="secondary" onClick={() => setShowSimulate(false)} fullWidth>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" isLoading={isSimulateLoading} fullWidth>
+              Simulate
+            </Button>
+          </div>
+        </form>
+      </Modal>
+    </PageTransition>
   );
 }

@@ -36,10 +36,21 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { theme } = useTheme();
   const location = useLocation();
 
-  const navItems = [
-    ...baseNavItems,
-    ...(user?.role === 'ADMIN' ? [{ path: '/admin', icon: Shield, label: 'Admin Panel', badge: 'Admin' }] : []),
-  ];
+  const getNavItems = () => {
+    if (user?.role === 'PARENT') {
+      return [
+        { path: '/parent/dashboard', icon: LayoutDashboard, label: 'Parent Panel' },
+        { path: '/parent/approvals', icon: Shield, label: 'Approvals Queue' },
+        { path: '/settings', icon: Settings, label: 'Settings' },
+      ];
+    }
+    return [
+      ...baseNavItems,
+      ...(user?.role === 'ADMIN' ? [{ path: '/admin', icon: Shield, label: 'Admin Panel', badge: 'Admin' }] : []),
+    ];
+  };
+
+  const navItems = getNavItems();
 
   const isAmoled = theme === 'amoled';
 

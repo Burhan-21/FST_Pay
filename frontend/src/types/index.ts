@@ -7,11 +7,14 @@ export interface User {
   phone?: string;
   dateOfBirth?: string;
   avatarUrl?: string;
-  role: 'USER' | 'ADMIN';
+  role: 'USER' | 'ADMIN' | 'PARENT';
   isActive: boolean;
   createdAt: string;
   parentalControlEnabled?: boolean;
   parentalMaxTxnAmount?: number;
+  parentalDailyLimit?: number;
+  parentalWeeklyLimit?: number;
+  parentalMonthlyLimit?: number;
   parentalRestrictedCategories?: string;
   parentalPin?: string;
   parentName?: string;
@@ -170,4 +173,201 @@ export interface OtpVerification {
 export interface StatsResponse {
   totalUsers: number;
   totalBalances: number;
+}
+
+export interface WalletGoal {
+  id: string;
+  name: string;
+  description?: string;
+  targetAmount: number;
+  currentAmount: number;
+  allocatedAmount: number;
+  withdrawnAmount: number;
+  targetDate: string;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH';
+  icon: string;
+  color?: string;
+  status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+  completedAt?: string;
+  cancelledAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface HealthScoreData {
+  score: number;
+  rating: 'POOR' | 'FAIR' | 'GOOD' | 'EXCELLENT';
+  description: string;
+  breakdown: {
+    savingsRate: number;
+    expenseRatio: number;
+    budgetAdherence: number;
+    streak: number;
+    goalsProgress: number;
+    consistency: number;
+  };
+}
+
+export interface ForecastData {
+  points: Array<{
+    label: string;
+    predictedCumulativeSpend: number;
+  }>;
+  modelUsed: string;
+}
+
+export interface BudgetPlanData {
+  totalIncome: number;
+  totalSpending: number;
+  recommendedAllocation: {
+    Needs: number;
+    Wants: number;
+    Savings: number;
+  };
+  actualAllocation: {
+    Needs: number;
+    Wants: number;
+    Savings: number;
+  };
+}
+
+export interface RewardsStatus {
+  points: number;
+  xp: number;
+  level: number;
+  currentLevelXpBoundary: number;
+  nextLevelXpBoundary: number;
+  streakDays: number;
+  lastStreakAt?: string;
+}
+
+export interface BadgeResponse {
+  id: string;
+  name: string;
+  displayName: string;
+  description: string;
+  icon: string;
+  unlocked: boolean;
+  unlockedAt?: string;
+}
+
+export interface RewardItem {
+  id: string;
+  title: string;
+  description?: string;
+  costPoints: number;
+  stock: number;
+  code: string;
+  createdAt: string;
+}
+
+export interface RedeemResponse {
+  id: string;
+  title: string;
+  description?: string;
+  codeClaimed: string;
+  redeemedAt: string;
+}
+
+export interface ParentInvitation {
+  id: string;
+  child: User;
+  parentEmail: string;
+  token: string;
+  status: 'PENDING' | 'ACCEPTED' | 'EXPIRED' | 'CANCELLED';
+  relationship: 'MOTHER' | 'FATHER' | 'GUARDIAN' | 'OTHER';
+  expiresAt: string;
+  createdAt: string;
+  updatedAt?: string;
+  acceptedAt?: string;
+  cancelledAt?: string;
+  resentCount: number;
+}
+
+export interface ParentChildLink {
+  id: string;
+  parent: User;
+  child: User;
+  relationship: string;
+  status: 'ACTIVE' | 'REVOKED';
+  linkedAt: string;
+  revokedAt?: string;
+}
+
+export interface TransactionApproval {
+  id: string;
+  parent?: User;
+  child: User;
+  requestType: 'SPEND' | 'CARD_FREEZE' | 'CARD_UNFREEZE' | 'CARD_GENERATE' | 'GOAL_WITHDRAW' | 'TRANSFER';
+  amount?: number;
+  category?: string;
+  merchant?: string;
+  description?: string;
+  targetId?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'FAILED';
+  parentNote?: string;
+  createdAt: string;
+  decidedAt?: string;
+}
+
+export interface ParentNotification {
+  id: string;
+  parent: User;
+  child?: User;
+  type: 'POCKET_MONEY' | 'APPROVAL_REQUEST' | 'APPROVAL_DECISION' | 'REPORT_GENERATED' | 'SECURITY_ALERT';
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface ChildSummary {
+  id: string;
+  fullName: string;
+  email: string;
+  isActive: boolean;
+  parentalControlEnabled?: boolean;
+  parentalMaxTxnAmount?: number;
+  parentalDailyLimit?: number;
+  parentalWeeklyLimit?: number;
+  parentalMonthlyLimit?: number;
+  parentalRestrictedCategories?: string;
+  createdAt: string;
+}
+
+export interface ActivityTimelineEvent {
+  timestamp: string;
+  type: string;
+  title: string;
+  description: string;
+  childId: string;
+  childName: string;
+  amount?: number;
+}
+
+export interface ParentDashboardData {
+  children: ChildSummary[];
+  totalChildrenBalance: number;
+  totalPocketMoneySentThisMonth: number;
+  pendingApprovalsCount: number;
+  recentNotifications: ParentNotification[];
+  activityTimeline: ActivityTimelineEvent[];
+}
+
+export interface ChildDetail {
+  id: string;
+  fullName: string;
+  email: string;
+  relationship: string;
+  parentalControlEnabled: boolean;
+  parentalMaxTxnAmount: number;
+  parentalDailyLimit: number;
+  parentalWeeklyLimit: number;
+  parentalMonthlyLimit: number;
+  parentalRestrictedCategories: string;
+  walletBalance: number;
+  walletCurrency: string;
+  virtualCards: VirtualCard[];
+  activeGoals: WalletGoal[];
+  recentTransactions: Transaction[];
 }

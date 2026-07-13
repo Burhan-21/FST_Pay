@@ -70,6 +70,15 @@ public class UserService {
         if (dto.getParentalMaxTxnAmount() != null) {
             user.setParentalMaxTxnAmount(dto.getParentalMaxTxnAmount());
         }
+        if (dto.getParentalDailyLimit() != null) {
+            user.setParentalDailyLimit(dto.getParentalDailyLimit());
+        }
+        if (dto.getParentalWeeklyLimit() != null) {
+            user.setParentalWeeklyLimit(dto.getParentalWeeklyLimit());
+        }
+        if (dto.getParentalMonthlyLimit() != null) {
+            user.setParentalMonthlyLimit(dto.getParentalMonthlyLimit());
+        }
         if (dto.getParentalRestrictedCategories() != null) {
             user.setParentalRestrictedCategories(dto.getParentalRestrictedCategories());
         }
@@ -107,6 +116,9 @@ public class UserService {
                 .isActive(child.getIsActive())
                 .parentalControlEnabled(child.getParentalControlEnabled())
                 .parentalMaxTxnAmount(child.getParentalMaxTxnAmount())
+                .parentalDailyLimit(child.getParentalDailyLimit())
+                .parentalWeeklyLimit(child.getParentalWeeklyLimit())
+                .parentalMonthlyLimit(child.getParentalMonthlyLimit())
                 .parentalRestrictedCategories(child.getParentalRestrictedCategories())
                 .createdAt(child.getCreatedAt())
                 .build()

@@ -33,6 +33,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             if (token != null) {
                 if (jwtProvider.validateToken(token)) {
                     String email = jwtProvider.getEmailFromToken(token);
+                    org.slf4j.MDC.put("userId", email);
                     UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
                     if (!userDetails.isAccountNonLocked()) {
@@ -56,11 +57,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     log.debug("Invalid JWT token for request: {} {}", request.getMethod(), request.getRequestURI());
                 }
             }
+            filterChain.doFilter(request, response);
         } catch (Exception e) {
             log.error("Cannot set user authentication: {}", e.getMessage());
+            filterChain.doFilter(request, response);
+        } finally {
+            org.slf4j.MDC.remove("userId");
         }
-
-        filterChain.doFilter(request, response);
     }
 
     private String extractToken(HttpServletRequest request) {

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { formatCurrency, maskCardNumber, parseMoneyInput } from '../../utils/helpers';
-import { CreditCard, Plus, Lock, Unlock, Sliders, Trash2, Shield, Loader2, Palette, Sparkles, Eye, EyeOff } from 'lucide-react';
+import { CreditCard, Plus, Lock, Unlock, Sliders, Trash2, Shield, Palette, Sparkles, Eye, EyeOff } from 'lucide-react';
 import { cardApi } from '../../api/endpoints';
 import type { VirtualCard } from '../../types';
+import { PageTransition, EmptyState, Modal, Button, Badge } from '../../components/ui';
+import { CardSkeleton } from '../../components/skeletons/PageSkeletons';
 
 const CARD_DESIGNS = [
   { id: 'sunset', gradient: 'from-orange-400 via-pink-500 to-indigo-600', label: 'Sunset' },
@@ -36,6 +38,7 @@ export default function CardsPage() {
   const [selectedBg, setSelectedBg] = useState('sunset');
   const [selectedMascot, setSelectedMascot] = useState('none');
   const [customPicUrl, setCustomPicUrl] = useState('');
+  const [confirmConfig, setConfirmConfig] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
   const [showCardNumbers, setShowCardNumbers] = useState<Record<string, boolean>>({});
 
   const fetchCards = async () => {
@@ -71,9 +74,9 @@ export default function CardsPage() {
   const getMascotEmoji = (mascot: string) => MASCOTS.find(m => m.id === mascot)?.emoji || null;
 
   const statusBadge = (s: string) => {
-    if (s === 'ACTIVE') return 'badge-accent';
-    if (s === 'FROZEN') return 'badge-warning';
-    return 'badge-danger';
+    if (s === 'ACTIVE') return 'accent' as const;
+    if (s === 'FROZEN') return 'warning' as const;
+    return 'danger' as const;
   };
 
   const handleCreate = async () => {
@@ -113,44 +116,36 @@ export default function CardsPage() {
   };
 
   if (isLoading && cards.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-        <div className="w-12 h-12 rounded-2xl gradient-primary flex items-center justify-center shadow-glow">
-          <Loader2 className="w-6 h-6 text-white animate-spin" />
-        </div>
-        <p className="text-surface-400 text-sm">Loading virtual cards...</p>
-      </div>
-    );
+    return <CardSkeleton />;
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <PageTransition className="space-y-6">
       <div className="flex items-center justify-between page-section">
         <div>
           <h1 className="text-2xl font-primary font-bold text-white">Virtual Cards</h1>
           <p className="text-surface-400 mt-1">Manage your prepaid virtual cards</p>
         </div>
-        <button
+        <Button
           onClick={() => { setShowCreate(true); setSelectedBg('sunset'); setSelectedMascot('none'); setCustomPicUrl(''); }}
-          className="btn-gradient flex items-center gap-2 text-sm"
+          variant="gradient"
+          size="sm"
+          leftIcon={<Plus className="w-4 h-4" />}
         >
-          <Plus className="w-4 h-4" /> New Card
-        </button>
+          New Card
+        </Button>
       </div>
 
-      {/* Cards Grid */}
       {cards.length === 0 ? (
-        <div className="glass-card p-16 text-center page-section">
-          <div className="w-16 h-16 rounded-2xl bg-surface-700/50 flex items-center justify-center mx-auto mb-4">
-            <CreditCard className="w-8 h-8 text-surface-500" />
-          </div>
-          <p className="text-surface-300 font-semibold text-lg">No virtual cards yet</p>
-          <p className="text-surface-500 text-sm mt-1 max-w-md mx-auto">Generate a secure virtual card to simulate online payments safely.</p>
-          <button onClick={() => setShowCreate(true)} className="btn-primary mt-6">
-            <Plus className="w-4 h-4" /> Generate Your First Card
-          </button>
-        </div>
+        <EmptyState
+          icon={CreditCard}
+          title="No virtual cards yet"
+          description="Generate a secure virtual card to simulate online payments safely."
+          action={{
+            label: 'Generate Your First Card',
+            onClick: () => setShowCreate(true)
+          }}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {cards.map((card, i) => {
@@ -188,7 +183,7 @@ export default function CardsPage() {
                       <CreditCard className="w-7 h-7 text-white/70" />
                       <span className="text-[10px] text-white/50 font-mono uppercase tracking-wider">Virtual</span>
                     </div>
-                    <span className={statusBadge(card.status)}>{card.status}</span>
+                    <Badge variant={statusBadge(card.status)}>{card.status}</Badge>
                   </div>
 
                   {/* Card Number */}
@@ -238,7 +233,16 @@ export default function CardsPage() {
                         className="p-2 rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-all haptic-tap" title="Limits">
                         <Sliders className="w-4 h-4" />
                       </button>
-                      <button onClick={() => { if (confirm('Cancel this virtual card?')) cardApi.deleteCard(card.id).then(fetchCards); }}
+                      <button onClick={() => {
+                        setConfirmConfig({
+                          title: 'Cancel Virtual Card',
+                          message: 'Are you sure you want to cancel this virtual card? This action is permanent.',
+                          onConfirm: () => {
+                            setConfirmConfig(null);
+                            cardApi.deleteCard(card.id).then(fetchCards);
+                          }
+                        });
+                      }}
                         className="p-2 rounded-lg hover:bg-danger-500/10 text-white/60 hover:text-danger-400 transition-all haptic-tap" title="Delete">
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -252,174 +256,172 @@ export default function CardsPage() {
       )}
 
       {/* Create Modal */}
-      {showCreate && (
-        <div className="modal-overlay" onClick={() => setShowCreate(false)}>
-          <div className="modal-panel space-y-5" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center shadow-lg">
-                  <Plus className="w-5 h-5 text-white" />
-                </div>
-                <h3 className="text-xl font-primary font-bold text-white">Generate New Card</h3>
-              </div>
-              <button onClick={() => setShowCreate(false)} className="w-8 h-8 rounded-xl bg-surface-700/50 flex items-center justify-center text-surface-400 hover:text-white hover:bg-surface-600/50 transition-all">✕</button>
+      <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Generate New Card">
+        <div className="space-y-5">
+          <div className="p-4 rounded-xl glass flex items-start gap-3">
+            <Shield className="w-5 h-5 text-accent-400 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm text-white font-semibold">Secure Virtual Card</p>
+              <p className="text-xs text-surface-400 mt-0.5">Generated instantly with custom details and spending limits.</p>
             </div>
-
-            <div className="p-4 rounded-xl glass flex items-start gap-3">
-              <Shield className="w-5 h-5 text-accent-400 mt-0.5 shrink-0" />
-              <div>
-                <p className="text-sm text-white font-semibold">Secure Virtual Card</p>
-                <p className="text-xs text-surface-400 mt-0.5">Generated instantly with custom details and spending limits.</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="input-label">Spending Limit</label>
-                  <input type="number" value={spendingLimitInput} onChange={(e) => setSpendingLimitInput(e.target.value)} className="input-field" min="100" />
-                </div>
-                <div>
-                  <label className="input-label">Daily Limit</label>
-                  <input type="number" value={dailyLimitInput} onChange={(e) => setDailyLimitInput(e.target.value)} className="input-field" min="100" />
-                </div>
-              </div>
-
-              <div>
-                <label className="input-label">Card Design</label>
-                <div className="grid grid-cols-6 gap-2 mb-2">
-                  {CARD_DESIGNS.map((style) => (
-                    <button key={style.id} type="button" onClick={() => { setSelectedBg(style.id); setCustomPicUrl(''); }}
-                      className={`h-10 rounded-lg border transition-all ${selectedBg === style.id && !customPicUrl ? 'border-primary-400 ring-2 ring-primary-500/20 scale-105' : 'border-white/10 opacity-60 hover:opacity-100'} bg-gradient-to-br ${style.gradient}`}
-                      title={style.label} />
-                  ))}
-                </div>
-                <input type="text" placeholder="Or paste custom image URL" value={customPicUrl}
-                  onChange={(e) => { setCustomPicUrl(e.target.value); setSelectedBg('custom'); }}
-                  className="input-field text-xs" />
-              </div>
-
-              <div>
-                <label className="input-label">Mascot Character</label>
-                <div className="grid grid-cols-6 gap-2">
-                  {MASCOTS.map((mascot) => (
-                    <button key={mascot.id} type="button" onClick={() => setSelectedMascot(mascot.id)}
-                      className={`h-14 rounded-xl border flex flex-col items-center justify-center transition-all bg-surface-800/40 hover:bg-surface-700/40 ${selectedMascot === mascot.id ? 'border-primary-400 bg-primary-500/10 text-white scale-105' : 'border-white/10 text-surface-400'}`}>
-                      <span className="text-xl">{mascot.emoji}</span>
-                      <span className="text-[9px] mt-0.5 font-medium">{mascot.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <label className="flex items-center gap-3 cursor-pointer">
-                <div className={`w-11 h-6 rounded-full transition-colors duration-300 ${isOneTime ? 'bg-primary-500' : 'bg-surface-700'}`}>
-                  <div className={`w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-300 ${isOneTime ? 'translate-x-5.5' : 'translate-x-0.5'} mt-0.5`} />
-                </div>
-                <input type="checkbox" checked={isOneTime} onChange={(e) => setIsOneTime(e.target.checked)} className="hidden" />
-                <span className="text-xs text-surface-300 font-medium">One-time use (auto-deletes after first transaction)</span>
-              </label>
-            </div>
-
-            <button onClick={handleCreate} disabled={isActionLoading}
-              className="btn-gradient w-full flex items-center justify-center gap-2 py-3">
-              {isActionLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Sparkles className="w-4 h-4" /> Generate Card</>}
-            </button>
           </div>
-        </div>
-      )}
 
-      {/* Limits Modal */}
-      {showLimitsModal && selectedCard && (
-        <div className="modal-overlay" onClick={() => { setShowLimitsModal(false); setSelectedCard(null); }}>
-          <div className="modal-panel space-y-5" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-primary font-bold text-white">Adjust Card Limits</h3>
-              <button onClick={() => { setShowLimitsModal(false); setSelectedCard(null); }} className="w-8 h-8 rounded-xl bg-surface-700/50 flex items-center justify-center text-surface-400 hover:text-white hover:bg-surface-600/50 transition-all">✕</button>
-            </div>
-            <div className="space-y-4">
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="input-label">Spending Limit</label>
-                <input type="number" value={spendingLimitInput} onChange={(e) => setSpendingLimitInput(e.target.value)} className="input-field" min="0" />
+                <input type="number" value={spendingLimitInput} onChange={(e) => setSpendingLimitInput(e.target.value)} className="input-field" min="100" />
               </div>
               <div>
                 <label className="input-label">Daily Limit</label>
-                <input type="number" value={dailyLimitInput} onChange={(e) => setDailyLimitInput(e.target.value)} className="input-field" min="0" />
+                <input type="number" value={dailyLimitInput} onChange={(e) => setDailyLimitInput(e.target.value)} className="input-field" min="100" />
               </div>
             </div>
-            <div className="flex gap-3">
-              <button onClick={() => { setShowLimitsModal(false); setSelectedCard(null); }} className="btn-secondary flex-1">Cancel</button>
-              <button onClick={async () => {
-                if (!selectedCard) return;
-                setIsActionLoading(true);
-                try {
-                  const spendingLimit = parseMoneyInput(spendingLimitInput);
-                  const dailyLimit = parseMoneyInput(dailyLimitInput);
-                  if (spendingLimit === null || dailyLimit === null) {
-                    throw new Error('Invalid limit values');
-                  }
-                  await cardApi.setLimits(selectedCard.id, { spendingLimit, dailyLimit });
-                  await fetchCards();
-                  setShowLimitsModal(false); setSelectedCard(null);
-                } catch (err) { console.error(err); } finally { setIsActionLoading(false); }
-              }} disabled={isActionLoading} className="btn-primary flex-1 flex items-center justify-center gap-2">
-                {isActionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Save Limits</>}
-              </button>
+
+            <div>
+              <label className="input-label">Card Design</label>
+              <div className="grid grid-cols-6 gap-2 mb-2">
+                {CARD_DESIGNS.map((style) => (
+                  <button key={style.id} type="button" onClick={() => { setSelectedBg(style.id); setCustomPicUrl(''); }}
+                    className={`h-10 rounded-lg border transition-all ${selectedBg === style.id && !customPicUrl ? 'border-primary-400 ring-2 ring-primary-500/20 scale-105' : 'border-white/10 opacity-60 hover:opacity-100'} bg-gradient-to-br ${style.gradient}`}
+                    title={style.label} />
+                ))}
+              </div>
+              <input type="text" placeholder="Or paste custom image URL" value={customPicUrl}
+                onChange={(e) => { setCustomPicUrl(e.target.value); setSelectedBg('custom'); }}
+                className="input-field text-xs" />
+            </div>
+
+            <div>
+              <label className="input-label">Mascot Character</label>
+              <div className="grid grid-cols-6 gap-2">
+                {MASCOTS.map((mascot) => (
+                  <button key={mascot.id} type="button" onClick={() => setSelectedMascot(mascot.id)}
+                    className={`h-14 rounded-xl border flex flex-col items-center justify-center transition-all bg-surface-800/40 hover:bg-surface-700/40 ${selectedMascot === mascot.id ? 'border-primary-400 bg-primary-500/10 text-white scale-105' : 'border-white/10 text-surface-400'}`}>
+                    <span className="text-xl">{mascot.emoji}</span>
+                    <span className="text-[9px] mt-0.5 font-medium">{mascot.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <label className="flex items-center gap-3 cursor-pointer">
+              <div className={`w-11 h-6 rounded-full transition-colors duration-300 ${isOneTime ? 'bg-primary-500' : 'bg-surface-700'}`}>
+                <div className={`w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-300 ${isOneTime ? 'translate-x-5.5' : 'translate-x-0.5'} mt-0.5`} />
+              </div>
+              <input type="checkbox" checked={isOneTime} onChange={(e) => setIsOneTime(e.target.checked)} className="hidden" />
+              <span className="text-xs text-surface-300 font-medium">One-time use (auto-deletes after first transaction)</span>
+            </label>
+          </div>
+
+          <Button onClick={handleCreate} disabled={isActionLoading} variant="gradient" isLoading={isActionLoading} fullWidth leftIcon={<Sparkles className="w-4 h-4" />}>
+            Generate Card
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Limits Modal */}
+      <Modal isOpen={showLimitsModal && !!selectedCard} onClose={() => { setShowLimitsModal(false); setSelectedCard(null); }} title="Adjust Card Limits">
+        <div className="space-y-5">
+          <div className="space-y-4">
+            <div>
+              <label className="input-label">Spending Limit</label>
+              <input type="number" value={spendingLimitInput} onChange={(e) => setSpendingLimitInput(e.target.value)} className="input-field" min="0" />
+            </div>
+            <div>
+              <label className="input-label">Daily Limit</label>
+              <input type="number" value={dailyLimitInput} onChange={(e) => setDailyLimitInput(e.target.value)} className="input-field" min="0" />
             </div>
           </div>
+          <div className="flex gap-3">
+            <Button onClick={() => { setShowLimitsModal(false); setSelectedCard(null); }} variant="secondary" fullWidth>
+              Cancel
+            </Button>
+            <Button onClick={async () => {
+              if (!selectedCard) return;
+              setIsActionLoading(true);
+              try {
+                const spendingLimit = parseMoneyInput(spendingLimitInput);
+                const dailyLimit = parseMoneyInput(dailyLimitInput);
+                if (spendingLimit === null || dailyLimit === null) {
+                  throw new Error('Invalid limit values');
+                }
+                await cardApi.setLimits(selectedCard.id, { spendingLimit, dailyLimit });
+                await fetchCards();
+                setShowLimitsModal(false); setSelectedCard(null);
+              } catch (err) { console.error(err); } finally { setIsActionLoading(false); }
+            }} disabled={isActionLoading} variant="primary" isLoading={isActionLoading} fullWidth>
+              Save Limits
+            </Button>
+          </div>
         </div>
-      )}
+      </Modal>
 
       {/* Design Modal */}
-      {showDesignModal && selectedCard && (
-        <div className="modal-overlay" onClick={() => { setShowDesignModal(false); setSelectedCard(null); }}>
-          <div className="modal-panel space-y-5" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-primary font-bold text-white">Customize Design</h3>
-              <button onClick={() => { setShowDesignModal(false); setSelectedCard(null); }} className="w-8 h-8 rounded-xl bg-surface-700/50 flex items-center justify-center text-surface-400 hover:text-white hover:bg-surface-600/50 transition-all">✕</button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="input-label">Background Style</label>
-                <div className="grid grid-cols-6 gap-2 mb-2">
-                  {CARD_DESIGNS.map((style) => (
-                    <button key={style.id} type="button" onClick={() => { setSelectedBg(style.id); setCustomPicUrl(''); }}
-                      className={`h-10 rounded-lg border transition-all ${selectedBg === style.id && !customPicUrl ? 'border-primary-400 ring-2 ring-primary-500/20 scale-105' : 'border-white/10 opacity-60 hover:opacity-100'} bg-gradient-to-br ${style.gradient}`} />
-                  ))}
-                </div>
-                <input type="text" placeholder="Custom image URL" value={customPicUrl}
-                  onChange={(e) => { setCustomPicUrl(e.target.value); setSelectedBg('custom'); }} className="input-field text-xs" />
+      <Modal isOpen={showDesignModal && !!selectedCard} onClose={() => { setShowDesignModal(false); setSelectedCard(null); }} title="Customize Design">
+        <div className="space-y-5">
+          <div className="space-y-4">
+            <div>
+              <label className="input-label">Background Style</label>
+              <div className="grid grid-cols-6 gap-2 mb-2">
+                {CARD_DESIGNS.map((style) => (
+                  <button key={style.id} type="button" onClick={() => { setSelectedBg(style.id); setCustomPicUrl(''); }}
+                    className={`h-10 rounded-lg border transition-all ${selectedBg === style.id && !customPicUrl ? 'border-primary-400 ring-2 ring-primary-500/20 scale-105' : 'border-white/10 opacity-60 hover:opacity-100'} bg-gradient-to-br ${style.gradient}`} />
+                ))}
               </div>
-              <div>
-                <label className="input-label">Mascot</label>
-                <div className="grid grid-cols-6 gap-2">
-                  {MASCOTS.map((mascot) => (
-                    <button key={mascot.id} type="button" onClick={() => setSelectedMascot(mascot.id)}
-                      className={`h-14 rounded-xl border flex flex-col items-center justify-center transition-all bg-surface-800/40 hover:bg-surface-700/40 ${selectedMascot === mascot.id ? 'border-primary-400 bg-primary-500/10 text-white scale-105' : 'border-white/10 text-surface-400'}`}>
-                      <span className="text-xl">{mascot.emoji}</span>
-                      <span className="text-[9px] mt-0.5">{mascot.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <input type="text" placeholder="Custom image URL" value={customPicUrl}
+                onChange={(e) => { setCustomPicUrl(e.target.value); setSelectedBg('custom'); }} className="input-field text-xs" />
             </div>
-            <div className="flex gap-3">
-              <button onClick={() => { setShowDesignModal(false); setSelectedCard(null); }} className="btn-secondary flex-1">Cancel</button>
-              <button onClick={async () => {
-                if (!selectedCard) return;
-                setIsActionLoading(true);
-                try {
-                  await cardApi.updateDesign(selectedCard.id, { cardDesign: JSON.stringify({ bg: selectedBg, mascot: selectedMascot, customPic: customPicUrl }) });
-                  await fetchCards();
-                  setShowDesignModal(false); setSelectedCard(null);
-                } catch (err) { console.error(err); } finally { setIsActionLoading(false); }
-              }} disabled={isActionLoading} className="btn-primary flex-1 flex items-center justify-center gap-2">
-                {isActionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Save Design</>}
-              </button>
+            <div>
+              <label className="input-label">Mascot</label>
+              <div className="grid grid-cols-6 gap-2">
+                {MASCOTS.map((mascot) => (
+                  <button key={mascot.id} type="button" onClick={() => setSelectedMascot(mascot.id)}
+                    className={`h-14 rounded-xl border flex flex-col items-center justify-center transition-all bg-surface-800/40 hover:bg-surface-700/40 ${selectedMascot === mascot.id ? 'border-primary-400 bg-primary-500/10 text-white scale-105' : 'border-white/10 text-surface-400'}`}>
+                    <span className="text-xl">{mascot.emoji}</span>
+                    <span className="text-[9px] mt-0.5">{mascot.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
+          <div className="flex gap-3">
+            <Button onClick={() => { setShowDesignModal(false); setSelectedCard(null); }} variant="secondary" fullWidth>
+              Cancel
+            </Button>
+            <Button onClick={async () => {
+              if (!selectedCard) return;
+              setIsActionLoading(true);
+              try {
+                await cardApi.updateDesign(selectedCard.id, { cardDesign: JSON.stringify({ bg: selectedBg, mascot: selectedMascot, customPic: customPicUrl }) });
+                await fetchCards();
+                setShowDesignModal(false); setSelectedCard(null);
+              } catch (err) { console.error(err); } finally { setIsActionLoading(false); }
+            }} disabled={isActionLoading} variant="primary" isLoading={isActionLoading} fullWidth>
+              Save Design
+            </Button>
+          </div>
         </div>
-      )}
-    </div>
+      </Modal>
+
+      {/* CUSTOM CONFIRM MODAL */}
+      <Modal
+        isOpen={confirmConfig !== null}
+        onClose={() => setConfirmConfig(null)}
+        title={confirmConfig?.title}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-surface-200">{confirmConfig?.message}</p>
+          <div className="flex justify-end gap-3 pt-2">
+            <Button onClick={() => setConfirmConfig(null)} variant="ghost" size="sm" className="border border-surface-700">
+              Cancel
+            </Button>
+            <Button onClick={confirmConfig?.onConfirm || (() => {})} variant="primary" size="sm" className="bg-rose-600 hover:bg-rose-500">
+              Confirm
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </PageTransition>
   );
 }
