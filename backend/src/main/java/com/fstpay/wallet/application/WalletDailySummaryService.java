@@ -1,5 +1,6 @@
-package com.fstpay.wallet.service;
+package com.fstpay.wallet.application;
 
+import com.fstpay.wallet.api.WalletDailySummaryOperations;
 import com.fstpay.wallet.entity.Wallet;
 import com.fstpay.wallet.entity.WalletDailySummary;
 import com.fstpay.wallet.repository.WalletDailySummaryRepository;
@@ -16,7 +17,7 @@ import java.util.UUID;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class WalletDailySummaryService {
+public class WalletDailySummaryService implements WalletDailySummaryOperations {
 
     private final WalletDailySummaryRepository summaryRepository;
 

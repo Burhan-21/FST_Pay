@@ -1,5 +1,6 @@
-package com.fstpay.card.service;
+package com.fstpay.card.application;
 
+import com.fstpay.card.api.VirtualCardOperations;
 import com.fstpay.card.dto.CreateCardRequest;
 import com.fstpay.card.dto.UpdateLimitRequest;
 import com.fstpay.card.entity.VirtualCard;
@@ -21,13 +22,14 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class VirtualCardService {
+public class VirtualCardService implements VirtualCardOperations {
 
     private final VirtualCardRepository virtualCardRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final SecureRandom random = new SecureRandom();
 
+    @Override
     public List<VirtualCard> getCardsByUserEmail(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -36,6 +38,7 @@ public class VirtualCardService {
                 .collect(java.util.stream.Collectors.toList());
     }
 
+    @Override
     @Transactional
     public VirtualCard createCard(String email, CreateCardRequest request) {
         User user = userRepository.findByEmail(email)
@@ -66,6 +69,7 @@ public class VirtualCardService {
         return virtualCardRepository.save(card);
     }
 
+    @Override
     @Transactional
     public VirtualCard freezeCard(String email, UUID cardId) {
         VirtualCard card = getCardForUser(email, cardId);
@@ -73,6 +77,7 @@ public class VirtualCardService {
         return virtualCardRepository.save(card);
     }
 
+    @Override
     @Transactional
     public VirtualCard unfreezeCard(String email, UUID cardId) {
         VirtualCard card = getCardForUser(email, cardId);
@@ -80,6 +85,7 @@ public class VirtualCardService {
         return virtualCardRepository.save(card);
     }
 
+    @Override
     @Transactional
     public VirtualCard updateLimits(String email, UUID cardId, UpdateLimitRequest request) {
         VirtualCard card = getCardForUser(email, cardId);
@@ -88,6 +94,7 @@ public class VirtualCardService {
         return virtualCardRepository.save(card);
     }
 
+    @Override
     @Transactional
     public void deleteCard(String email, UUID cardId) {
         VirtualCard card = getCardForUser(email, cardId);
@@ -96,6 +103,7 @@ public class VirtualCardService {
         virtualCardRepository.save(card);
     }
 
+    @Override
     @Transactional
     public VirtualCard updateDesign(String email, UUID cardId, String cardDesign) {
         VirtualCard card = getCardForUser(email, cardId);

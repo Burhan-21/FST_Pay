@@ -1,4 +1,4 @@
-package com.fstpay.wallet.service;
+package com.fstpay.wallet.application;
 
 import com.fstpay.common.exception.BadRequestException;
 import com.fstpay.common.exception.ResourceNotFoundException;

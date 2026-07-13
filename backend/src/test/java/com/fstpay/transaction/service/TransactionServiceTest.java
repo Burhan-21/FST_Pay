@@ -11,7 +11,7 @@ import com.fstpay.user.entity.User;
 import com.fstpay.user.repository.UserRepository;
 import com.fstpay.wallet.entity.Wallet;
 import com.fstpay.wallet.repository.WalletRepository;
-import com.fstpay.wallet.service.WalletDailySummaryService;
+import com.fstpay.wallet.api.WalletDailySummaryOperations;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,7 +41,7 @@ class TransactionServiceTest {
     @Mock
     private TransactionRuleEngine ruleEngine;
     @Mock
-    private WalletDailySummaryService dailySummaryService;
+    private WalletDailySummaryOperations dailySummaryService;
 
     private TransactionService transactionService;
 

@@ -4,7 +4,7 @@ import com.fstpay.common.exception.ResourceNotFoundException;
 import com.fstpay.parent.dto.PocketMoneyRequest;
 import com.fstpay.user.entity.User;
 import com.fstpay.user.repository.UserRepository;
-import com.fstpay.wallet.service.WalletService;
+import com.fstpay.wallet.api.WalletOperations;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,7 +21,7 @@ public class PocketMoneyService {
 
     private final ParentLinkService parentLinkService;
     private final UserRepository userRepository;
-    private final WalletService walletService;
+    private final WalletOperations walletService;
 
     @Transactional
     public void sendPocketMoney(String parentEmail, PocketMoneyRequest request) {
