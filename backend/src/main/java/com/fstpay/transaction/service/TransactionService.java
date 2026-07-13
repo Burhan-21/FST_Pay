@@ -2,14 +2,17 @@ package com.fstpay.transaction.service;
 
 import com.fstpay.common.exception.BadRequestException;
 import com.fstpay.common.exception.ResourceNotFoundException;
+import com.fstpay.common.rule.TransactionRuleEngine;
 import com.fstpay.transaction.dto.SimulateSpendRequest;
 import com.fstpay.transaction.entity.Transaction;
 import com.fstpay.transaction.repository.TransactionRepository;
 import com.fstpay.wallet.entity.Wallet;
 import com.fstpay.wallet.repository.WalletRepository;
+import com.fstpay.wallet.service.WalletDailySummaryService;
 import com.fstpay.user.entity.User;
 import com.fstpay.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -18,8 +21,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TransactionService {
@@ -27,6 +32,9 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final WalletRepository walletRepository;
     private final UserRepository userRepository;
+    private final TransactionExportService transactionExportService;
+    private final TransactionRuleEngine ruleEngine;
+    private final WalletDailySummaryService summaryService;
 
     public Page<Transaction> getTransactions(String email, String category, String type, int page, int size) {
         User user = userRepository.findByEmail(email)
@@ -60,31 +68,8 @@ public class TransactionService {
         Wallet wallet = walletRepository.findByUser(user)
                 .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
 
-        if (!wallet.getIsActive()) {
-            throw new BadRequestException("Wallet is inactive");
-        }
-
-        if (wallet.getBalance().compareTo(request.getAmount()) < 0) {
-            throw new BadRequestException("Insufficient wallet balance");
-        }
-
-        // Parental Control Checks
-        if (user.getParentalControlEnabled() != null && user.getParentalControlEnabled()) {
-            if (user.getParentalMaxTxnAmount() != null && user.getParentalMaxTxnAmount().compareTo(java.math.BigDecimal.ZERO) > 0) {
-                if (request.getAmount().compareTo(user.getParentalMaxTxnAmount()) > 0) {
-                    throw new BadRequestException("Blocked by parental control: Exceeds max transaction limit of ₹" + user.getParentalMaxTxnAmount());
-                }
-            }
-            if (user.getParentalRestrictedCategories() != null && !user.getParentalRestrictedCategories().trim().isEmpty()) {
-                String reqCategory = request.getCategory().toUpperCase().trim();
-                String[] restrictedList = user.getParentalRestrictedCategories().split(",");
-                for (String restricted : restrictedList) {
-                    if (restricted.trim().equalsIgnoreCase(reqCategory)) {
-                        throw new BadRequestException("Blocked by parental control: Access restricted to category " + reqCategory);
-                    }
-                }
-            }
-        }
+        // Evaluate all rules via Rule Engine
+        ruleEngine.process(user, wallet, request);
 
         // Deduct balance
         wallet.setBalance(wallet.getBalance().subtract(request.getAmount()));
@@ -103,6 +88,30 @@ public class TransactionService {
                 .status("COMPLETED")
                 .build();
 
-        return transactionRepository.save(transaction);
+        Transaction savedTxn = transactionRepository.save(transaction);
+
+        // Track spend daily aggregate
+        summaryService.trackSpend(savedWallet, request.getAmount());
+
+        log.info("Simulated spend of ₹{} from user {} completed successfully", request.getAmount(), email);
+        return savedTxn;
+    }
+
+    public String exportTransactionsCsv(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        Wallet wallet = walletRepository.findByUser(user)
+                .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
+        List<Transaction> transactions = transactionRepository.findByWalletIdOrderByCreatedAtDesc(wallet.getId());
+        return transactionExportService.exportToCsv(transactions, user, wallet);
+    }
+
+    public java.io.ByteArrayInputStream exportTransactionsPdf(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        Wallet wallet = walletRepository.findByUser(user)
+                .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
+        List<Transaction> transactions = transactionRepository.findByWalletIdOrderByCreatedAtDesc(wallet.getId());
+        return transactionExportService.exportToPdf(transactions, user, wallet);
     }
 }

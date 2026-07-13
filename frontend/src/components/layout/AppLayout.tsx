@@ -14,6 +14,8 @@ const pageTitles: Record<string, string> = {
   '/rewards': 'Rewards',
   '/settings': 'Settings',
   '/admin': 'Admin Panel',
+  '/parent/dashboard': 'Parent Panel',
+  '/parent/approvals': 'Approvals Queue',
 };
 
 export default function AppLayout() {
@@ -21,7 +23,7 @@ export default function AppLayout() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [pageKey, setPageKey] = useState(0);
   const location = useLocation();
-  const title = pageTitles[location.pathname] || '';
+  const title = pageTitles[location.pathname] || (location.pathname.startsWith('/parent/child/') ? 'Child Details' : '');
 
   useEffect(() => {
     setPageKey(prev => prev + 1);

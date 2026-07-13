@@ -70,8 +70,23 @@ public class SecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/v1/auth/**").permitAll()
-                .requestMatchers("/actuator/health").permitAll()
+                .requestMatchers("/actuator/health", "/actuator/prometheus").permitAll()
+                .requestMatchers("/actuator/**").hasRole("ADMIN")
+                // Swagger / OpenAPI
+                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                // Admin-only
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                // Public parental invitation endpoints
+                .requestMatchers("/api/v1/parental/invitation/**", "/api/v1/parental/accept-invitation").permitAll()
+                // Teen parent-interaction endpoints
+                .requestMatchers("/api/v1/parental/teen/**").hasAnyRole("USER", "ADMIN")
+                // Parental controls (PARENT or ADMIN)
+                .requestMatchers("/api/v1/parental/**").hasAnyRole("PARENT", "ADMIN")
+                // Teen-side endpoints
+                .requestMatchers("/api/v1/teen/**").hasAnyRole("USER", "ADMIN")
+                .requestMatchers("/api/v1/goals/**").hasAnyRole("USER", "ADMIN")
+                .requestMatchers("/api/v1/rewards/**").hasAnyRole("USER", "ADMIN")
+                .requestMatchers("/api/v1/reports/**").hasAnyRole("USER", "ADMIN")
                 .anyRequest().authenticated()
             )
             .addFilterBefore(rateLimitFilter, org.springframework.security.web.context.SecurityContextHolderFilter.class)

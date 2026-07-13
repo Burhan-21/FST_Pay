@@ -16,6 +16,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
     Page<Transaction> findByWallet(Wallet wallet, Pageable pageable);
     Page<Transaction> findByWalletId(UUID walletId, Pageable pageable);
     List<Transaction> findTop5ByWalletOrderByCreatedAtDesc(Wallet wallet);
+    List<Transaction> findByWalletIdOrderByCreatedAtDesc(UUID walletId);
 
     @Query("SELECT t FROM Transaction t WHERE t.wallet.id = :walletId " +
            "AND (:category IS NULL OR t.category = :category) " +

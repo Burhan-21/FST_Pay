@@ -20,6 +20,9 @@ public class ChildSummaryDto {
     private Boolean isActive;
     private Boolean parentalControlEnabled;
     private BigDecimal parentalMaxTxnAmount;
+    private BigDecimal parentalDailyLimit;
+    private BigDecimal parentalWeeklyLimit;
+    private BigDecimal parentalMonthlyLimit;
     private String parentalRestrictedCategories;
     private Instant createdAt;
 }

@@ -1,6 +1,9 @@
 package com.fstpay.transaction.service;
 
 import com.fstpay.common.exception.BadRequestException;
+import com.fstpay.common.rule.TransactionRuleEngine;
+import com.fstpay.common.rule.RuleEvaluationResult;
+import com.fstpay.common.rule.RuleStatus;
 import com.fstpay.transaction.dto.SimulateSpendRequest;
 import com.fstpay.transaction.entity.Transaction;
 import com.fstpay.transaction.repository.TransactionRepository;
@@ -8,6 +11,7 @@ import com.fstpay.user.entity.User;
 import com.fstpay.user.repository.UserRepository;
 import com.fstpay.wallet.entity.Wallet;
 import com.fstpay.wallet.repository.WalletRepository;
+import com.fstpay.wallet.service.WalletDailySummaryService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,6 +36,12 @@ class TransactionServiceTest {
     private WalletRepository walletRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private TransactionExportService transactionExportService;
+    @Mock
+    private TransactionRuleEngine ruleEngine;
+    @Mock
+    private WalletDailySummaryService dailySummaryService;
 
     private TransactionService transactionService;
 
@@ -40,7 +50,14 @@ class TransactionServiceTest {
 
     @BeforeEach
     void setUp() {
-        transactionService = new TransactionService(transactionRepository, walletRepository, userRepository);
+        transactionService = new TransactionService(
+                transactionRepository,
+                walletRepository,
+                userRepository,
+                transactionExportService,
+                ruleEngine,
+                dailySummaryService
+        );
 
         testUser = User.builder()
                 .id(UUID.randomUUID())
@@ -67,6 +84,14 @@ class TransactionServiceTest {
         when(walletRepository.save(any(Wallet.class))).thenAnswer(i -> i.getArgument(0));
         when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> i.getArgument(0));
 
+        // Mock rule engine to return success
+        when(ruleEngine.process(any(), any(), any())).thenReturn(
+                RuleEvaluationResult.builder()
+                        .status(RuleStatus.APPROVED)
+                        .message("All checks passed")
+                        .build()
+        );
+
         SimulateSpendRequest request = new SimulateSpendRequest();
         request.setAmount(new BigDecimal("500.00"));
         request.setCategory("FOOD");
@@ -78,14 +103,19 @@ class TransactionServiceTest {
         assertEquals("DEBIT", result.getType());
         assertEquals(new BigDecimal("4500.00"), testWallet.getBalance());
         assertEquals("FOOD", result.getCategory());
+        
+        // Verify summary service is invoked
+        verify(dailySummaryService, times(1)).trackSpend(any(Wallet.class), eq(new BigDecimal("500.00")));
     }
 
     @Test
-    void simulateSpend_WithInsufficientBalance_ThrowsException() {
-        testWallet.setBalance(new BigDecimal("100.00"));
-
+    void simulateSpend_WithRuleEngineException_ThrowsException() {
         when(userRepository.findByEmail("teen@example.com")).thenReturn(Optional.of(testUser));
         when(walletRepository.findByUser(testUser)).thenReturn(Optional.of(testWallet));
+
+        // Mock rule engine to throw validation exception
+        when(ruleEngine.process(any(), any(), any()))
+                .thenThrow(new BadRequestException("Insufficient balance or limit exceeded"));
 
         SimulateSpendRequest request = new SimulateSpendRequest();
         request.setAmount(new BigDecimal("500.00"));
@@ -94,80 +124,5 @@ class TransactionServiceTest {
 
         assertThrows(BadRequestException.class,
                 () -> transactionService.simulateSpend("teen@example.com", request));
-    }
-
-    @Test
-    void simulateSpend_WithInactiveWallet_ThrowsException() {
-        testWallet.setIsActive(false);
-
-        when(userRepository.findByEmail("teen@example.com")).thenReturn(Optional.of(testUser));
-        when(walletRepository.findByUser(testUser)).thenReturn(Optional.of(testWallet));
-
-        SimulateSpendRequest request = new SimulateSpendRequest();
-        request.setAmount(new BigDecimal("100.00"));
-        request.setCategory("FOOD");
-
-        assertThrows(BadRequestException.class,
-                () -> transactionService.simulateSpend("teen@example.com", request));
-    }
-
-    @Test
-    void simulateSpend_WithParentalMaxAmount_ExceedsLimit_ThrowsException() {
-        testUser.setParentalControlEnabled(true);
-        testUser.setParentalMaxTxnAmount(new BigDecimal("200.00"));
-
-        when(userRepository.findByEmail("teen@example.com")).thenReturn(Optional.of(testUser));
-        when(walletRepository.findByUser(testUser)).thenReturn(Optional.of(testWallet));
-
-        SimulateSpendRequest request = new SimulateSpendRequest();
-        request.setAmount(new BigDecimal("500.00"));
-        request.setCategory("FOOD");
-        request.setMerchant("Swiggy");
-
-        BadRequestException ex = assertThrows(BadRequestException.class,
-                () -> transactionService.simulateSpend("teen@example.com", request));
-        assertTrue(ex.getMessage().contains("parental control"));
-    }
-
-    @Test
-    void simulateSpend_WithParentalRestrictedCategory_ThrowsException() {
-        testUser.setParentalControlEnabled(true);
-        testUser.setParentalMaxTxnAmount(new BigDecimal("5000.00"));
-        testUser.setParentalRestrictedCategories("GAMING,ENTERTAINMENT");
-
-        when(userRepository.findByEmail("teen@example.com")).thenReturn(Optional.of(testUser));
-        when(walletRepository.findByUser(testUser)).thenReturn(Optional.of(testWallet));
-
-        SimulateSpendRequest request = new SimulateSpendRequest();
-        request.setAmount(new BigDecimal("100.00"));
-        request.setCategory("GAMING");
-        request.setMerchant("Steam");
-
-        BadRequestException ex = assertThrows(BadRequestException.class,
-                () -> transactionService.simulateSpend("teen@example.com", request));
-        assertTrue(ex.getMessage().contains("parental control"));
-    }
-
-    @Test
-    void simulateSpend_WithParentalControls_AllowedCategory_Succeeds() {
-        testUser.setParentalControlEnabled(true);
-        testUser.setParentalMaxTxnAmount(new BigDecimal("5000.00"));
-        testUser.setParentalRestrictedCategories("GAMING,ENTERTAINMENT");
-
-        when(userRepository.findByEmail("teen@example.com")).thenReturn(Optional.of(testUser));
-        when(walletRepository.findByUser(testUser)).thenReturn(Optional.of(testWallet));
-        when(walletRepository.save(any(Wallet.class))).thenAnswer(i -> i.getArgument(0));
-        when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> i.getArgument(0));
-
-        SimulateSpendRequest request = new SimulateSpendRequest();
-        request.setAmount(new BigDecimal("300.00"));
-        request.setCategory("FOOD");
-        request.setMerchant("Zomato");
-
-        Transaction result = transactionService.simulateSpend("teen@example.com", request);
-
-        assertNotNull(result);
-        assertEquals("FOOD", result.getCategory());
-        assertEquals(new BigDecimal("4700.00"), testWallet.getBalance());
     }
 }

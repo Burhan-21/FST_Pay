@@ -42,7 +42,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
     ...(user?.role === 'ADMIN' ? [
       { id: 'admin', title: 'Admin Control Center', category: 'Navigation', icon: ShieldAlert, action: () => navigate('/admin') }
     ] : []),
-    { id: 'simulate', title: 'Simulate Spend Transaction', category: 'Actions', icon: Terminal, action: () => { navigate('/transactions'); alert('Use the Simulate Form on the Transactions page!'); } },
+    { id: 'simulate', title: 'Simulate Spend Transaction', category: 'Actions', icon: Terminal, action: () => navigate('/transactions') },
     { id: 'parental-mode', title: 'Configure Parental Lock', category: 'Actions', icon: Sparkles, action: () => navigate('/settings') },
     { id: 'logout', title: 'Sign Out Account', category: 'Actions', icon: LogOut, action: () => { logout(); navigate('/login'); } }
   ];

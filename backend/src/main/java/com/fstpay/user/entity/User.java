@@ -68,6 +68,18 @@ public class User {
     @Builder.Default
     private String parentalRestrictedCategories = "";
 
+    @Column(name = "parental_daily_limit", precision = 15, scale = 2)
+    @Builder.Default
+    private java.math.BigDecimal parentalDailyLimit = java.math.BigDecimal.ZERO;
+
+    @Column(name = "parental_weekly_limit", precision = 15, scale = 2)
+    @Builder.Default
+    private java.math.BigDecimal parentalWeeklyLimit = java.math.BigDecimal.ZERO;
+
+    @Column(name = "parental_monthly_limit", precision = 15, scale = 2)
+    @Builder.Default
+    private java.math.BigDecimal parentalMonthlyLimit = java.math.BigDecimal.ZERO;
+
     @Column(name = "parental_pin")
     private String parentalPin;
 

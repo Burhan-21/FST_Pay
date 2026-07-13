@@ -8,8 +8,18 @@ import ReCAPTCHA from 'react-google-recaptcha';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login, verifyOtp } = useAuth();
+  const { login, verifyOtp, user } = useAuth();
   const { theme } = useTheme();
+
+  useEffect(() => {
+    if (user) {
+      if (user.role === 'PARENT') {
+        navigate('/parent/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
+    }
+  }, [user, navigate]);
 
   const [step, setStep] = useState<'credentials' | 'otp'>('credentials');
   const [email, setEmail] = useState('');
@@ -59,7 +69,6 @@ export default function Login() {
     try {
       const result = await login(email, password, recaptchaToken);
       if (result.requiresOtp) setStep('otp');
-      else navigate('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Invalid credentials. Please try again.');
     } finally { setIsLoading(false); }
@@ -71,7 +80,6 @@ export default function Login() {
     setIsLoading(true);
     try {
       await verifyOtp(email, otp);
-      navigate('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Invalid OTP. Please try again.');
     } finally { setIsLoading(false); }

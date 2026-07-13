@@ -19,4 +19,6 @@ public class SimulateSpendRequest {
     private String merchant;
 
     private String description;
+
+    private java.util.UUID cardId;
 }

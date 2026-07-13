@@ -5,6 +5,144 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Branding Colors (Light) — stored as R G B for Tailwind alpha support */
+  --color-primary: 32 112 255;
+  --color-primary-hover: 0 80 223;
+  --color-secondary: 120 211 255;
+  --color-accent: 16 185 129;
+  --color-background: #F7FAFF;
+  --color-foreground: #0E1726;
+  --color-card-bg: rgba(255, 255, 255, 0.6);
+  --color-border: rgba(15, 23, 42, 0.08);
+
+  /* Primary Scale (Light) */
+  --color-primary-50: 240 245 255;
+  --color-primary-100: 224 235 255;
+  --color-primary-200: 194 215 255;
+  --color-primary-300: 148 185 255;
+  --color-primary-400: 92 145 255;
+  --color-primary-500: 32 112 255;
+  --color-primary-600: 12 79 255;
+  --color-primary-700: 0 59 230;
+  --color-primary-800: 0 48 194;
+  --color-primary-900: 0 43 161;
+  --color-primary-950: 0 22 92;
+
+  /* Accent Scale (Light) */
+  --color-accent-50: 236 253 245;
+  --color-accent-100: 209 250 229;
+  --color-accent-200: 167 243 208;
+  --color-accent-300: 110 231 183;
+  --color-accent-400: 52 211 153;
+  --color-accent-500: 16 185 129;
+  --color-accent-600: 5 150 105;
+  --color-accent-700: 4 120 87;
+  --color-accent-800: 6 95 70;
+  --color-accent-900: 6 78 59;
+
+  /* Surface Scale (Light) */
+  --color-surface-50: 248 250 252;
+  --color-surface-100: 241 245 249;
+  --color-surface-200: 226 232 240;
+  --color-surface-300: 203 213 225;
+  --color-surface-400: 148 163 184;
+  --color-surface-500: 100 116 139;
+  --color-surface-600: 71 85 105;
+  --color-surface-700: 51 65 85;
+  --color-surface-800: 30 41 59;
+  --color-surface-900: 15 23 42;
+  --color-surface-950: 2 6 23;
+
+  /* Danger & Warning (Light) */
+  --color-danger-400: 248 113 113;
+  --color-danger-500: 239 68 68;
+  --color-danger-600: 220 38 38;
+
+  --color-warning-400: 251 191 36;
+  --color-warning-500: 245 158 11;
+  --color-warning-600: 217 119 6;
+
+  /* Spacing Tokens */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+  --spacing-3xl: 4rem;
+
+  /* Radius Tokens */
+  --radius-xs: 0.125rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
+  --radius-4xl: 2rem;
+
+  /* Shadow Tokens */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  --shadow-glass: 0 8px 32px 0 rgba(15, 23, 42, 0.06);
+  --shadow-clay: inset 3px 3px 6px 0px rgba(255, 255, 255, 0.8), inset -3px -3px 6px 0px rgba(0, 0, 0, 0.05);
+  --shadow-glow: 0 0 20px rgba(32, 112, 255, 0.1);
+  --shadow-neon: 0 0 10px rgba(32, 112, 255, 0.3), 0 0 20px rgba(32, 112, 255, 0.1);
+}
+
+.dark {
+  /* Branding Colors (Dark) */
+  --color-primary: 32 112 255;
+  --color-primary-hover: 92 145 255;
+  --color-secondary: 120 211 255;
+  --color-accent: 16 185 129;
+  --color-background: #0E1726;
+  --color-foreground: #F7FAFF;
+  --color-card-bg: rgba(30, 41, 59, 0.4);
+  --color-border: rgba(255, 255, 255, 0.08);
+
+  /* Primary Scale (Dark) */
+  --color-primary-50: 0 12 48;
+  --color-primary-100: 0 18 74;
+  --color-primary-200: 0 32 128;
+  --color-primary-300: 0 48 191;
+  --color-primary-400: 0 63 245;
+  --color-primary-500: 32 112 255;
+  --color-primary-600: 92 145 255;
+  --color-primary-700: 139 177 255;
+  --color-primary-800: 176 201 255;
+  --color-primary-900: 214 228 255;
+  --color-primary-950: 240 245 255;
+
+  /* Surface Scale (Dark) */
+  --color-surface-50: 2 6 23;
+  --color-surface-100: 15 23 42;
+  --color-surface-200: 30 41 59;
+  --color-surface-300: 51 65 85;
+  --color-surface-400: 71 85 105;
+  --color-surface-500: 100 116 139;
+  --color-surface-600: 203 213 225;
+  --color-surface-700: 226 232 240;
+  --color-surface-800: 241 245 249;
+  --color-surface-900: 248 250 252;
+  --color-surface-950: 255 255 255;
+
+  /* Shadows (Dark) */
+  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  --shadow-clay: inset 3px 3px 6px 0px rgba(255, 255, 255, 0.25), inset -3px -3px 6px 0px rgba(0, 0, 0, 0.3);
+  --shadow-glow: 0 0 20px rgba(32, 112, 255, 0.2);
+  --shadow-neon: 0 0 10px rgba(32, 112, 255, 0.5), 0 0 20px rgba(32, 112, 255, 0.3);
+}
+
+.amoled {
+  --color-background: #000000;
+  --color-foreground: #ffffff;
+  --color-card-bg: rgba(255, 255, 255, 0.03);
+  --color-border: rgba(255, 255, 255, 0.05);
+}
+
 @layer base {
   *, *::before, *::after {
     margin: 0;
@@ -19,19 +157,10 @@
   }
 
   body {
-    @apply bg-slate-50 text-slate-900 font-sans transition-colors duration-700;
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    @apply font-sans transition-colors duration-700;
     min-height: 100vh;
-  }
-
-  .dark body,
-  body.dark {
-    @apply bg-surface-950 text-white;
-  }
-
-  .amoled body,
-  body.amoled {
-    background-color: #000000;
-    color: #ffffff;
   }
 
   ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -45,7 +174,8 @@
   .dark ::-webkit-scrollbar-thumb:hover { @apply bg-surface-500; }
 
   ::selection {
-    @apply bg-primary-500/30 text-white;
+    background-color: rgba(32, 112, 255, 0.3);
+    color: #ffffff;
   }
 }
 
@@ -396,14 +526,21 @@
   .btn-primary {
     @apply btn px-6 py-2.5 bg-primary-600 text-white
            hover:bg-primary-500 active:bg-primary-700
-           shadow-lg shadow-primary-600/20 hover:shadow-primary-500/30
            hover:-translate-y-0.5;
+    box-shadow: 0 10px 15px -3px rgba(32, 112, 255, 0.2);
+  }
+  .btn-primary:hover {
+    box-shadow: 0 10px 15px -3px rgba(32, 112, 255, 0.3);
   }
 
   .btn-secondary {
-    @apply btn px-6 py-2.5 bg-surface-700/80 text-surface-100
-           border border-surface-600/50 hover:bg-surface-600 active:bg-surface-700
-           hover:border-surface-500/50;
+    @apply btn px-6 py-2.5 text-surface-100
+           hover:bg-surface-600 active:bg-surface-700;
+    background: rgba(51, 65, 85, 0.8);
+    border: 1px solid rgba(71, 85, 105, 0.5);
+  }
+  .btn-secondary:hover {
+    border-color: rgba(100, 116, 139, 0.5);
   }
 
   .light .btn-secondary {
@@ -417,14 +554,17 @@
   .btn-accent {
     @apply btn px-6 py-2.5 bg-accent-600 text-white
            hover:bg-accent-500 active:bg-accent-700
-           shadow-lg shadow-accent-600/20 hover:shadow-accent-500/30
            hover:-translate-y-0.5;
+    box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.2);
+  }
+  .btn-accent:hover {
+    box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3);
   }
 
   .btn-danger {
     @apply btn px-6 py-2.5 bg-danger-600 text-white
-           hover:bg-danger-500 active:bg-danger-600
-           shadow-lg shadow-danger-500/20;
+           hover:bg-danger-500 active:bg-danger-600;
+    box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.2);
   }
 
   .btn-ghost {
@@ -452,8 +592,11 @@
 
   .btn-gradient {
     @apply btn px-6 py-2.5 gradient-primary text-white
-           shadow-lg shadow-primary-600/30 hover:shadow-primary-500/40
            hover:-translate-y-0.5;
+    box-shadow: 0 10px 15px -3px rgba(32, 112, 255, 0.3);
+  }
+  .btn-gradient:hover {
+    box-shadow: 0 10px 15px -3px rgba(32, 112, 255, 0.4);
   }
 
   /* ================================================================

@@ -14,7 +14,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     show-sql: false
     properties:
       hibernate:
@@ -45,10 +45,10 @@ spring:
 
   # Mail
   mail:
-    host: ${MAIL_HOST:}
+    host: ${MAIL_HOST:smtp.gmail.com}
     port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME:}
-    password: ${MAIL_PASSWORD:}
+    username: ${MAIL_USERNAME:buildtoscale21@gmail.com}
+    password: ${MAIL_PASSWORD:zafmeekunhtkvit}
     properties:
       mail:
         smtp:
@@ -72,6 +72,11 @@ app:
     lockout-duration-minutes: ${LOCKOUT_DURATION_MINUTES:15}
     password-reset-token-expiry-minutes: ${PASSWORD_RESET_EXPIRY_MINUTES:30}
     otp-rate-limit-seconds: ${OTP_RATE_LIMIT_SECONDS:60}
+
+  email:
+    provider: ${EMAIL_PROVIDER:smtp}          # smtp or resend
+    resend-api-key: ${RESEND_API_KEY:}
+    from: ${EMAIL_FROM:FST Pay <no-reply@fstpay.com>}
 
   rate-limit:
     auth-requests: 10
@@ -111,6 +116,24 @@ openai:
 # Server
 server:
   port: ${PORT:8080}
+
+# Actuator & Prometheus Metrics
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, prometheus
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      enabled: true
+  health:
+    mail:
+      enabled: false
+  metrics:
+    tags:
+      application: fstpay
   error:
     include-message: never
     include-binding-errors: never
@@ -133,3 +156,13 @@ logging:
     org.springframework: WARN
   pattern:
     console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# OpenAPI / Swagger
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: method
+  default-produces-media-type: application/json

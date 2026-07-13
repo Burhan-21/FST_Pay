@@ -4,24 +4,33 @@ import com.fstpay.common.dto.ApiResponse;
 import com.fstpay.transaction.dto.SimulateSpendRequest;
 import com.fstpay.transaction.entity.Transaction;
 import com.fstpay.transaction.service.TransactionService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/transactions")
 @RequiredArgsConstructor
+@Tag(name = "Transactions", description = "Endpoints for retrieving history, simulating virtual card spends, and exporting statements")
 public class TransactionController {
 
     private final TransactionService transactionService;
 
     @GetMapping
+    @Operation(summary = "Get transaction history", description = "Fetches a paginated list of transactions for the authenticated user, optionally filtered by category and debit/credit type.")
     public ResponseEntity<ApiResponse<Page<Transaction>>> getTransactions(
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(required = false) String category,
@@ -33,6 +42,7 @@ public class TransactionController {
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Get transaction by ID", description = "Retrieves the full details of a specific transaction using its UUID.")
     public ResponseEntity<ApiResponse<Transaction>> getTransaction(
             @AuthenticationPrincipal UserDetails userDetails,
             @PathVariable UUID id) {
@@ -41,10 +51,40 @@ public class TransactionController {
     }
 
     @PostMapping("/simulate")
+    @Operation(summary = "Simulate a card purchase", description = "Simulates a debit spend on the user's virtual prepaid card. Evaluates transaction rules and triggers approvals if needed.")
     public ResponseEntity<ApiResponse<Transaction>> simulateSpend(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody SimulateSpendRequest request) {
         Transaction txn = transactionService.simulateSpend(userDetails.getUsername(), request);
         return ResponseEntity.ok(ApiResponse.success("Transaction simulated successfully", txn));
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "Export transaction history", description = "Downloads transaction statement as a PDF file or a CSV spreadsheet.")
+    public ResponseEntity<InputStreamResource> exportTransactions(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestParam(defaultValue = "csv") String format) {
+        String email = userDetails.getUsername();
+
+        if ("pdf".equalsIgnoreCase(format)) {
+            ByteArrayInputStream bis = transactionService.exportTransactionsPdf(email);
+            HttpHeaders headers = new HttpHeaders();
+            headers.add("Content-Disposition", "attachment; filename=transactions.pdf");
+            return ResponseEntity
+                    .ok()
+                    .headers(headers)
+                    .contentType(MediaType.APPLICATION_PDF)
+                    .body(new InputStreamResource(bis));
+        } else {
+            String csvData = transactionService.exportTransactionsCsv(email);
+            ByteArrayInputStream bis = new ByteArrayInputStream(csvData.getBytes(StandardCharsets.UTF_8));
+            HttpHeaders headers = new HttpHeaders();
+            headers.add("Content-Disposition", "attachment; filename=transactions.csv");
+            return ResponseEntity
+                    .ok()
+                    .headers(headers)
+                    .contentType(MediaType.parseMediaType("text/csv"))
+                    .body(new InputStreamResource(bis));
+        }
     }
 }

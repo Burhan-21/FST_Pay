@@ -31,6 +31,14 @@ public class RewardPoints {
     @Builder.Default
     private Integer points = 0;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer xp = 0;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer level = 1;
+
     @Column(name = "streak_days", nullable = false)
     @Builder.Default
     private Integer streakDays = 0;

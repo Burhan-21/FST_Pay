@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- Import default Spring Boot logback configuration for console coloring -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- Development Profile Appender (Console, human-readable) -->
+    <springProfile name="dev, test, default">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <!-- Include MDC [Trace ID: %X{correlationId}] and User ID [%X{userId}] if present -->
+                <pattern>%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %clr([Trace: %X{correlationId:-NONE}] [User: %X{userId:-NONE}]){yellow} - %msg%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}</pattern>
+                <charset>UTF8</charset>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+        
+        <logger name="com.fstpay" level="DEBUG"/>
+    </springProfile>
+
+    <!-- Production Profile Appender (JSON Structured Logging) -->
+    <springProfile name="prod">
+        <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+                <providers>
+                    <timestamp>
+                        <timeZone>UTC</timeZone>
+                    </timestamp>
+                    <pattern>
+                        <pattern>
+                            {
+                            "timestamp": "%date{yyyy-MM-dd'T'HH:mm:ss.SSS'Z',UTC}",
+                            "level": "%level",
+                            "service": "fstpay",
+                            "thread": "%thread",
+                            "logger": "%logger",
+                            "message": "%message",
+                            "exception": "%exception",
+                            "correlationId": "%mdc{correlationId:-NONE}",
+                            "userId": "%mdc{userId:-NONE}"
+                            }
+                        </pattern>
+                    </pattern>
+                </providers>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="JSON_CONSOLE"/>
+        </root>
+        
+        <logger name="com.fstpay" level="INFO"/>
+    </springProfile>
+
+</configuration>
