@@ -1,0 +1,16 @@
+# Technical Debt Register
+
+This document tracks identified technical debt, architectural compromises, and planned refactoring tasks for the FST Pay codebase. It helps ensure that strategic shortcuts do not become permanent flaws.
+
+| ID | Area | Description | Impact | Priority | Target Version |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **TD-001** | Database/Entities | Use of `FetchType.EAGER` on entity mappings (e.g., Parent-Child link relationships, Auth tokens) to resolve lazy loading issues in serialization/tests. | Can cause N+1 query performance problems and retrieve bloated object graphs under high load. | Medium | v0.8.0 |
+| **TD-002** | Module Coupling | Circular dependency between `wallet` and `transaction` modules (e.g. `WalletService` using `Transaction` builder/repo, `TransactionService` using `Wallet` repo). | Prevents independent module compilation, deployment, and clean database isolation. | High | v0.7.2 |
+| **TD-003** | Module Coupling | Circular dependency between `goal` and `reward` modules (e.g. `WalletGoalService` calling `RewardsService.addPoints()`, `RewardsService` querying `WalletGoalRepository`). | Couples goal-tracking with gamification engine, preventing clean division of domain contexts. | Medium | v0.7.2 |
+| **TD-004** | Module Coupling | Circular dependency involving cross-cutting packages `common`/`user` and other modules due to event listeners and security configurations residing in `common`. | Creates deep package loops, making code hard to package or reuse. | Low | v0.8.0 |
+| **TD-005** | Repository Isolation | Cross-module direct repository injections: `WalletService` injecting `TransactionRepository` and `TransactionService` injecting `WalletRepository`. | Bypasses public service APIs, coupling database queries and making it hard to extract modules to microservices. | High | v0.7.2 |
+| **TD-006** | Repository Isolation | Cross-module direct repository injections: `ParentDashboardService` injecting `VirtualCardRepository`, `WalletGoalRepository`, and `NotificationRepository`. | Couples parental supervision features to the databases of cards, goals, and notification systems. | Medium | v0.7.3 |
+| **TD-007** | Repository Isolation | Cross-module direct repository injections: `AnalyticsService` directly querying repositories across multiple modules (e.g., wallet, transaction, card, user). | Direct database dependency on all modules makes it hard to evolve schemas independently. | Medium | v0.7.3 |
+| **TD-008** | Repository Isolation | Cross-module direct repository access: `AiCoachService` injecting `WalletGoalRepository` and `RewardPointsRepository`. | Links the AI recommendation engine directly to reward and goal tracking databases. | Medium | v0.7.3 |
+| **TD-009** | Repository Isolation | Cross-module direct repository access: `RewardsService` injecting `WalletGoalRepository`. | Links gamification rewarding logic directly to the goal-tracking database. | Medium | v0.7.3 |
+| **TD-010** | Repository Isolation | Cross-module direct repository access: `AdminService` and `ApprovalProcessor` injecting `VirtualCardRepository`. | Administrative and approval workflows depend on card repositories. | Low | v0.8.0 |
