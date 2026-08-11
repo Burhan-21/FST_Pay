@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
+import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../hooks/useAuth';
+import { useTheme } from '../../hooks/useTheme';
 import { Eye, EyeOff, ArrowRight, Mail, Lock, Loader2, Sparkles, Shield, TrendingUp } from 'lucide-react';
 import { authApi } from '../../api/endpoints';
 import ReCAPTCHA from 'react-google-recaptcha';
@@ -69,8 +70,12 @@ export default function Login() {
     try {
       const result = await login(email, password, recaptchaToken);
       if (result.requiresOtp) setStep('otp');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Invalid credentials. Please try again.');
+    } catch (err: unknown) {
+      if (axios.isAxiosError<{ message?: string }>(err)) {
+        setError(err.response?.data?.message || 'Invalid credentials. Please try again.');
+      } else {
+        setError('Invalid credentials. Please try again.');
+      }
     } finally { setIsLoading(false); }
   };
 
@@ -80,8 +85,12 @@ export default function Login() {
     setIsLoading(true);
     try {
       await verifyOtp(email, otp);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Invalid OTP. Please try again.');
+    } catch (err: unknown) {
+      if (axios.isAxiosError<{ message?: string }>(err)) {
+        setError(err.response?.data?.message || 'Invalid OTP. Please try again.');
+      } else {
+        setError('Invalid OTP. Please try again.');
+      }
     } finally { setIsLoading(false); }
   };
 

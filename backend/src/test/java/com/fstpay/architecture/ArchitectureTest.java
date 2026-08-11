@@ -137,4 +137,43 @@ public class ArchitectureTest {
             ).allowEmptyShould(true);
         rewardRule.check(classes);
     }
+
+    @ArchTest
+    public static final ArchRule domain_events_should_not_expose_jpa_entities =
+        com.tngtech.archunit.lang.syntax.ArchRuleDefinition.fields().that().areDeclaredInClassesThat().implement(com.fstpay.common.event.DomainEvent.class)
+            .should().notHaveRawType(new DescribedPredicate<JavaClass>("be a JPA entity") {
+                @Override
+                public boolean test(JavaClass input) {
+                    return input.isAnnotatedWith("jakarta.persistence.Entity") ||
+                           input.isAnnotatedWith("javax.persistence.Entity") ||
+                           input.getName().contains(".entity.");
+                }
+            }).allowEmptyShould(true);
+
+    @ArchTest
+    public static final ArchRule outbox_repository_should_only_be_accessed_by_outbox_package =
+        classes().that().haveSimpleName("OutboxEventRepository")
+            .should().onlyBeAccessed().byAnyPackage(
+                "com.fstpay.common.outbox..",
+                "com.fstpay.config..",
+                "com.fstpay"
+            ).allowEmptyShould(true);
+
+    @ArchTest
+    public static final ArchRule only_infrastructure_packages_should_depend_on_spring_kafka =
+        noClasses().that().resideOutsideOfPackages("com.fstpay.common.config..", "com.fstpay.common.outbox..", "com.fstpay.common.aspect..")
+            .should().dependOnClassesThat().resideInAnyPackage("org.springframework.kafka..", "org.apache.kafka..")
+            .allowEmptyShould(true);
+
+    @ArchTest
+    public static final ArchRule only_infrastructure_packages_should_inject_kafka_template =
+        noClasses().that().resideOutsideOfPackages("com.fstpay.common.config..", "com.fstpay.common.outbox..")
+            .should().dependOnClassesThat().haveSimpleName("KafkaTemplate")
+            .allowEmptyShould(true);
+
+    @ArchTest
+    public static final ArchRule business_modules_must_never_depend_on_kafka_template =
+        noClasses().that().resideInAnyPackage("..user..", "..wallet..", "..card..", "..goal..", "..reward..", "..report..", "..aicoach..", "..parent..", "..notification..")
+            .should().dependOnClassesThat().haveSimpleName("KafkaTemplate")
+            .allowEmptyShould(true);
 }

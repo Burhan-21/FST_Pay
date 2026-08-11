@@ -1,0 +1,1 @@
+ALTER TABLE outbox_events ADD COLUMN version INT NOT NULL DEFAULT 0;

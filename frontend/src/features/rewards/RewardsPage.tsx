@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import axios from 'axios';
 import { Trophy, Flame, Gift, Check, Lock, Award, Mail, Copy, Sparkles } from 'lucide-react';
 import { rewardsApi, reportsApi } from '../../api/endpoints';
 import type { RewardsStatus, BadgeResponse, RewardItem, RedeemResponse } from '../../types';
@@ -21,28 +22,30 @@ export default function RewardsPage() {
   const [copySuccess, setCopySuccess] = useState(false);
   const [alertConfig, setAlertConfig] = useState<{ title: string; message: string } | null>(null);
 
-  const fetchAllData = async () => {
-    try {
-      setIsLoading(true);
-      const [statusRes, badgesRes, catalogRes, redemptionsRes] = await Promise.all([
-        rewardsApi.getStatus(),
-        rewardsApi.getBadges(),
-        rewardsApi.getCatalog(),
-        rewardsApi.getRedemptions(),
-      ]);
-      setStatus(statusRes.data);
-      setBadges(badgesRes.data);
-      setCatalog(catalogRes.data);
-      setRedemptions(redemptionsRes.data);
-    } catch (err) {
-      console.error('Error fetching rewards dashboard data:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchAllData();
+    let isMounted = true;
+    const loadRewards = async () => {
+      try {
+        const [statusRes, badgesRes, catalogRes, redemptionsRes] = await Promise.all([
+          rewardsApi.getStatus(),
+          rewardsApi.getBadges(),
+          rewardsApi.getCatalog(),
+          rewardsApi.getRedemptions(),
+        ]);
+        if (isMounted) {
+          setStatus(statusRes.data);
+          setBadges(badgesRes.data);
+          setCatalog(catalogRes.data);
+          setRedemptions(redemptionsRes.data);
+        }
+      } catch (err) {
+        console.error('Error fetching rewards dashboard data:', err);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+    loadRewards();
+    return () => { isMounted = false; };
   }, []);
 
   const handleClaimStreak = async () => {
@@ -62,11 +65,11 @@ export default function RewardsPage() {
         title: 'Daily Streak Claimed',
         message: 'Congratulations! Daily streak claimed successfully! 🎉'
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to claim daily streak:', err);
       setAlertConfig({
         title: 'Streak Claim Error',
-        message: err.response?.data?.message || 'Failed to claim daily streak.'
+        message: axios.isAxiosError<{ message?: string }>(err) ? err.response?.data?.message || 'Failed to claim daily streak.' : 'Failed to claim daily streak.'
       });
     } finally {
       setIsClaiming(false);
@@ -89,11 +92,11 @@ export default function RewardsPage() {
       setStatus(statusRes.data);
       setCatalog(catalogRes.data);
       setRedemptions(redemptionsRes.data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Redemption failed:', err);
       setAlertConfig({
         title: 'Redemption Failed',
-        message: err.response?.data?.message || 'Failed to redeem reward item.'
+        message: axios.isAxiosError<{ message?: string }>(err) ? err.response?.data?.message || 'Failed to redeem reward item.' : 'Failed to redeem reward item.'
       });
     } finally {
       setIsRedeeming(null);
@@ -108,7 +111,7 @@ export default function RewardsPage() {
         title: 'Report Dispatched',
         message: 'Statement dispatched! Check your email inbox shortly for the PDF report. 📧'
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to request statement email:', err);
       setAlertConfig({
         title: 'Request Failed',

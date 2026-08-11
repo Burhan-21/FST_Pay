@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../hooks/useAuth';
+import { useTheme } from '../../hooks/useTheme';
 import { parentalApi } from '../../api/endpoints';
+import type { ParentInvitation } from '../../types';
 import { Loader2, Sparkles, User, Lock, Phone, Calendar, Shield, CheckCircle, ArrowRight } from 'lucide-react';
 import PageTransition from '../../components/ui/PageTransition';
 import GlassCard from '../../components/ui/GlassCard';
@@ -15,9 +17,9 @@ export default function AcceptInvitation() {
   const { theme } = useTheme();
   const { refreshProfile } = useAuth();
 
-  const [invitation, setInvitation] = useState<any>(null);
-  const [loadingInvite, setLoadingInvite] = useState(true);
-  const [error, setError] = useState('');
+  const [invitation, setInvitation] = useState<ParentInvitation | null>(null);
+  const [loadingInvite, setLoadingInvite] = useState(!!token);
+  const [error, setError] = useState(token ? '' : 'No invitation token provided. Please check the link from the email invitation.');
   const [submitting, setSubmitting] = useState(false);
 
   // Form fields
@@ -31,11 +33,7 @@ export default function AcceptInvitation() {
   const isAmoled = theme === 'amoled';
 
   useEffect(() => {
-    if (!token) {
-      setError('No invitation token provided. Please check the link from the email invitation.');
-      setLoadingInvite(false);
-      return;
-    }
+    if (!token) return;
 
     const fetchInvitation = async () => {
       try {
@@ -43,8 +41,12 @@ export default function AcceptInvitation() {
         if (data?.data) {
           setInvitation(data.data);
         }
-      } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to verify invitation token. It may have expired or been cancelled.');
+      } catch (err: unknown) {
+        if (axios.isAxiosError<{ message?: string }>(err)) {
+          setError(err.response?.data?.message || 'Failed to verify invitation token. It may have expired or been cancelled.');
+        } else {
+          setError('Failed to verify invitation token. It may have expired or been cancelled.');
+        }
       } finally {
         setLoadingInvite(false);
       }
@@ -89,8 +91,12 @@ export default function AcceptInvitation() {
       } else {
         setError('Failed to configure parent profile. Please try again.');
       }
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Registration failed. Please review your details.');
+    } catch (err: unknown) {
+      if (axios.isAxiosError<{ message?: string }>(err)) {
+        setError(err.response?.data?.message || 'Registration failed. Please review your details.');
+      } else {
+        setError('Registration failed. Please review your details.');
+      }
     } finally {
       setSubmitting(false);
     }

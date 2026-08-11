@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import axios from 'axios';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { parentalApi } from '../../api/endpoints';
 import { formatCurrency, getCategoryEmoji } from '../../utils/helpers';
@@ -24,12 +25,11 @@ export default function ChildOverview() {
   const fetchChildDetails = async () => {
     if (!childId) return;
     try {
-      setError('');
       const res = await parentalApi.getChildDetails(childId);
       if (res.data?.data) {
         setChild(res.data.data);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to load child details:', err);
       setError('Could not retrieve child profile details.');
     } finally {
@@ -38,7 +38,23 @@ export default function ChildOverview() {
   };
 
   useEffect(() => {
-    fetchChildDetails();
+    if (!childId) return;
+    let isMounted = true;
+    const loadDetails = async () => {
+      try {
+        const res = await parentalApi.getChildDetails(childId);
+        if (isMounted && res.data?.data) {
+          setChild(res.data.data);
+        }
+      } catch (err: unknown) {
+        console.error('Failed to load child details:', err);
+        if (isMounted) setError('Could not retrieve child profile details.');
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+    loadDetails();
+    return () => { isMounted = false; };
   }, [childId]);
 
   const handleToggleFreeze = async (card: VirtualCard) => {
@@ -51,10 +67,12 @@ export default function ChildOverview() {
         await parentalApi.unfreezeChildCard(childId, card.id);
       }
       fetchChildDetails();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setAlertConfig({
         title: 'Error',
-        message: err.response?.data?.message || 'Failed to toggle card status'
+        message: axios.isAxiosError<{ message?: string }>(err)
+          ? err.response?.data?.message || 'Failed to toggle card status'
+          : 'Failed to toggle card status'
       });
     } finally {
       setSubmittingAction(false);
@@ -72,10 +90,12 @@ export default function ChildOverview() {
         try {
           await parentalApi.unlinkChild(childId);
           navigate('/parent/dashboard');
-        } catch (err: any) {
+        } catch (err: unknown) {
           setAlertConfig({
             title: 'Error',
-            message: err.response?.data?.message || 'Failed to unlink account.'
+            message: axios.isAxiosError<{ message?: string }>(err)
+              ? err.response?.data?.message || 'Failed to unlink account.'
+              : 'Failed to unlink account.'
           });
         } finally {
           setSubmittingAction(false);

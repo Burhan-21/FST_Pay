@@ -11,6 +11,8 @@ spring:
       maximum-pool-size: 10
       minimum-idle: 5
       connection-timeout: 20000
+      initialization-fail-timeout: -1
+      connection-test-query: SELECT 1
 
   jpa:
     hibernate:
@@ -86,8 +88,18 @@ app:
     general-requests: 150
     general-window-minutes: 1
     cache-max-size: 10000
-    trust-x-forwarded-for: false
-    register-max-per-ip-hour: 5
+    trust-x-forwarded-for: ${APP_RATE_LIMIT_TRUST_X_FORWARDED_FOR:true}
+    register-max-per-ip-hour: ${APP_RATE_LIMIT_REGISTER_MAX_PER_IP_HOUR:100}
+
+  outbox:
+    dispatcher-type: ${OUTBOX_DISPATCHER_TYPE:spring}
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer-group-id: ${KAFKA_CONSUMER_GROUP_ID:fstpay-group}
+    retention-days: 7
+    cleanup-batch-size: 100
+
 jwt:
   secret: ${JWT_SECRET:}
   access-token-expiration-ms: 900000       # 15 minutes
@@ -126,11 +138,15 @@ management:
   endpoint:
     health:
       show-details: always
+      probes:
+        enabled: true
     prometheus:
       enabled: true
   health:
     mail:
       enabled: false
+    kafka:
+      enabled: ${MANAGEMENT_HEALTH_KAFKA_ENABLED:false}
   metrics:
     tags:
       application: fstpay

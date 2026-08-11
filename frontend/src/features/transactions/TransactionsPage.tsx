@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import axios from 'axios';
 import { formatCurrency, getCategoryEmoji, formatRelativeTime, parseMoneyInput } from '../../utils/helpers';
 import { Search, ArrowUpRight, ArrowDownRight, Plus, AlertCircle, Download, Inbox } from 'lucide-react';
 import { transactionApi } from '../../api/endpoints';
@@ -48,7 +49,6 @@ export default function TransactionsPage() {
 
   const fetchTransactions = async () => {
     try {
-      setIsLoading(true);
       const res = await transactionApi.getTransactions({
         category: filter === 'ALL' ? undefined : filter,
         type: typeFilter === 'ALL' ? undefined : typeFilter,
@@ -63,7 +63,25 @@ export default function TransactionsPage() {
   };
 
   useEffect(() => {
-    fetchTransactions();
+    let isMounted = true;
+    const loadTxns = async () => {
+      try {
+        const res = await transactionApi.getTransactions({
+          category: filter === 'ALL' ? undefined : filter,
+          type: typeFilter === 'ALL' ? undefined : typeFilter,
+          size: 50,
+        });
+        if (isMounted) {
+          setTxns(res.data.data.content || res.data.data || []);
+        }
+      } catch (err) {
+        console.error('Error fetching transactions:', err);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+    loadTxns();
+    return () => { isMounted = false; };
   }, [filter, typeFilter]);
 
   const handleSimulate = async (e: React.FormEvent) => {
@@ -92,9 +110,13 @@ export default function TransactionsPage() {
       setAmount('');
       setMerchant('');
       setDescription('');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Simulation failed:', err);
-      setErrorMsg(err.response?.data?.message || 'Simulation failed. Check if wallet balance is sufficient.');
+      if (axios.isAxiosError<{ message?: string }>(err)) {
+        setErrorMsg(err.response?.data?.message || 'Simulation failed. Check if wallet balance is sufficient.');
+      } else {
+        setErrorMsg('Simulation failed. Check if wallet balance is sufficient.');
+      }
     } finally {
       setIsSimulateLoading(false);
     }

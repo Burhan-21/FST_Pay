@@ -47,3 +47,8 @@ management:
     health:
       show-details: never
       show-components: never
+      probes:
+        enabled: true
+  health:
+    kafka:
+      enabled: ${MANAGEMENT_HEALTH_KAFKA_ENABLED:true}

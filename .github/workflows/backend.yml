@@ -1,0 +1,25 @@
+name: Backend CI Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend.yml'
+      - '.github/workflows/reusable-build.yml'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend.yml'
+      - '.github/workflows/reusable-build.yml'
+
+concurrency:
+  group: backend-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    uses: ./.github/workflows/reusable-build.yml
+    with:
+      run-backend: true

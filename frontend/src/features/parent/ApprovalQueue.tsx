@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import axios from 'axios';
 import { parentalApi } from '../../api/endpoints';
 import { Check, X, Loader2, Info, MessageSquare, Clock, Calendar, AlertCircle } from 'lucide-react';
 import type { TransactionApproval } from '../../types';
@@ -22,14 +23,13 @@ export default function ApprovalQueue() {
 
   const fetchQueueData = async () => {
     try {
-      setIsLoading(true);
       const [pendingRes, historyRes] = await Promise.all([
         parentalApi.getPendingApprovals(),
         parentalApi.getParentApprovalHistory()
       ]);
       if (pendingRes.data?.data) setPending(pendingRes.data.data);
       if (historyRes.data?.data) setHistory(historyRes.data.data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to load approvals queue:', err);
     } finally {
       setIsLoading(false);
@@ -37,7 +37,25 @@ export default function ApprovalQueue() {
   };
 
   useEffect(() => {
-    fetchQueueData();
+    let isMounted = true;
+    const loadData = async () => {
+      try {
+        const [pendingRes, historyRes] = await Promise.all([
+          parentalApi.getPendingApprovals(),
+          parentalApi.getParentApprovalHistory()
+        ]);
+        if (isMounted) {
+          if (pendingRes.data?.data) setPending(pendingRes.data.data);
+          if (historyRes.data?.data) setHistory(historyRes.data.data);
+        }
+      } catch (err: unknown) {
+        console.error('Failed to load approvals queue:', err);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+    loadData();
+    return () => { isMounted = false; };
   }, []);
 
   const handleResolve = async (id: string, decision: 'APPROVED' | 'REJECTED') => {
@@ -52,10 +70,12 @@ export default function ApprovalQueue() {
         return next;
       });
       fetchQueueData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setAlertConfig({
         title: 'Decision Error',
-        message: err.response?.data?.message || 'Failed to resolve request.'
+        message: axios.isAxiosError<{ message?: string }>(err)
+          ? err.response?.data?.message || 'Failed to resolve request.'
+          : 'Failed to resolve request.'
       });
     } finally {
       setSubmittingId(null);

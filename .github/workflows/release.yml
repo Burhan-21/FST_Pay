@@ -1,0 +1,133 @@
+name: Release & Docker Build Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+# Releases should never cancel in-progress; each tag is unique
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-assets:
+    name: Build & Verify Assets
+    uses: ./.github/workflows/reusable-build.yml
+    with:
+      run-backend: true
+      run-frontend: true
+
+  docker-release:
+    name: Docker Build & Publish Release
+    runs-on: ubuntu-latest
+    needs: build-assets
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Extract Tag Version
+      id: get_version
+      run: |
+        TAG_NAME=${GITHUB_REF#refs/tags/}
+        VERSION=${TAG_NAME#v}
+        echo "TAG_NAME=$TAG_NAME" >> $GITHUB_OUTPUT
+        echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Backend Docker Image
+      run: |
+        docker build -t fstpay-backend:${{ steps.get_version.outputs.VERSION }} ./backend
+        docker tag fstpay-backend:${{ steps.get_version.outputs.VERSION }} fstpay-backend:latest
+
+    - name: Build Frontend Docker Image
+      run: |
+        docker build -t fstpay-frontend:${{ steps.get_version.outputs.VERSION }} ./frontend
+        docker tag fstpay-frontend:${{ steps.get_version.outputs.VERSION }} fstpay-frontend:latest
+
+    - name: Validate Docker Compose Configuration
+      run: docker compose config --quiet
+
+    - name: Start Docker Compose Stack
+      run: docker compose up -d
+
+    - name: Verify Services Health
+      run: |
+        echo "Waiting for services to stabilize..."
+        sleep 20
+
+        echo "=== Service Status ==="
+        docker compose ps
+
+        echo ""
+        echo "=== Service Logs (last 30 lines each) ==="
+        docker compose logs --tail=30
+
+        # Check that no container exited unexpectedly
+        EXITED=$(docker compose ps --filter "status=exited" -q | wc -l)
+        if [ "$EXITED" -gt 0 ]; then
+          echo ""
+          echo "ERROR: $EXITED container(s) exited unexpectedly!"
+          docker compose ps --filter "status=exited"
+          docker compose logs
+          exit 1
+        fi
+
+        echo ""
+        echo "All Docker Compose services are running."
+
+    - name: Archive Docker Compose Status
+      if: always()
+      run: |
+        mkdir -p docker-status
+        docker compose ps > docker-status/compose-ps.txt 2>&1 || true
+        docker compose logs > docker-status/compose-logs.txt 2>&1 || true
+
+    - name: Upload Docker Status Report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: docker-compose-status
+        path: docker-status/
+        retention-days: 7
+
+    - name: Teardown Docker Compose Stack
+      if: always()
+      run: docker compose down -v
+
+    - name: Download Build Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: release-artifacts/
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: Release ${{ github.ref_name }}
+        generate_release_notes: true
+        body: |
+          # FST Pay Release ${{ github.ref_name }}
+
+          ## Build Verification
+          - ✅ Java 17 Build Matrix — Compiled & Tests Passed
+          - ✅ Java 21 Build Matrix — Compiled & Tests Passed (informational)
+          - ✅ Frontend Vitest — Unit & Component Tests Passed
+          - ✅ JaCoCo Coverage — Line coverage ≥ 70% enforced
+          - ✅ OWASP Dependency Scan — Report generated
+          - ✅ npm Audit — Report generated
+
+          ## Docker Verification
+          - ✅ Backend image: `fstpay-backend:${{ steps.get_version.outputs.VERSION }}`
+          - ✅ Frontend image: `fstpay-frontend:${{ steps.get_version.outputs.VERSION }}`
+          - ✅ Docker Compose stack verified (up → health → down)
+
+        draft: false
+        prerelease: false
+        files: |
+          release-artifacts/backend-jar-jdk17/*.jar
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

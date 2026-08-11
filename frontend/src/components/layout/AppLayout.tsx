@@ -21,13 +21,8 @@ const pageTitles: Record<string, string> = {
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
-  const [pageKey, setPageKey] = useState(0);
   const location = useLocation();
   const title = pageTitles[location.pathname] || (location.pathname.startsWith('/parent/child/') ? 'Child Details' : '');
-
-  useEffect(() => {
-    setPageKey(prev => prev + 1);
-  }, [location.pathname]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -60,16 +55,18 @@ export default function AppLayout() {
         />
 
         <main className="flex-1 p-4 lg:p-6 overflow-auto gradient-mesh relative z-10">
-          <div key={pageKey} className="max-w-7xl mx-auto page-enter">
+          <div key={location.pathname} className="max-w-7xl mx-auto page-enter">
             <Outlet />
           </div>
         </main>
       </div>
 
-      <CommandPalette
-        isOpen={commandPaletteOpen}
-        onClose={() => setCommandPaletteOpen(false)}
-      />
+      {commandPaletteOpen && (
+        <CommandPalette
+          isOpen={commandPaletteOpen}
+          onClose={() => setCommandPaletteOpen(false)}
+        />
+      )}
     </div>
   );
 }

@@ -23,8 +23,14 @@ spring:
     port: 25
     username:
     password:
+  kafka:
+    listener:
+      auto-startup: false
 
 app:
+  outbox:
+    publisher:
+      delay-ms: 3600000
   rate-limit:
     trust-x-forwarded-for: false
   admin:

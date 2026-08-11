@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import { formatCurrency, getCategoryEmoji, calculatePercentage } from '../../utils/helpers';
 import {
   Wallet, CreditCard, TrendingUp, Trophy, ArrowUpRight, ArrowDownRight,
@@ -13,6 +13,8 @@ import {
 } from 'recharts';
 import { PageTransition, Avatar, EmptyState } from '../../components/ui';
 import { DashboardSkeleton } from '../../components/skeletons/PageSkeletons';
+
+import type { Transaction, Analytics } from '../../types';
 
 const statCards = [
   { key: 'balance', icon: Wallet, label: 'Wallet Balance', gradient: 'from-primary-500 to-purple-600' },
@@ -32,10 +34,10 @@ export default function Dashboard() {
   }, [user, navigate]);
 
   const [wallet, setWallet] = useState<{ balance: number; currency: string } | null>(null);
-  const [recentTxns, setRecentTxns] = useState<any[]>([]);
-  const [allTxnsForTrends, setAllTxnsForTrends] = useState<any[]>([]);
+  const [recentTxns, setRecentTxns] = useState<Transaction[]>([]);
+  const [allTxnsForTrends, setAllTxnsForTrends] = useState<Transaction[]>([]);
   const [rewards, setRewards] = useState<{ points: number; streakDays: number } | null>(null);
-  const [analytics, setAnalytics] = useState<any>(null);
+  const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [chartTab, setChartTab] = useState<'income_expense' | 'trend'>('income_expense');
 

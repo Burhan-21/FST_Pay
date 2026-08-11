@@ -54,10 +54,6 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<'users' | 'transactions'>('users');
   const [actioningUserId, setActioningUserId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchAdminData();
-  }, []);
-
   const fetchAdminData = async () => {
     try {
       setIsLoading(true);
@@ -75,6 +71,9 @@ export default function AdminPage() {
       setIsLoading(false);
     }
   };
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetching effect: async setState after await is architecturally correct
+  useEffect(() => { fetchAdminData(); }, []);
 
   const handleToggleActive = async (userId: string) => {
     try {

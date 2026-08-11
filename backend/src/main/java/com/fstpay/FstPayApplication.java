@@ -36,24 +36,26 @@ public class FstPayApplication {
                 return;
             }
             
+            String cleanEmail = adminEmail.trim().toLowerCase();
+            String cleanPassword = adminPassword.trim();
             try {
-                User user = userRepository.findByEmail(adminEmail).orElse(null);
+                User user = userRepository.findByEmail(cleanEmail).orElse(null);
                 if (user != null) {
-                    user.setPasswordHash(passwordEncoder.encode(adminPassword));
+                    user.setPasswordHash(passwordEncoder.encode(cleanPassword));
                     user.setRole("ADMIN");
                     user.setIsActive(true);
                     userRepository.save(user);
-                    log.info("Admin user password updated successfully for email: {}", adminEmail);
+                    log.info("Admin user password updated successfully for email: {}", cleanEmail);
                 } else {
                     User newAdmin = User.builder()
-                            .email(adminEmail)
-                            .passwordHash(passwordEncoder.encode(adminPassword))
-                            .fullName(adminFullName != null ? adminFullName : "Admin User")
+                            .email(cleanEmail)
+                            .passwordHash(passwordEncoder.encode(cleanPassword))
+                            .fullName(adminFullName != null ? adminFullName.trim() : "Admin User")
                             .role("ADMIN")
                             .isActive(true)
                             .build();
                     userRepository.save(newAdmin);
-                    log.info("Admin user created successfully for email: {}", adminEmail);
+                    log.info("Admin user created successfully for email: {}", cleanEmail);
                 }
 
                 // Update E2E test users passwords to "Burhan@1234" to ensure test stability

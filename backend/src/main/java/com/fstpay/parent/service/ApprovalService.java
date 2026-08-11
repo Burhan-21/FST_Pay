@@ -2,8 +2,10 @@ package com.fstpay.parent.service;
 
 import com.fstpay.common.exception.BadRequestException;
 import com.fstpay.common.exception.ResourceNotFoundException;
-import com.fstpay.common.event.ApprovalDecisionEvent;
+import com.fstpay.common.event.EventPublisher;
 import com.fstpay.common.event.ApprovalRequestedEvent;
+import com.fstpay.common.event.ParentApprovalGrantedEvent;
+import com.fstpay.common.event.ParentApprovalRejectedEvent;
 import com.fstpay.parent.dto.ApprovalDecisionRequest;
 import com.fstpay.parent.dto.SpendApprovalRequest;
 import com.fstpay.parent.entity.ParentChildLink;
@@ -14,7 +16,6 @@ import com.fstpay.user.entity.User;
 import com.fstpay.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,7 +33,7 @@ public class ApprovalService {
     private final ParentChildLinkRepository parentChildLinkRepository;
     private final UserRepository userRepository;
     private final ParentLinkService parentLinkService;
-    private final ApplicationEventPublisher eventPublisher;
+    private final EventPublisher eventPublisher;
     
     // Use Lazy to prevent circular reference if ApprovalProcessor calls ApprovalService
     @Lazy
@@ -63,8 +64,8 @@ public class ApprovalService {
         TransactionApproval saved = transactionApprovalRepository.save(approval);
 
         // Publish Event (listened to for notifications, audits, etc.)
-        eventPublisher.publishEvent(new ApprovalRequestedEvent(
-                this, parent, child, saved.getRequestType(), saved.getAmount(), saved.getMerchant(), saved.getDescription()
+        eventPublisher.publish(ApprovalRequestedEvent.create(
+                parent, child, saved.getRequestType(), saved.getAmount(), saved.getMerchant(), saved.getDescription()
         ));
 
         log.info("Child {} requested approval for {} from parent {}", childEmail, saved.getRequestType(), parent.getEmail());
@@ -95,9 +96,15 @@ public class ApprovalService {
         TransactionApproval saved = transactionApprovalRepository.save(approval);
 
         // Publish Event (handles notification sends)
-        eventPublisher.publishEvent(new ApprovalDecisionEvent(
-                this, parent, approval.getChild(), saved.getRequestType(), saved.getAmount(), approved
-        ));
+        if (approved) {
+            eventPublisher.publish(ParentApprovalGrantedEvent.create(
+                    parent, approval.getChild(), saved.getRequestType(), saved.getAmount()
+            ));
+        } else {
+            eventPublisher.publish(ParentApprovalRejectedEvent.create(
+                    parent, approval.getChild(), saved.getRequestType(), saved.getAmount()
+            ));
+        }
 
         // If approved, trigger execution of the requested transaction/action
         if (approved) {

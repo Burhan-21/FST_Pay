@@ -2,7 +2,9 @@ package com.fstpay.wallet.application;
 
 import com.fstpay.common.exception.BadRequestException;
 import com.fstpay.common.exception.ResourceNotFoundException;
-import com.fstpay.common.event.PocketMoneyTransferredEvent;
+import com.fstpay.common.event.EventPublisher;
+import com.fstpay.common.event.MoneyTransferredEvent;
+import com.fstpay.common.event.WalletFundedEvent;
 import com.fstpay.user.entity.User;
 import com.fstpay.user.repository.UserRepository;
 import com.fstpay.wallet.api.WalletOperations;
@@ -12,7 +14,6 @@ import com.fstpay.transaction.entity.Transaction;
 import com.fstpay.transaction.repository.TransactionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,7 +34,7 @@ public class WalletService implements WalletOperations {
     private final UserRepository userRepository;
     private final TransactionRepository transactionRepository;
     private final WalletDailySummaryService walletDailySummaryService;
-    private final ApplicationEventPublisher eventPublisher;
+    private final EventPublisher eventPublisher;
 
     @Override
     public Wallet getWalletByUserEmail(String email) {
@@ -103,6 +104,8 @@ public class WalletService implements WalletOperations {
         log.info("Top-up completed for wallet: {}, amount: {}, method: {}", 
                 wallet.getId(), amount, transactionMethod);
         
+        eventPublisher.publish(WalletFundedEvent.create(savedWallet.getUser(), amount, transactionMethod, transaction.getReferenceId()));
+
         return savedWallet;
     }
 
@@ -171,7 +174,7 @@ public class WalletService implements WalletOperations {
         walletDailySummaryService.trackReceive(toWallet, amount);
 
         // 4. Publish Domain Event
-        eventPublisher.publishEvent(new PocketMoneyTransferredEvent(this, fromUser, toUser, amount, referenceId, description));
+        eventPublisher.publish(MoneyTransferredEvent.create(fromUser, toUser, amount, referenceId, description));
 
         log.info("Wallet transfer of ₹{} complete. Ref: {}", amount, referenceId);
         return referenceId;

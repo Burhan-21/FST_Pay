@@ -13,12 +13,34 @@ public class RecaptchaService {
     @Value("${google.recaptcha.secret:}")
     private String recaptchaSecret;
 
+    private final org.springframework.core.env.Environment env;
     private final RestTemplate restTemplate = new RestTemplate();
 
+    public RecaptchaService(org.springframework.core.env.Environment env) {
+        this.env = env;
+    }
+
+    private boolean isProdEnvironment() {
+        if (env != null && env.getActiveProfiles() != null) {
+            for (String profile : env.getActiveProfiles()) {
+                if ("prod".equalsIgnoreCase(profile) || "production".equalsIgnoreCase(profile)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     public boolean verifyToken(String token) {
-        // Allow bypass only if secret is not configured (dev mode)
+        // In production profile, secret key MUST be explicitly configured
+        if (isProdEnvironment() && (recaptchaSecret == null || recaptchaSecret.trim().isEmpty())) {
+            log.error("reCAPTCHA secret key must be configured in production environment!");
+            return false;
+        }
+
+        // Allow bypass only if secret is not configured in dev/test environment
         if (recaptchaSecret == null || recaptchaSecret.trim().isEmpty()) {
-            log.warn("reCAPTCHA secret not configured — allowing request without verification");
+            log.warn("reCAPTCHA secret not configured — allowing request without verification (non-prod)");
             return true;
         }
 

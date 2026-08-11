@@ -39,7 +39,18 @@
                             "logger": "%logger",
                             "message": "%message",
                             "exception": "%exception",
+                            "traceId": "%mdc{traceId:-NONE}",
+                            "spanId": "%mdc{spanId:-NONE}",
                             "correlationId": "%mdc{correlationId:-NONE}",
+                            "eventId": "%mdc{eventId:-NONE}",
+                            "aggregateId": "%mdc{aggregateId:-NONE}",
+                            "aggregateType": "%mdc{aggregateType:-NONE}",
+                            "dispatcherType": "%mdc{dispatcherType:-NONE}",
+                            "topic": "%mdc{topic:-NONE}",
+                            "partition": "%mdc{partition:-NONE}",
+                            "offset": "%mdc{offset:-NONE}",
+                            "listenerClass": "%mdc{listenerClass:-NONE}",
+                            "consumerGroup": "%mdc{consumerGroup:-NONE}",
                             "userId": "%mdc{userId:-NONE}"
                             }
                         </pattern>

@@ -119,6 +119,7 @@ export interface Analytics {
   totalCredit: number;
   netSavings: number;
   spendingByCategory: SpendingByCategory[];
+  spendByCategory?: Record<string, number>;
   topMerchants: Array<{ merchant: string; amount: number }>;
 }
 

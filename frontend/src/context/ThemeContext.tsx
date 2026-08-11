@@ -1,13 +1,6 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import type { ThemeMode } from '../types';
-
-interface ThemeContextType {
-  theme: ThemeMode;
-  setTheme: (theme: ThemeMode) => void;
-  cycleTheme: () => void;
-}
-
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+import { ThemeContext } from './ThemeContext';
 
 const THEME_CYCLE: ThemeMode[] = ['dark', 'light', 'amoled'];
 
@@ -51,12 +44,4 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       {children}
     </ThemeContext.Provider>
   );
-}
-
-export function useTheme() {
-  const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  return context;
 }
