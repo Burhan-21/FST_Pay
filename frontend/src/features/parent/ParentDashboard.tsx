@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import axios from 'axios';
+import { useAuth } from '../../hooks/useAuth';
 import { parentalApi } from '../../api/endpoints';
 import { formatCurrency } from '../../utils/helpers';
 import { Link } from 'react-router-dom';
@@ -41,12 +42,11 @@ export default function ParentDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      setError('');
       const res = await parentalApi.getDashboard();
       if (res.data?.data) {
         setData(res.data.data);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to load parent dashboard:', err);
       setError('Could not retrieve dashboard information. Please try again.');
     } finally {
@@ -55,7 +55,22 @@ export default function ParentDashboard() {
   };
 
   useEffect(() => {
-    fetchDashboardData();
+    let isMounted = true;
+    const loadDashboard = async () => {
+      try {
+        const res = await parentalApi.getDashboard();
+        if (isMounted && res.data?.data) {
+          setData(res.data.data);
+        }
+      } catch (err: unknown) {
+        console.error('Failed to load parent dashboard:', err);
+        if (isMounted) setError('Could not retrieve dashboard information. Please try again.');
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+    loadDashboard();
+    return () => { isMounted = false; };
   }, []);
 
   const handleSendPocketMoney = async (e: React.FormEvent) => {
@@ -71,10 +86,12 @@ export default function ParentDashboard() {
       setPocketMoneyOpen(false);
       setTransferAmount('');
       fetchDashboardData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setAlertConfig({
         title: 'Transfer Failed',
-        message: err.response?.data?.message || 'Transfer failed. Check your wallet balance.'
+        message: axios.isAxiosError<{ message?: string }>(err)
+          ? err.response?.data?.message || 'Transfer failed. Check your wallet balance.'
+          : 'Transfer failed. Check your wallet balance.'
       });
     } finally {
       setSubmittingAction(false);
@@ -96,10 +113,12 @@ export default function ParentDashboard() {
       });
       setLimitsOpen(false);
       fetchDashboardData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setAlertConfig({
         title: 'Limit Adjust Failed',
-        message: err.response?.data?.message || 'Failed to update spending limits.'
+        message: axios.isAxiosError<{ message?: string }>(err)
+          ? err.response?.data?.message || 'Failed to update spending limits.'
+          : 'Failed to update spending limits.'
       });
     } finally {
       setSubmittingAction(false);

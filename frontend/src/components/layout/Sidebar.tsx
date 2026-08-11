@@ -12,8 +12,8 @@ import {
   Shield,
   Sparkles,
 } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../hooks/useAuth';
+import { useTheme } from '../../hooks/useTheme';
 
 const baseNavItems = [
   { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },

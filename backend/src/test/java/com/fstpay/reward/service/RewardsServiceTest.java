@@ -1,5 +1,7 @@
 package com.fstpay.reward.service;
 
+import com.fstpay.common.event.EventPublisher;
+import com.fstpay.common.event.RewardRedeemedEvent;
 import com.fstpay.common.exception.BadRequestException;
 import com.fstpay.common.exception.ResourceNotFoundException;
 import com.fstpay.goal.repository.WalletGoalRepository;
@@ -47,6 +49,8 @@ class RewardsServiceTest {
     private RewardRedemptionRepository rewardRedemptionRepository;
     @Mock
     private WalletGoalRepository walletGoalRepository;
+    @Mock
+    private EventPublisher eventPublisher;
 
     private RewardsService rewardsService;
 
@@ -58,7 +62,7 @@ class RewardsServiceTest {
         rewardsService = new RewardsService(
                 rewardPointsRepository, rewardHistoryRepository, userRepository,
                 badgeRepository, userBadgeRepository, rewardItemRepository,
-                rewardRedemptionRepository, walletGoalRepository
+                rewardRedemptionRepository, walletGoalRepository, eventPublisher
         );
 
         user = User.builder().id(UUID.randomUUID()).email("test@example.com").fullName("Test Teen").build();
@@ -144,6 +148,7 @@ class RewardsServiceTest {
         assertTrue(result.getCodeClaimed().startsWith("CODE50-"));
         assertEquals(50, rewardPoints.getPoints());
         assertEquals(4, item.getStock());
+        verify(eventPublisher, times(1)).publish(any(RewardRedeemedEvent.class));
     }
 
     @Test

@@ -53,6 +53,7 @@ export default function CardsPage() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetching effect: async setState after await is architecturally correct
   useEffect(() => { fetchCards(); }, []);
 
   const getCardDesign = (designStr: string | undefined) => {

@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../hooks/useAuth';
+import { useTheme } from '../../hooks/useTheme';
 import { Eye, EyeOff, ArrowRight, Mail, Lock, User, Calendar, Loader2, Check, Sparkles, Zap, BarChart3, Trophy, Shield } from 'lucide-react';
 import ReCAPTCHA from 'react-google-recaptcha';
 
@@ -48,8 +49,12 @@ export default function Register() {
       const result = await register(fullName, email, password, dateOfBirth, recaptchaToken);
       if (result.requiresOtp) setStep('otp');
       else navigate('/dashboard');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+    } catch (err: unknown) {
+      if (axios.isAxiosError<{ message?: string }>(err)) {
+        setError(err.response?.data?.message || 'Registration failed. Please try again.');
+      } else {
+        setError('Registration failed. Please try again.');
+      }
     } finally { setIsLoading(false); }
   };
 
@@ -60,8 +65,12 @@ export default function Register() {
     try {
       await verifyOtp(email, otp);
       navigate('/dashboard');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Invalid OTP. Please try again.');
+    } catch (err: unknown) {
+      if (axios.isAxiosError<{ message?: string }>(err)) {
+        setError(err.response?.data?.message || 'Invalid OTP. Please try again.');
+      } else {
+        setError('Invalid OTP. Please try again.');
+      }
     } finally { setIsLoading(false); }
   };
 

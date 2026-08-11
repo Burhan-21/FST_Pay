@@ -1,19 +1,7 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import { authApi, userApi } from '../api/endpoints';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
+import { userApi, authApi } from '../api/endpoints';
 import type { User, TokenResponse } from '../types';
-
-interface AuthContextType {
-  user: User | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  login: (email: string, password: string, recaptchaToken?: string) => Promise<{ requiresOtp: boolean }>;
-  verifyOtp: (email: string, otp: string) => Promise<void>;
-  register: (fullName: string, email: string, password: string, dateOfBirth?: string, recaptchaToken?: string) => Promise<{ requiresOtp: boolean }>;
-  logout: () => void;
-  refreshProfile: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import { AuthContext } from './AuthContext';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -114,12 +102,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
 }

@@ -1,7 +1,7 @@
 import axios, { AxiosError } from 'axios';
 import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -54,7 +54,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
       if (isRefreshing) {
         // Already refreshing, queue this request
-        return new Promise<any>((resolve, reject) => {
+        return new Promise<unknown>((resolve, reject) => {
           failedQueue.push({
             resolve: (token: string) => {
               if (originalRequest.headers) {

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import axios from 'axios';
 import {
   Bot,
   Send,
@@ -118,14 +119,6 @@ export default function AiCoachPage() {
   const iconsList = ['🎯', '💻', '🎓', '📱', '👟', '🍕', '🎮', '🚗', '🏖️', '🏠'];
   const colorsList = ['#2070FF', '#7C3AED', '#22C55E', '#F59E0B', '#EF4444', '#EC4899'];
 
-  useEffect(() => {
-    if (activeTab === 'chat') {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    } else {
-      fetchAnalyticsAndGoals();
-    }
-  }, [activeTab, messages]);
-
   const fetchAnalyticsAndGoals = async () => {
     try {
       setIsLoadingData(true);
@@ -150,6 +143,15 @@ export default function AiCoachPage() {
       setIsLoadingData(false);
     }
   };
+
+  useEffect(() => {
+    if (activeTab === 'chat') {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [activeTab, messages]);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetching effect: async setState after await is architecturally correct
+  useEffect(() => { if (activeTab !== 'chat') fetchAnalyticsAndGoals(); }, [activeTab]);
 
   const sendMessage = async () => {
     if (!input.trim() || isChatLoading) return;
@@ -215,10 +217,12 @@ export default function AiCoachPage() {
       setNewGoalPriority('MEDIUM');
       setIsGoalModalOpen(false);
       fetchAnalyticsAndGoals();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setAlertConfig({
         title: 'Error Creating Goal',
-        message: err.response?.data?.message || 'Failed to create savings goal. Please verify inputs.'
+        message: axios.isAxiosError<{ message?: string }>(err)
+          ? err.response?.data?.message || 'Failed to create savings goal. Please verify inputs.'
+          : 'Failed to create savings goal. Please verify inputs.'
       });
     }
   };
@@ -237,10 +241,12 @@ export default function AiCoachPage() {
       setFundAmount('');
       setIsFundModalOpen(false);
       fetchAnalyticsAndGoals();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setAlertConfig({
         title: 'Funding Error',
-        message: err.response?.data?.message || 'Failed to process savings allocation.'
+        message: axios.isAxiosError<{ message?: string }>(err)
+          ? err.response?.data?.message || 'Failed to process savings allocation.'
+          : 'Failed to process savings allocation.'
       });
     }
   };
@@ -253,10 +259,12 @@ export default function AiCoachPage() {
         try {
           await goalsApi.deleteGoal(id);
           fetchAnalyticsAndGoals();
-        } catch (err: any) {
+        } catch (err: unknown) {
           setAlertConfig({
             title: 'Error',
-            message: err.response?.data?.message || 'Failed to cancel goal.'
+            message: axios.isAxiosError<{ message?: string }>(err)
+              ? err.response?.data?.message || 'Failed to cancel goal.'
+              : 'Failed to cancel goal.'
           });
         } finally {
           setConfirmConfig(null);
@@ -295,7 +303,7 @@ export default function AiCoachPage() {
             {['chat', 'health', 'goals', 'budget', 'learning'].map((tab) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab as any)}
+                onClick={() => setActiveTab(tab as 'chat' | 'health' | 'goals' | 'budget' | 'learning')}
                 className={`px-4 py-2 rounded-lg text-xs font-semibold capitalize transition-all ${
                   activeTab === tab 
                     ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/25' 
@@ -777,7 +785,7 @@ export default function AiCoachPage() {
                 <select
                   id="newGoalPriority"
                   value={newGoalPriority}
-                  onChange={(e) => setNewGoalPriority(e.target.value as any)}
+                  onChange={(e) => setNewGoalPriority(e.target.value as 'LOW' | 'MEDIUM' | 'HIGH')}
                   className="w-full bg-surface-900 border border-surface-700/60 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="LOW">Low</option>

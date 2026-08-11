@@ -24,11 +24,12 @@ test.describe('E2E Virtual Cards Flow', () => {
     });
   });
 
-  async function triggerRecaptcha(page) {
+  async function triggerRecaptcha(page: import('@playwright/test').Page) {
     await page.waitForTimeout(500);
     await page.evaluate(() => {
-      if (typeof (window as any).grecaptchaCallback === 'function') {
-        (window as any).grecaptchaCallback('mock-recaptcha-token');
+      const win = window as unknown as { grecaptchaCallback?: (token: string) => void };
+      if (typeof win.grecaptchaCallback === 'function') {
+        win.grecaptchaCallback('mock-recaptcha-token');
       } else {
         console.error('grecaptchaCallback not found on window');
       }

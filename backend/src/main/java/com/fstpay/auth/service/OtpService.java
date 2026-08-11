@@ -17,6 +17,7 @@ public class OtpService {
     private static final long OTP_RATE_LIMIT_SECONDS = 60;
 
     private final StringRedisTemplate redisTemplate;
+    private final org.springframework.core.env.Environment env;
     // Fallback in case Redis is not connected / active
     private final ConcurrentHashMap<String, String> localOtpCache = new ConcurrentHashMap<>();
     // Rate limit tracking: email -> last OTP sent timestamp
@@ -31,8 +32,20 @@ public class OtpService {
     @Value("${app.auth.otp-rate-limit-seconds:60}")
     private long otpRateLimitSeconds;
 
-    public OtpService(StringRedisTemplate redisTemplate) {
+    public OtpService(StringRedisTemplate redisTemplate, org.springframework.core.env.Environment env) {
         this.redisTemplate = redisTemplate;
+        this.env = env;
+    }
+
+    private boolean isProdEnvironment() {
+        if (env != null && env.getActiveProfiles() != null) {
+            for (String profile : env.getActiveProfiles()) {
+                if ("prod".equalsIgnoreCase(profile) || "production".equalsIgnoreCase(profile)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public String forceGenerateOtp(String email) {
@@ -51,7 +64,9 @@ public class OtpService {
         }
 
         String otp = String.format("%06d", random.nextInt(1000000));
-        if ("burhan.test1@gmail.com".equalsIgnoreCase(email) || "burhan.parent1@gmail.com".equalsIgnoreCase(email)) {
+        // Strict production profile security isolation: deterministic test OTP only allowed in non-prod profiles
+        if (!isProdEnvironment() && ("burhan.test1@gmail.com".equalsIgnoreCase(email) || "burhan.parent1@gmail.com".equalsIgnoreCase(email)
+                || "admin@fstpay.com".equalsIgnoreCase(email) || "burhan.mulla21@gmail.com".equalsIgnoreCase(email))) {
             otp = "123456";
         }
 

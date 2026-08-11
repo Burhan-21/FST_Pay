@@ -49,8 +49,9 @@ public class SecurityConfig {
                 .contentSecurityPolicy(csp -> csp.policyDirectives(
                     "default-src 'self'; " +
                     "script-src 'self' 'unsafe-inline' https://www.google.com https://www.gstatic.com; " +
-                    "style-src 'self' 'unsafe-inline'; " +
-                    "img-src 'self' data: https:; " +
+                    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+                    "font-src 'self' https://fonts.gstatic.com https://db.onlinewebfonts.com data:; " +
+                    "img-src 'self' data: blob: https:; " +
                     "frame-src 'self' https://www.google.com; " +
                     "connect-src 'self' https://www.google.com;"
                 ))
@@ -70,12 +71,13 @@ public class SecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/v1/auth/**").permitAll()
-                .requestMatchers("/actuator/health", "/actuator/prometheus").permitAll()
+                .requestMatchers("/actuator/health/**", "/actuator/prometheus").permitAll()
                 .requestMatchers("/actuator/**").hasRole("ADMIN")
                 // Swagger / OpenAPI
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 // Admin-only
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/admin/outbox/**").hasRole("ADMIN")
                 // Public parental invitation endpoints
                 .requestMatchers("/api/v1/parental/invitation/**", "/api/v1/parental/accept-invitation").permitAll()
                 // Teen parent-interaction endpoints

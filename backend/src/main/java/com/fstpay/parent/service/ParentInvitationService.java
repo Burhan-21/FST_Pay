@@ -4,6 +4,7 @@ import com.fstpay.auth.dto.TokenResponse;
 import com.fstpay.auth.security.JwtProvider;
 import com.fstpay.common.exception.BadRequestException;
 import com.fstpay.common.exception.ResourceNotFoundException;
+import com.fstpay.common.event.EventPublisher;
 import com.fstpay.common.event.ParentInvitationAcceptedEvent;
 import com.fstpay.parent.entity.ParentChildLink;
 import com.fstpay.parent.entity.ParentInvitation;
@@ -19,7 +20,6 @@ import com.fstpay.parent.dto.AcceptInvitationRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,7 +43,7 @@ public class ParentInvitationService {
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
     private final EmailService emailService;
-    private final ApplicationEventPublisher eventPublisher;
+    private final EventPublisher eventPublisher;
 
     @Value("${cors.allowed-origins:http://localhost:5173}")
     private String frontendUrl;
@@ -230,7 +230,7 @@ public class ParentInvitationService {
         parentInvitationRepository.save(invitation);
 
         // 6. Publish Event for auditing, notifications, and onboarding
-        eventPublisher.publishEvent(new ParentInvitationAcceptedEvent(this, parent, child, invitation.getRelationship()));
+        eventPublisher.publish(ParentInvitationAcceptedEvent.create(parent, child, invitation.getRelationship()));
 
         // 7. Generate auth tokens for parent to auto-login
         String accessToken = jwtProvider.generateAccessToken(parent.getEmail(), parent.getRole());

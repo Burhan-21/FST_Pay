@@ -1,5 +1,7 @@
 package com.fstpay.reward.service;
 
+import com.fstpay.common.event.EventPublisher;
+import com.fstpay.common.event.RewardRedeemedEvent;
 import com.fstpay.common.exception.BadRequestException;
 import com.fstpay.common.exception.ResourceNotFoundException;
 import com.fstpay.goal.repository.WalletGoalRepository;
@@ -10,7 +12,6 @@ import com.fstpay.reward.entity.*;
 import com.fstpay.reward.repository.*;
 import com.fstpay.user.entity.User;
 import com.fstpay.user.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
@@ -40,6 +41,7 @@ public class RewardsService {
     private final RewardItemRepository rewardItemRepository;
     private final RewardRedemptionRepository rewardRedemptionRepository;
     private final WalletGoalRepository walletGoalRepository;
+    private final EventPublisher eventPublisher;
 
     public RewardsService(
             RewardPointsRepository rewardPointsRepository,
@@ -49,7 +51,8 @@ public class RewardsService {
             UserBadgeRepository userBadgeRepository,
             RewardItemRepository rewardItemRepository,
             RewardRedemptionRepository rewardRedemptionRepository,
-            @Lazy WalletGoalRepository walletGoalRepository
+            @Lazy WalletGoalRepository walletGoalRepository,
+            EventPublisher eventPublisher
     ) {
         this.rewardPointsRepository = rewardPointsRepository;
         this.rewardHistoryRepository = rewardHistoryRepository;
@@ -59,6 +62,7 @@ public class RewardsService {
         this.rewardItemRepository = rewardItemRepository;
         this.rewardRedemptionRepository = rewardRedemptionRepository;
         this.walletGoalRepository = walletGoalRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     public RewardPoints getRewardPoints(String email) {
@@ -308,6 +312,13 @@ public class RewardsService {
                 .redeemedAt(Instant.now())
                 .build();
         rewardRedemptionRepository.save(redemption);
+
+        eventPublisher.publish(RewardRedeemedEvent.create(
+                user,
+                redemption.getId(),
+                item.getTitle(),
+                item.getCostPoints()
+        ));
 
         log.info("User {} redeemed item {}. Points spent: {}", email, item.getTitle(), item.getCostPoints());
 

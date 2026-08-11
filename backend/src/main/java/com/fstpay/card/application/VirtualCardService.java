@@ -1,5 +1,8 @@
 package com.fstpay.card.application;
 
+import com.fstpay.common.event.EventPublisher;
+import com.fstpay.common.event.CardCreatedEvent;
+import com.fstpay.common.event.CardFrozenEvent;
 import com.fstpay.card.api.VirtualCardOperations;
 import com.fstpay.card.dto.CreateCardRequest;
 import com.fstpay.card.dto.UpdateLimitRequest;
@@ -27,6 +30,7 @@ public class VirtualCardService implements VirtualCardOperations {
     private final VirtualCardRepository virtualCardRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EventPublisher eventPublisher;
     private final SecureRandom random = new SecureRandom();
 
     @Override
@@ -66,7 +70,15 @@ public class VirtualCardService implements VirtualCardOperations {
                 .cardDesign(request.getCardDesign())
                 .build();
 
-        return virtualCardRepository.save(card);
+        VirtualCard savedCard = virtualCardRepository.save(card);
+        eventPublisher.publish(CardCreatedEvent.create(
+                user,
+                savedCard.getId(),
+                savedCard.getCardHolder(),
+                savedCard.getCardDesign(),
+                savedCard.getSpendingLimit()
+        ));
+        return savedCard;
     }
 
     @Override
@@ -74,7 +86,12 @@ public class VirtualCardService implements VirtualCardOperations {
     public VirtualCard freezeCard(String email, UUID cardId) {
         VirtualCard card = getCardForUser(email, cardId);
         card.setStatus("FROZEN");
-        return virtualCardRepository.save(card);
+        VirtualCard savedCard = virtualCardRepository.save(card);
+        eventPublisher.publish(CardFrozenEvent.create(
+                card.getUser(),
+                savedCard.getId()
+        ));
+        return savedCard;
     }
 
     @Override

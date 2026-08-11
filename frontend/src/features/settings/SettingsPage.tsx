@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import axios from 'axios';
+import { useAuth } from '../../hooks/useAuth';
 import { User, Lock, Shield, Bell, Palette, Loader2, Check, AlertCircle } from 'lucide-react';
 import { userApi, parentalApi } from '../../api/endpoints';
+import type { ParentInvitation, TransactionApproval } from '../../types';
 import PageTransition from '../../components/ui/PageTransition';
 import Modal from '../../components/ui/Modal';
 import Button from '../../components/ui/Button';
@@ -19,8 +21,8 @@ export default function SettingsPage() {
   const [phone, setPhone] = useState(user?.phone || '');
 
   // Parental Controls Link & Invitation States
-  const [activeInvite, setActiveInvite] = useState<any>(null);
-  const [approvalsHistory, setApprovalsHistory] = useState<any[]>([]);
+  const [activeInvite, setActiveInvite] = useState<ParentInvitation | null>(null);
+  const [approvalsHistory, setApprovalsHistory] = useState<TransactionApproval[]>([]);
   const [parentEmailInput, setParentEmailInput] = useState('');
   const [relationship, setRelationship] = useState('MOTHER');
   const [parentalLoading, setParentalLoading] = useState(false);
@@ -41,14 +43,13 @@ export default function SettingsPage() {
 
   const fetchParentalData = async () => {
     try {
-      setParentalLoading(true);
       const [inviteRes, historyRes] = await Promise.all([
         parentalApi.getInvitationStatus().catch(() => ({ data: { data: null } })),
         parentalApi.getTeenApprovalHistory().catch(() => ({ data: { data: [] } }))
       ]);
       setActiveInvite(inviteRes.data?.data || null);
       setApprovalsHistory(historyRes.data?.data || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to load parent invitation data:', err);
     } finally {
       setParentalLoading(false);
@@ -56,9 +57,26 @@ export default function SettingsPage() {
   };
 
   useEffect(() => {
-    if (activeTab === 'parental') {
-      fetchParentalData();
-    }
+    if (activeTab !== 'parental') return;
+    let isMounted = true;
+    const loadParental = async () => {
+      try {
+        const [inviteRes, historyRes] = await Promise.all([
+          parentalApi.getInvitationStatus().catch(() => ({ data: { data: null } })),
+          parentalApi.getTeenApprovalHistory().catch(() => ({ data: { data: [] } }))
+        ]);
+        if (isMounted) {
+          setActiveInvite(inviteRes.data?.data || null);
+          setApprovalsHistory(historyRes.data?.data || []);
+        }
+      } catch (err: unknown) {
+        console.error('Failed to load parent invitation data:', err);
+      } finally {
+        if (isMounted) setParentalLoading(false);
+      }
+    };
+    loadParental();
+    return () => { isMounted = false; };
   }, [activeTab]);
 
   const handleSendInvite = async (e: React.FormEvent) => {
@@ -71,8 +89,8 @@ export default function SettingsPage() {
       setParentalSuccess('Invitation sent successfully! An email has been dispatched to your parent.');
       setParentEmailInput('');
       fetchParentalData();
-    } catch (err: any) {
-      setParentalError(err.response?.data?.message || 'Failed to dispatch parental invitation.');
+    } catch (err: unknown) {
+      setParentalError(axios.isAxiosError<{ message?: string }>(err) ? err.response?.data?.message || 'Failed to dispatch parental invitation.' : 'Failed to dispatch parental invitation.');
     } finally {
       setParentalLoading(false);
     }
@@ -89,8 +107,8 @@ export default function SettingsPage() {
           await parentalApi.cancelInvitation(id);
           setParentalSuccess('Invitation cancelled.');
           fetchParentalData();
-        } catch (err: any) {
-          setParentalError(err.response?.data?.message || 'Failed to cancel invitation.');
+        } catch (err: unknown) {
+          setParentalError(axios.isAxiosError<{ message?: string }>(err) ? err.response?.data?.message || 'Failed to cancel invitation.' : 'Failed to cancel invitation.');
         } finally {
           setParentalLoading(false);
         }
@@ -118,8 +136,8 @@ export default function SettingsPage() {
       setReqDescription('');
       setReqTargetId('');
       fetchParentalData();
-    } catch (err: any) {
-      setParentalError(err.response?.data?.message || 'Failed to submit approval request.');
+    } catch (err: unknown) {
+      setParentalError(axios.isAxiosError<{ message?: string }>(err) ? err.response?.data?.message || 'Failed to submit approval request.' : 'Failed to submit approval request.');
     } finally {
       setParentalLoading(false);
     }
@@ -144,9 +162,9 @@ export default function SettingsPage() {
       await refreshProfile();
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to update profile:', err);
-      setErrorMsg(err.response?.data?.message || 'Failed to update profile.');
+      setErrorMsg(axios.isAxiosError<{ message?: string }>(err) ? err.response?.data?.message || 'Failed to update profile.' : 'Failed to update profile.');
     } finally {
       setIsLoading(false);
     }
@@ -178,9 +196,9 @@ export default function SettingsPage() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to change password:', err);
-      setPasswordError(err.response?.data?.message || 'Failed to change password. Make sure current password is correct.');
+      setPasswordError(axios.isAxiosError<{ message?: string }>(err) ? err.response?.data?.message || 'Failed to change password. Make sure current password is correct.' : 'Failed to change password. Make sure current password is correct.');
     } finally {
       setIsPasswordLoading(false);
     }

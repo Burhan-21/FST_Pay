@@ -1,5 +1,8 @@
 # Secrets & Environment
 .env
+.env.prod
+.env.dev
+.env.test
 .env.local
 *.env.local
 *.env.development.local

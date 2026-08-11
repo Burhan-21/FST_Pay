@@ -1,5 +1,6 @@
 package com.fstpay.wallet.application;
 
+import com.fstpay.common.event.EventPublisher;
 import com.fstpay.common.exception.BadRequestException;
 import com.fstpay.common.exception.ResourceNotFoundException;
 import com.fstpay.transaction.repository.TransactionRepository;
@@ -12,7 +13,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -35,7 +35,7 @@ class WalletServiceTest {
     @Mock
     private WalletDailySummaryService dailySummaryService;
     @Mock
-    private ApplicationEventPublisher eventPublisher;
+    private EventPublisher eventPublisher;
 
     private WalletService walletService;
 

@@ -1,10 +1,23 @@
 import { useEffect, useRef } from 'react';
 
+interface GRecaptcha {
+  render: (
+    container: HTMLElement,
+    parameters: {
+      sitekey: string;
+      callback: string | ((token: string) => void);
+      'expired-callback'?: string | (() => void);
+      theme?: 'dark' | 'light';
+    }
+  ) => number;
+  reset?: (widgetId?: number) => void;
+}
+
 declare global {
   interface Window {
-    grecaptcha: any;
-    onRecaptchaSuccess: (token: string) => void;
-    onRecaptchaExpired: () => void;
+    grecaptcha?: GRecaptcha;
+    onRecaptchaSuccess?: (token: string) => void;
+    onRecaptchaExpired?: () => void;
   }
 }
 
@@ -42,7 +55,7 @@ export default function ReCaptcha({ onVerify }: ReCaptchaProps) {
         try {
           const isDark = document.documentElement.classList.contains('dark');
           const widgetId = window.grecaptcha.render(containerRef.current, {
-            sitekey: import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6LePkCAtAAAAALowFFe4l22jwKaIaCIQSH4pI1SH',
+            sitekey: import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI',
             callback: 'onRecaptchaSuccess',
             'expired-callback': 'onRecaptchaExpired',
             theme: isDark ? 'dark' : 'light',
@@ -54,17 +67,17 @@ export default function ReCaptcha({ onVerify }: ReCaptchaProps) {
       }
     };
 
-    if (window.grecaptcha && window.grecaptcha.render) {
+    if (window.grecaptcha) {
       renderRecaptcha();
     } else {
       const originalOnload = script.onload;
       script.onload = (e) => {
         if (originalOnload) {
-          (originalOnload as any)(e);
+          originalOnload.call(script, e);
         }
         let checks = 0;
         const interval = setInterval(() => {
-          if (window.grecaptcha && window.grecaptcha.render) {
+          if (window.grecaptcha) {
             clearInterval(interval);
             renderRecaptcha();
           } else if (checks > 50) {
@@ -77,8 +90,8 @@ export default function ReCaptcha({ onVerify }: ReCaptchaProps) {
 
     return () => {
       // Clear global callbacks
-      delete (window as any).onRecaptchaSuccess;
-      delete (window as any).onRecaptchaExpired;
+      delete window.onRecaptchaSuccess;
+      delete window.onRecaptchaExpired;
       widgetIdRef.current = null;
     };
   }, [onVerify]);

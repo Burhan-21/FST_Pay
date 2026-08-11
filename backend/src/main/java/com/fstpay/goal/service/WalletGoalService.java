@@ -1,5 +1,7 @@
 package com.fstpay.goal.service;
 
+import com.fstpay.common.event.EventPublisher;
+import com.fstpay.common.event.GoalCompletedEvent;
 import com.fstpay.common.exception.BadRequestException;
 import com.fstpay.common.exception.ResourceNotFoundException;
 import com.fstpay.goal.dto.GoalCreateRequest;
@@ -7,7 +9,6 @@ import com.fstpay.goal.dto.GoalFundRequest;
 import com.fstpay.goal.dto.UpdateGoalRequest;
 import com.fstpay.goal.entity.WalletGoal;
 import com.fstpay.goal.repository.WalletGoalRepository;
-import com.fstpay.reward.service.RewardsService;
 import com.fstpay.transaction.entity.Transaction;
 import com.fstpay.transaction.repository.TransactionRepository;
 import com.fstpay.user.entity.User;
@@ -36,8 +37,7 @@ public class WalletGoalService {
     private final UserRepository userRepository;
     private final WalletRepository walletRepository;
     private final TransactionRepository transactionRepository;
-    private final RewardsService rewardsService;
-    private final io.micrometer.core.instrument.MeterRegistry meterRegistry;
+    private final EventPublisher eventPublisher;
 
     @Value("${rewards.goal-completed-points:100}")
     private int goalCompletedPoints;
@@ -197,17 +197,27 @@ public class WalletGoalService {
         goal.setAllocatedAmount(goal.getAllocatedAmount().add(amount));
 
         // Check completion
+        boolean justCompleted = false;
         if (goal.getCurrentAmount().compareTo(goal.getTargetAmount()) >= 0) {
             goal.setStatus("COMPLETED");
             goal.setCompletedAt(Instant.now());
-            // Increment goals completed metric
-            meterRegistry.counter("fstpay.goals.completed.total").increment();
-            // Trigger configurable reward points!
-            rewardsService.addPoints(goal.getUser(), goalCompletedPoints, "Completed savings goal: " + goal.getName());
-            log.info("Goal completed: {} for user {}. Rewarded {} points.", goal.getName(), email, goalCompletedPoints);
+            justCompleted = true;
         }
 
-        return walletGoalRepository.save(goal);
+        WalletGoal savedGoal = walletGoalRepository.save(goal);
+
+        if (justCompleted) {
+            eventPublisher.publish(GoalCompletedEvent.create(
+                    savedGoal.getUser(),
+                    savedGoal.getId(),
+                    savedGoal.getName(),
+                    savedGoal.getTargetAmount(),
+                    goalCompletedPoints
+            ));
+            log.info("Goal completed: {} for user {}. GoalCompletedEvent published.", savedGoal.getName(), email);
+        }
+
+        return savedGoal;
     }
 
     @Transactional

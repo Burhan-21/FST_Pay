@@ -41,11 +41,11 @@ test.describe('E2E Authentication Flow', () => {
     await page.goto(`${BASE_URL}/login`, { waitUntil: 'domcontentloaded' });
   });
 
-  async function triggerRecaptcha(page) {
+  async function triggerRecaptcha(page: import('@playwright/test').Page) {
     // Dynamically wait for grecaptchaCallback to be defined on window
-    await page.waitForFunction(() => typeof (window as any).grecaptchaCallback === 'function', { timeout: 10000 });
+    await page.waitForFunction(() => typeof (window as unknown as { grecaptchaCallback?: unknown }).grecaptchaCallback === 'function', { timeout: 10000 });
     await page.evaluate(() => {
-      (window as any).grecaptchaCallback('mock-recaptcha-token');
+      (window as unknown as { grecaptchaCallback: (token: string) => void }).grecaptchaCallback('mock-recaptcha-token');
     });
     await page.waitForTimeout(200);
   }

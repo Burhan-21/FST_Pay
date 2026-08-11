@@ -74,7 +74,7 @@ export default function AnalyticsPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                   <XAxis dataKey="month" stroke="#64748b" fontSize={12} />
                   <YAxis stroke="#64748b" fontSize={12} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`} />
-                  <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '12px', color: '#fff' }} formatter={(value: any) => formatCurrency(value)} />
+                  <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '12px', color: '#fff' }} formatter={(value: unknown) => typeof value === 'number' ? formatCurrency(value) : ''} />
                   <Bar dataKey="income" fill="#6366f1" radius={[4, 4, 0, 0]} name="Income" />
                   <Bar dataKey="expenses" fill="#f87171" radius={[4, 4, 0, 0]} name="Expenses" />
                 </BarChart>

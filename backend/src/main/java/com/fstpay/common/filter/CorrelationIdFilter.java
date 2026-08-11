@@ -5,17 +5,13 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.MDC;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.UUID;
 
 @Component
-@Order(Ordered.HIGHEST_PRECEDENCE)
 public class CorrelationIdFilter extends OncePerRequestFilter {
 
     public static final String CORRELATION_HEADER = "X-Correlation-ID";
@@ -26,17 +22,28 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         
         String correlationId = request.getHeader(CORRELATION_HEADER);
-        if (!StringUtils.hasText(correlationId)) {
+        if (correlationId == null || correlationId.trim().isEmpty()) {
             correlationId = UUID.randomUUID().toString();
         }
 
+        // Put in MDC for logging
         MDC.put(MDC_KEY, correlationId);
+        io.opentelemetry.api.trace.Span currentSpan = io.opentelemetry.api.trace.Span.current();
+        if (currentSpan.getSpanContext().isValid()) {
+            MDC.put("traceId", currentSpan.getSpanContext().getTraceId());
+            MDC.put("spanId", currentSpan.getSpanContext().getSpanId());
+        }
+
+        // Put in Response Header
         response.setHeader(CORRELATION_HEADER, correlationId);
 
         try {
             filterChain.doFilter(request, response);
         } finally {
+            // Clear MDC to prevent leakage between requests
             MDC.remove(MDC_KEY);
+            MDC.remove("traceId");
+            MDC.remove("spanId");
         }
     }
 }

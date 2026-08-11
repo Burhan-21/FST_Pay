@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
+import axios from 'axios';
 import { formatCurrency, parseMoneyInput } from '../../utils/helpers';
 import {
   Wallet as WalletIcon, Plus, ArrowUpRight, ArrowDownRight, QrCode, CreditCard, Building2,
   Loader2, IndianRupee, Check, AlertCircle, ReceiptText
 } from 'lucide-react';
 import { walletApi, transactionApi } from '../../api/endpoints';
+import type { Transaction } from '../../types';
 import { PageTransition, EmptyState } from '../../components/ui';
 import { WalletSkeleton } from '../../components/skeletons/PageSkeletons';
 
@@ -16,7 +18,7 @@ const topUpMethods = [
 
 export default function WalletPage() {
   const [wallet, setWallet] = useState<{ balance: number; currency: string } | null>(null);
-  const [history, setHistory] = useState<any[]>([]);
+  const [history, setHistory] = useState<Transaction[]>([]);
   const [showTopUp, setShowTopUp] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState('');
   const [selectedMethod, setSelectedMethod] = useState('upi');
@@ -34,7 +36,6 @@ export default function WalletPage() {
 
   const fetchWalletAndHistory = async () => {
     try {
-      setIsLoading(true);
       const [walletRes, historyRes] = await Promise.all([
         walletApi.getWallet(),
         transactionApi.getTransactions({ size: 50 })
@@ -50,7 +51,26 @@ export default function WalletPage() {
   };
 
   useEffect(() => {
-    fetchWalletAndHistory();
+    let isMounted = true;
+    const loadWallet = async () => {
+      try {
+        const [walletRes, historyRes] = await Promise.all([
+          walletApi.getWallet(),
+          transactionApi.getTransactions({ size: 50 })
+        ]);
+        if (isMounted) {
+          setWallet(walletRes.data.data);
+          setHistory(historyRes.data.data.content || historyRes.data.data || []);
+          setTimeout(() => setBalanceRevealed(true), 100);
+        }
+      } catch (err) {
+        console.error('Wallet fetch error:', err);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+    loadWallet();
+    return () => { isMounted = false; };
   }, []);
 
   const openTopUpModal = () => {
@@ -115,9 +135,13 @@ export default function WalletPage() {
         setCardExpiry('');
         setCardCvv('');
       }, 2000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Top-up failed:', err);
-      setErrorMsg(err.response?.data?.message || 'Top-up transaction failed. Please try again.');
+      if (axios.isAxiosError<{ message?: string }>(err)) {
+        setErrorMsg(err.response?.data?.message || 'Top-up transaction failed. Please try again.');
+      } else {
+        setErrorMsg('Top-up transaction failed. Please try again.');
+      }
     } finally {
       setIsActionLoading(false);
     }

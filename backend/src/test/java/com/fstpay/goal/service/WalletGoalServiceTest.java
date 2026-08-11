@@ -1,5 +1,7 @@
 package com.fstpay.goal.service;
 
+import com.fstpay.common.event.EventPublisher;
+import com.fstpay.common.event.GoalCompletedEvent;
 import com.fstpay.common.exception.BadRequestException;
 import com.fstpay.common.exception.ResourceNotFoundException;
 import com.fstpay.goal.dto.GoalCreateRequest;
@@ -7,7 +9,6 @@ import com.fstpay.goal.dto.GoalFundRequest;
 import com.fstpay.goal.dto.UpdateGoalRequest;
 import com.fstpay.goal.entity.WalletGoal;
 import com.fstpay.goal.repository.WalletGoalRepository;
-import com.fstpay.reward.service.RewardsService;
 import com.fstpay.transaction.entity.Transaction;
 import com.fstpay.transaction.repository.TransactionRepository;
 import com.fstpay.user.entity.User;
@@ -42,9 +43,7 @@ class WalletGoalServiceTest {
     @Mock
     private TransactionRepository transactionRepository;
     @Mock
-    private RewardsService rewardsService;
-    @Mock
-    private io.micrometer.core.instrument.MeterRegistry meterRegistry;
+    private EventPublisher eventPublisher;
 
     private WalletGoalService walletGoalService;
 
@@ -54,7 +53,7 @@ class WalletGoalServiceTest {
     @BeforeEach
     void setUp() {
         walletGoalService = new WalletGoalService(
-                walletGoalRepository, userRepository, walletRepository, transactionRepository, rewardsService, meterRegistry
+                walletGoalRepository, userRepository, walletRepository, transactionRepository, eventPublisher
         );
         ReflectionTestUtils.setField(walletGoalService, "goalCompletedPoints", 100);
 
@@ -176,9 +175,6 @@ class WalletGoalServiceTest {
 
         GoalFundRequest request = GoalFundRequest.builder().amount(new BigDecimal("100.00")).build();
 
-        io.micrometer.core.instrument.Counter counter = mock(io.micrometer.core.instrument.Counter.class);
-        when(meterRegistry.counter("fstpay.goals.completed.total")).thenReturn(counter);
-
         when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
         when(walletGoalRepository.findByIdAndUser(goalId, user)).thenReturn(Optional.of(goal));
         when(walletRepository.findByUser(user)).thenReturn(Optional.of(wallet));
@@ -188,8 +184,7 @@ class WalletGoalServiceTest {
 
         assertEquals("COMPLETED", result.getStatus());
         assertNotNull(result.getCompletedAt());
-        verify(rewardsService, times(1)).addPoints(eq(user), eq(100), anyString());
-        verify(counter, times(1)).increment();
+        verify(eventPublisher, times(1)).publish(any(GoalCompletedEvent.class));
     }
 
     @Test

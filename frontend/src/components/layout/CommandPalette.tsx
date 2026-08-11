@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import { 
   Search, 
   Terminal, 
@@ -54,12 +54,8 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
   );
 
   useEffect(() => {
-    if (isOpen) {
-      setSearch('');
-      setActiveIndex(0);
-      setTimeout(() => inputRef.current?.focus(), 50);
-    }
-  }, [isOpen]);
+    inputRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -116,7 +112,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
           {filtered.length === 0 ? (
             <p className="text-center text-sm text-surface-500 py-8">No results found for "{search}"</p>
           ) : (
-            filtered.reduce((acc: any[], cmd, idx) => {
+            filtered.reduce((acc: React.ReactNode[], cmd, idx) => {
               const prev = filtered[idx - 1];
               const showHeader = !prev || prev.category !== cmd.category;
 
