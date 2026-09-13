@@ -34,6 +34,7 @@ public class ApprovalService {
     private final UserRepository userRepository;
     private final ParentLinkService parentLinkService;
     private final EventPublisher eventPublisher;
+    private final com.fstpay.parent.webauthn.service.WebAuthnService webAuthnService;
     
     // Use Lazy to prevent circular reference if ApprovalProcessor calls ApprovalService
     @Lazy
@@ -92,6 +93,23 @@ public class ApprovalService {
         approval.setStatus(approved ? "APPROVED" : "REJECTED");
         approval.setParentNote(request.getNote());
         approval.setDecidedAt(Instant.now());
+
+        // Verify biometric assertion if co-signing with passkey
+        if (approved && request.getSignature() != null && !request.getSignature().isBlank()) {
+            webAuthnService.verifyBiometricAssertion(
+                    parent,
+                    approvalId,
+                    request.getBiometricCredentialId(),
+                    request.getClientDataJSON(),
+                    request.getAuthenticatorData(),
+                    request.getSignature()
+            );
+            approval.setBiometricVerified(true);
+            approval.setBiometricAuthMethod("WEBAUTHN_PASSKEY");
+            approval.setBiometricCredentialId(request.getBiometricCredentialId());
+            approval.setBiometricVerifiedAt(Instant.now());
+            log.info("Approval {} co-signed with WebAuthn biometrics by parent {}", approvalId, parentEmail);
+        }
 
         TransactionApproval saved = transactionApprovalRepository.save(approval);
 

@@ -61,4 +61,17 @@ public class TransactionApproval {
 
     @Column(name = "decided_at")
     private Instant decidedAt;
+
+    @Column(name = "biometric_verified")
+    @Builder.Default
+    private Boolean biometricVerified = false;
+
+    @Column(name = "biometric_auth_method", length = 50)
+    private String biometricAuthMethod;
+
+    @Column(name = "biometric_credential_id", length = 255)
+    private String biometricCredentialId;
+
+    @Column(name = "biometric_verified_at")
+    private Instant biometricVerifiedAt;
 }

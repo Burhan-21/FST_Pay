@@ -151,10 +151,21 @@ export const parentalApi = {
     api.get('/parental/approvals'),
   getParentApprovalHistory: () =>
     api.get('/parental/approvals/history'),
-  decideApproval: (id: string, data: { decision: 'APPROVED' | 'REJECTED'; parentNote?: string }) =>
+  decideApproval: (id: string, data: {
+    decision: 'APPROVED' | 'REJECTED';
+    parentNote?: string;
+    biometricCredentialId?: string;
+    clientDataJSON?: string;
+    authenticatorData?: string;
+    signature?: string;
+  }) =>
     api.put(`/parental/approvals/${id}`, {
       approved: data.decision === 'APPROVED',
-      note: data.parentNote
+      note: data.parentNote,
+      biometricCredentialId: data.biometricCredentialId,
+      clientDataJSON: data.clientDataJSON,
+      authenticatorData: data.authenticatorData,
+      signature: data.signature,
     }),
   unlinkChild: (childId: string) =>
     api.delete(`/parental/children/${childId}/unlink`),
@@ -166,4 +177,26 @@ export const parentalApi = {
     api.post(`/parental/children/${childId}/freeze-card/${cardId}`),
   unfreezeChildCard: (childId: string, cardId: string) =>
     api.post(`/parental/children/${childId}/unfreeze-card/${cardId}`),
+};
+
+// ── WebAuthn / Biometrics ──
+export const webauthnApi = {
+  getRegisterOptions: () =>
+    api.get('/parental/webauthn/register/options'),
+  verifyRegistration: (data: {
+    credentialId: string;
+    publicKey: string;
+    rawId?: string;
+    clientDataJSON?: string;
+    attestationObject?: string;
+    deviceName?: string;
+    algorithm?: string;
+  }) =>
+    api.post('/parental/webauthn/register/verify', data),
+  getCredentials: () =>
+    api.get('/parental/webauthn/credentials'),
+  deleteCredential: (id: string) =>
+    api.delete(`/parental/webauthn/credentials/${id}`),
+  getApprovalChallenge: (approvalId: string) =>
+    api.get(`/parental/webauthn/approvals/${approvalId}/challenge`),
 };

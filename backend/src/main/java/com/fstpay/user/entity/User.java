@@ -107,4 +107,8 @@ public class User {
 
     @Column(name = "locked_until")
     private Instant lockedUntil;
+
+    @Column(name = "biometric_enabled")
+    @Builder.Default
+    private Boolean biometricEnabled = false;
 }

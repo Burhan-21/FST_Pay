@@ -43,6 +43,8 @@ class ApprovalServiceTest {
     private EventPublisher eventPublisher;
     @Mock
     private ApprovalProcessor approvalProcessor;
+    @Mock
+    private com.fstpay.parent.webauthn.service.WebAuthnService webAuthnService;
 
     private ApprovalService approvalService;
 
@@ -58,6 +60,7 @@ class ApprovalServiceTest {
                 userRepository,
                 parentLinkService,
                 eventPublisher,
+                webAuthnService,
                 approvalProcessor
         );
 
@@ -189,5 +192,42 @@ class ApprovalServiceTest {
 
         List<TransactionApproval> list = approvalService.getPendingApprovals("parent@example.com");
         assertEquals(1, list.size());
+    }
+
+    @Test
+    void decideApproval_withBiometricSignature_verifiesAndSetsBiometricVerified() {
+        TransactionApproval approval = TransactionApproval.builder()
+                .id(UUID.randomUUID())
+                .child(child)
+                .parent(parent)
+                .requestType("SPEND")
+                .amount(new BigDecimal("2500.00"))
+                .status("PENDING")
+                .build();
+
+        when(userRepository.findByEmail("parent@example.com")).thenReturn(Optional.of(parent));
+        when(approvalRepository.findById(approval.getId())).thenReturn(Optional.of(approval));
+        when(approvalRepository.save(any(TransactionApproval.class))).thenAnswer(i -> i.getArgument(0));
+        when(webAuthnService.verifyBiometricAssertion(any(), any(), any(), any(), any(), any())).thenReturn(true);
+
+        ApprovalDecisionRequest decision = new ApprovalDecisionRequest();
+        decision.setApproved(true);
+        decision.setNote("Biometric passkey verified");
+        decision.setBiometricCredentialId("cred-test-123");
+        decision.setClientDataJSON("eyJ0eXBlIjoid2ViYXV0aG4uZ2V0In0=");
+        decision.setAuthenticatorData("SZYN5YgOjGh0NBcPZHZgW4");
+        decision.setSignature("mock-passkey-sig-abc");
+
+        TransactionApproval decided = approvalService.decideApproval("parent@example.com", approval.getId(), decision);
+
+        assertEquals("APPROVED", decided.getStatus());
+        assertTrue(decided.getBiometricVerified());
+        assertEquals("WEBAUTHN_PASSKEY", decided.getBiometricAuthMethod());
+        assertEquals("cred-test-123", decided.getBiometricCredentialId());
+        assertNotNull(decided.getBiometricVerifiedAt());
+        verify(webAuthnService, times(1)).verifyBiometricAssertion(
+                eq(parent), eq(approval.getId()), eq("cred-test-123"), any(), any(), eq("mock-passkey-sig-abc")
+        );
+        verify(approvalProcessor, times(1)).process(decided);
     }
 }

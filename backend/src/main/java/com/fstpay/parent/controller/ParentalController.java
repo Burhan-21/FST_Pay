@@ -234,6 +234,10 @@ public class ParentalController {
                 .childName(app.getChild().getFullName())
                 .createdAt(app.getCreatedAt())
                 .decidedAt(app.getDecidedAt())
+                .biometricVerified(app.getBiometricVerified())
+                .biometricAuthMethod(app.getBiometricAuthMethod())
+                .biometricCredentialId(app.getBiometricCredentialId())
+                .biometricVerifiedAt(app.getBiometricVerifiedAt())
                 .build();
     }
 }

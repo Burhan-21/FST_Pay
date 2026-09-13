@@ -22,4 +22,8 @@ public class ApprovalDto {
     private String childName;
     private Instant createdAt;
     private Instant decidedAt;
+    private Boolean biometricVerified;
+    private String biometricAuthMethod;
+    private String biometricCredentialId;
+    private Instant biometricVerifiedAt;
 }

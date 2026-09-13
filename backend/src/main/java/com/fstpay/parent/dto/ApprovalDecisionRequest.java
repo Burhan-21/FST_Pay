@@ -9,4 +9,10 @@ public class ApprovalDecisionRequest {
     private Boolean approved;
     
     private String note;
+
+    // Optional FIDO2 / WebAuthn Biometric Co-Signing assertion fields
+    private String biometricCredentialId;
+    private String clientDataJSON;
+    private String authenticatorData;
+    private String signature;
 }

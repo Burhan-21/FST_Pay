@@ -3,12 +3,19 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ApprovalQueue from '../ApprovalQueue';
 import { parentalApi } from '../../../api/endpoints';
 
-// Mock parentalApi
+// Mock APIs
 vi.mock('../../../api/endpoints', () => ({
   parentalApi: {
     getPendingApprovals: vi.fn(),
     getParentApprovalHistory: vi.fn(),
     decideApproval: vi.fn(),
+  },
+  webauthnApi: {
+    getRegisterOptions: vi.fn(),
+    verifyRegistration: vi.fn(),
+    getCredentials: vi.fn().mockResolvedValue({ data: { data: [] } }),
+    deleteCredential: vi.fn(),
+    getApprovalChallenge: vi.fn(),
   },
 }));
 

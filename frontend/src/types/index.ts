@@ -374,6 +374,55 @@ export interface TransactionApproval {
   parentNote?: string;
   createdAt: string;
   decidedAt?: string;
+  biometricVerified?: boolean;
+  biometricAuthMethod?: string;
+  biometricCredentialId?: string;
+  biometricVerifiedAt?: string;
+}
+
+export interface WebAuthnCredential {
+  id: string;
+  credentialId: string;
+  algorithm: string;
+  deviceName?: string;
+  signCount: number;
+  createdAt: string;
+  lastUsedAt?: string;
+}
+
+export interface WebAuthnRegisterOptions {
+  challenge: string;
+  rp: {
+    name: string;
+    id: string;
+  };
+  user: {
+    id: string;
+    name: string;
+    displayName: string;
+  };
+  pubKeyCredParams: Array<{
+    type: string;
+    alg: number;
+  }>;
+  timeout?: number;
+  attestation?: string;
+  authenticatorSelection?: {
+    authenticatorAttachment?: string;
+    userVerification?: string;
+    requireResidentKey?: boolean;
+  };
+}
+
+export interface WebAuthnAuthOptions {
+  challenge: string;
+  timeout?: number;
+  rpId?: string;
+  allowCredentials?: Array<{
+    id: string;
+    type: string;
+  }>;
+  userVerification?: string;
 }
 
 export interface SpendSimulationResponse {

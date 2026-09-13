@@ -1,8 +1,24 @@
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { parentalApi } from '../../api/endpoints';
-import { Check, X, Loader2, Info, MessageSquare, Clock, Calendar, AlertCircle, Search, Radio, ShieldCheck } from 'lucide-react';
-import type { TransactionApproval } from '../../types';
+import { parentalApi, webauthnApi } from '../../api/endpoints';
+import {
+  Check,
+  X,
+  Loader2,
+  Info,
+  MessageSquare,
+  Clock,
+  Calendar,
+  AlertCircle,
+  Search,
+  Radio,
+  ShieldCheck,
+  Fingerprint,
+  KeyRound,
+  Shield
+} from 'lucide-react';
+import type { TransactionApproval, WebAuthnCredential } from '../../types';
+import { isWebAuthnSupported, createPasskeyCredential, getPasskeyAssertion } from '../../utils/webauthn';
 import PageTransition from '../../components/ui/PageTransition';
 import GlassCard from '../../components/ui/GlassCard';
 import Button from '../../components/ui/Button';
@@ -14,8 +30,15 @@ export default function ApprovalQueue() {
   const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
   const [isLoading, setIsLoading] = useState(true);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
+  const [coSigningId, setCoSigningId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState<string>('ALL');
+
+  // WebAuthn / Passkey state
+  const [credentials, setCredentials] = useState<WebAuthnCredential[]>([]);
+  const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
+  const [isEnrollingPasskey, setIsEnrollingPasskey] = useState(false);
+  const [passkeyDeviceName, setPasskeyDeviceName] = useState('');
   
   // Note inputs state mapping (approvalId -> noteText)
   const [notes, setNotes] = useState<Record<string, string>>({});
@@ -25,12 +48,14 @@ export default function ApprovalQueue() {
 
   const fetchQueueData = async () => {
     try {
-      const [pendingRes, historyRes] = await Promise.all([
+      const [pendingRes, historyRes, credsRes] = await Promise.all([
         parentalApi.getPendingApprovals(),
-        parentalApi.getParentApprovalHistory()
+        parentalApi.getParentApprovalHistory(),
+        webauthnApi.getCredentials().catch(() => ({ data: { data: [] } }))
       ]);
       if (pendingRes.data?.data) setPending(pendingRes.data.data);
       if (historyRes.data?.data) setHistory(historyRes.data.data);
+      if (credsRes.data?.data) setCredentials(credsRes.data.data);
     } catch (err: unknown) {
       console.error('Failed to load approvals queue:', err);
     } finally {
@@ -42,13 +67,15 @@ export default function ApprovalQueue() {
     let isMounted = true;
     const loadData = async () => {
       try {
-        const [pendingRes, historyRes] = await Promise.all([
+        const [pendingRes, historyRes, credsRes] = await Promise.all([
           parentalApi.getPendingApprovals(),
-          parentalApi.getParentApprovalHistory()
+          parentalApi.getParentApprovalHistory(),
+          webauthnApi.getCredentials().catch(() => ({ data: { data: [] } }))
         ]);
         if (isMounted) {
           if (pendingRes.data?.data) setPending(pendingRes.data.data);
           if (historyRes.data?.data) setHistory(historyRes.data.data);
+          if (credsRes.data?.data) setCredentials(credsRes.data.data);
         }
       } catch (err: unknown) {
         console.error('Failed to load approvals queue:', err);
@@ -95,6 +122,69 @@ export default function ApprovalQueue() {
       });
     } finally {
       setSubmittingId(null);
+    }
+  };
+
+  const handleEnrollPasskey = async () => {
+    try {
+      setIsEnrollingPasskey(true);
+      const optionsRes = await webauthnApi.getRegisterOptions();
+      if (!optionsRes.data?.data) {
+        throw new Error('Failed to retrieve registration challenge from server.');
+      }
+      const payload = await createPasskeyCredential(
+        optionsRes.data.data,
+        passkeyDeviceName || 'Guardian Authenticator'
+      );
+      await webauthnApi.verifyRegistration(payload);
+      setIsEnrollModalOpen(false);
+      setAlertConfig({
+        title: 'Passkey Enrolled',
+        message: 'Your biometric authenticator is registered. You can now co-sign approvals with Touch ID / Windows Hello.',
+      });
+      fetchQueueData();
+    } catch (err: unknown) {
+      console.error('Failed to enroll passkey:', err);
+      setAlertConfig({
+        title: 'Passkey Registration Failed',
+        message: err instanceof Error ? err.message : 'Could not complete biometric registration.',
+      });
+    } finally {
+      setIsEnrollingPasskey(false);
+    }
+  };
+
+  const handleBiometricCoSign = async (id: string) => {
+    try {
+      setCoSigningId(id);
+      const challengeRes = await webauthnApi.getApprovalChallenge(id);
+      if (!challengeRes.data?.data) {
+        throw new Error('Failed to obtain biometric challenge for this approval.');
+      }
+      const assertion = await getPasskeyAssertion(challengeRes.data.data);
+      const parentNote = notes[id] || 'Co-signed via Biometric Passkey';
+      await parentalApi.decideApproval(id, {
+        decision: 'APPROVED',
+        parentNote,
+        biometricCredentialId: assertion.credentialId,
+        clientDataJSON: assertion.clientDataJSON,
+        authenticatorData: assertion.authenticatorData,
+        signature: assertion.signature,
+      });
+      setNotes(prev => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      fetchQueueData();
+    } catch (err: unknown) {
+      console.error('Biometric co-signing failed:', err);
+      setAlertConfig({
+        title: 'Biometric Co-Sign Error',
+        message: err instanceof Error ? err.message : 'Biometric verification cancelled or failed.',
+      });
+    } finally {
+      setCoSigningId(null);
     }
   };
 
@@ -160,6 +250,44 @@ export default function ApprovalQueue() {
             <Radio className="w-3.5 h-3.5" />
             <span>Live Stream Active</span>
           </div>
+        </div>
+
+        {/* Guardian Passkey / Biometrics Banner */}
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-950/40 via-indigo-950/30 to-surface-900/60 border border-purple-500/20 flex flex-wrap items-center justify-between gap-4" data-testid="guardian-passkey-banner">
+          <div className="flex items-center gap-3.5">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${credentials.length > 0 ? 'bg-emerald-500/20 text-emerald-300' : 'bg-purple-500/20 text-purple-300'}`}>
+              <Fingerprint className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-bold text-white">Guardian Biometric Protection</h4>
+                {credentials.length > 0 ? (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3" /> Passkey Enrolled ({credentials.length})
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                    Not Enrolled
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-surface-400 mt-0.5">
+                {credentials.length > 0
+                  ? `Co-sign teen transactions instantly with Touch ID, Windows Hello, or Face ID (${credentials[0].deviceName || 'Hardware Key'}).`
+                  : 'Enroll your device passkey for instant cryptographic biometric approval and guardian co-signing.'}
+              </p>
+            </div>
+          </div>
+
+          <Button
+            onClick={() => setIsEnrollModalOpen(true)}
+            variant={credentials.length > 0 ? 'secondary' : 'primary'}
+            size="sm"
+            className="text-xs flex items-center gap-1.5 shadow-sm"
+          >
+            <KeyRound className="w-3.5 h-3.5" />
+            {credentials.length > 0 ? 'Manage / Add Passkey' : 'Enroll Biometric Passkey'}
+          </Button>
         </div>
 
         {/* Tab & Search Bar */}
@@ -282,10 +410,33 @@ export default function ApprovalQueue() {
                         />
                       </div>
 
+                      {credentials.length > 0 && isWebAuthnSupported() && (
+                        <Button
+                          onClick={() => handleBiometricCoSign(app.id)}
+                          disabled={submittingId === app.id || coSigningId === app.id}
+                          variant="primary"
+                          size="sm"
+                          className="w-full py-2 flex items-center justify-center gap-1.5 font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-md shadow-purple-500/20"
+                          data-testid="biometric-cosign-btn"
+                        >
+                          {coSigningId === app.id ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>Verifying Passkey...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Fingerprint className="w-4 h-4 text-purple-200" />
+                              <span>Biometric Co-Sign</span>
+                            </>
+                          )}
+                        </Button>
+                      )}
+
                       <div className="grid grid-cols-2 gap-3">
                         <Button
                           onClick={() => handleResolve(app.id, 'REJECTED')}
-                          disabled={submittingId === app.id}
+                          disabled={submittingId === app.id || coSigningId === app.id}
                           variant="ghost"
                           size="sm"
                           className="text-danger-400 border-danger-500/10 hover:bg-danger-500/15 py-2 flex items-center justify-center gap-1.5 font-bold"
@@ -295,27 +446,34 @@ export default function ApprovalQueue() {
                         </Button>
                         <Button
                           onClick={() => handleResolve(app.id, 'APPROVED')}
-                          disabled={submittingId === app.id}
-                          variant="primary"
+                          disabled={submittingId === app.id || coSigningId === app.id}
+                          variant={credentials.length > 0 && isWebAuthnSupported() ? 'secondary' : 'primary'}
                           size="sm"
                           className="py-2 flex items-center justify-center gap-1.5 font-bold"
                         >
                           {submittingId === app.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                          Approve & Execute
+                          {credentials.length > 0 && isWebAuthnSupported() ? 'Manual Approve' : 'Approve & Execute'}
                         </Button>
                       </div>
                     </div>
                   ) : (
                     <div className="pt-2 border-t border-surface-800/60 space-y-2">
-                      <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center justify-between text-xs flex-wrap gap-1">
                         <span className="text-surface-400">Resolution status</span>
-                        <span className={`font-bold px-2 py-0.5 rounded text-xs ${
-                          isApproved 
-                            ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' 
-                            : 'text-rose-400 bg-rose-500/10 border border-rose-500/20'
-                        }`}>
-                          {app.status}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          {app.biometricVerified && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                              <Fingerprint className="w-3 h-3 text-emerald-400" /> Co-Signed via Passkey
+                            </span>
+                          )}
+                          <span className={`font-bold px-2 py-0.5 rounded text-xs ${
+                            isApproved 
+                              ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' 
+                              : 'text-rose-400 bg-rose-500/10 border border-rose-500/20'
+                          }`}>
+                            {app.status}
+                          </span>
+                        </div>
                       </div>
                       {app.parentNote && (
                         <p className="text-[11px] text-surface-400 bg-white/2 p-2 rounded border border-white/3 italic">
@@ -335,6 +493,81 @@ export default function ApprovalQueue() {
             })}
           </div>
         )}
+
+        {/* ENROLL BIOMETRIC PASSKEY MODAL */}
+        <Modal
+          isOpen={isEnrollModalOpen}
+          onClose={() => setIsEnrollModalOpen(false)}
+          title="Enroll Biometric Passkey"
+        >
+          <div className="space-y-4" data-testid="enroll-passkey-modal">
+            <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-start gap-3">
+              <Shield className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-purple-200 leading-relaxed">
+                Use your device's built-in authenticator (Windows Hello, Touch ID, Face ID, or PIN) to co-sign teen approvals without entering passwords.
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="device-name-input" className="block text-xs font-semibold text-surface-300 mb-1.5">Authenticator Nickname</label>
+              <input
+                id="device-name-input"
+                type="text"
+                value={passkeyDeviceName}
+                onChange={(e) => setPasskeyDeviceName(e.target.value)}
+                placeholder="e.g. MacBook Touch ID, Windows Hello"
+                className="w-full bg-surface-800 border border-surface-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
+              />
+            </div>
+
+            {credentials.length > 0 && (
+              <div>
+                <span className="block text-xs font-semibold text-surface-400 mb-2">Enrolled Passkeys ({credentials.length})</span>
+                <div className="space-y-2 max-h-36 overflow-y-auto">
+                  {credentials.map((cred) => (
+                    <div key={cred.id} className="flex items-center justify-between p-2 rounded-lg bg-surface-800/40 border border-surface-700/40 text-xs">
+                      <div className="flex items-center gap-2">
+                        <KeyRound className="w-3.5 h-3.5 text-purple-400" />
+                        <span className="text-white font-medium">{cred.deviceName || 'Hardware Passkey'}</span>
+                      </div>
+                      <span className="text-[10px] text-surface-500">{new Date(cred.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEnrollModalOpen(false)}
+                className="border border-surface-700"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleEnrollPasskey}
+                disabled={isEnrollingPasskey}
+                className="bg-purple-600 hover:bg-purple-500 flex items-center gap-1.5 font-bold"
+              >
+                {isEnrollingPasskey ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Waiting for Biometrics...</span>
+                  </>
+                ) : (
+                  <>
+                    <Fingerprint className="w-4 h-4" />
+                    <span>Enroll This Device</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </Modal>
 
         {/* CUSTOM ALERT MODAL */}
         <Modal
