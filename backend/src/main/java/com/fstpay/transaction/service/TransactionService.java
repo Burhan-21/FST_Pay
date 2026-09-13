@@ -11,6 +11,8 @@ import com.fstpay.wallet.repository.WalletRepository;
 import com.fstpay.wallet.api.WalletDailySummaryOperations;
 import com.fstpay.user.entity.User;
 import com.fstpay.user.repository.UserRepository;
+import com.fstpay.fx.dto.FxConversionQuote;
+import com.fstpay.fx.service.FxRateService;
 import com.fstpay.parent.policy.ParentalControlPolicy;
 import com.fstpay.parent.policy.ParentalPolicyResult;
 import com.fstpay.transaction.dto.SpendSimulationResult;
@@ -39,6 +41,7 @@ public class TransactionService {
     private final TransactionRuleEngine ruleEngine;
     private final WalletDailySummaryOperations summaryService;
     private final ParentalControlPolicy parentalControlPolicy;
+    private final FxRateService fxRateService;
 
     public Page<Transaction> getTransactions(String email, String category, String type, int page, int size) {
         User user = userRepository.findByEmail(email)
@@ -72,12 +75,50 @@ public class TransactionService {
         Wallet wallet = walletRepository.findByUser(user)
                 .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
 
+        // FX Currency Conversion: if requested currency differs from wallet currency, convert & add FX fee
+        BigDecimal chargeAmount = request.getAmount();
+        BigDecimal originalAmount = null;
+        String originalCurrency = null;
+        BigDecimal fxRate = null;
+        BigDecimal fxFee = null;
+        String description = request.getDescription();
+
+        String reqCurrency = (request.getCurrency() != null && !request.getCurrency().trim().isEmpty())
+                ? request.getCurrency().trim().toUpperCase()
+                : wallet.getCurrency();
+
+        if (!reqCurrency.equalsIgnoreCase(wallet.getCurrency())) {
+            FxConversionQuote quote = fxRateService.getQuote(request.getAmount(), reqCurrency, wallet.getCurrency());
+            chargeAmount = quote.getTotalAmount();
+            originalAmount = quote.getSourceAmount();
+            originalCurrency = quote.getSourceCurrency();
+            fxRate = quote.getExchangeRate();
+            fxFee = quote.getFeeAmount();
+
+            String descPrefix = (description != null && !description.isBlank()) 
+                    ? description 
+                    : "Spend at " + request.getMerchant();
+            description = String.format("%s (Converted: %s %.2f @ %.4f + %s %.2f FX fee)",
+                    descPrefix, originalCurrency, originalAmount, fxRate, wallet.getCurrency(), fxFee);
+
+            log.info("FX conversion applied for user {}: {} {} -> {} {} (fee: {})",
+                    email, originalAmount, originalCurrency, chargeAmount, wallet.getCurrency(), fxFee);
+        }
+
+        // Validate wallet balance against the final domestic charge amount
+        if (wallet.getBalance().compareTo(chargeAmount) < 0) {
+            throw new BadRequestException(String.format(
+                    "Insufficient wallet balance. Available: %s %.2f, Required: %s %.2f",
+                    wallet.getCurrency(), wallet.getBalance(), wallet.getCurrency(), chargeAmount
+            ));
+        }
+
         // Evaluate base rules (BalanceRule, CardStatusRule)
         ruleEngine.process(user, wallet, request);
 
-        // Evaluate Parental Control Policy
+        // Evaluate Parental Control Policy against final charge amount
         ParentalPolicyResult policyResult = parentalControlPolicy.evaluate(
-                user, wallet, request.getAmount(), request.getCategory(), request.getMerchant(), request.getDescription()
+                user, wallet, chargeAmount, request.getCategory(), request.getMerchant(), description
         );
 
         if (policyResult.isRejected()) {
@@ -85,34 +126,38 @@ public class TransactionService {
         }
 
         if (policyResult.isRequiresApproval()) {
-            log.info("Simulated spend of ₹{} for user {} queued for parent approval: {}",
-                    request.getAmount(), email, policyResult.getReason());
+            log.info("Simulated spend of {} {} for user {} queued for parent approval: {}",
+                    wallet.getCurrency(), chargeAmount, email, policyResult.getReason());
             return SpendSimulationResult.pendingApproval(policyResult.getApproval(), policyResult.getReason());
         }
 
         // Deduct balance
-        wallet.setBalance(wallet.getBalance().subtract(request.getAmount()));
+        wallet.setBalance(wallet.getBalance().subtract(chargeAmount));
         Wallet savedWallet = walletRepository.save(wallet);
 
-        // Record debit transaction
+        // Record debit transaction with FX metadata
         Transaction transaction = Transaction.builder()
                 .wallet(savedWallet)
                 .type("DEBIT")
                 .category(request.getCategory().toUpperCase())
-                .amount(request.getAmount())
+                .amount(chargeAmount)
                 .balanceAfter(savedWallet.getBalance())
-                .description(request.getDescription())
+                .description(description)
                 .merchant(request.getMerchant())
                 .referenceId("TXN-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
                 .status("COMPLETED")
+                .originalAmount(originalAmount)
+                .originalCurrency(originalCurrency)
+                .fxRate(fxRate)
+                .fxFee(fxFee)
                 .build();
 
         Transaction savedTxn = transactionRepository.save(transaction);
 
         // Track spend daily aggregate
-        summaryService.trackSpend(savedWallet, request.getAmount());
+        summaryService.trackSpend(savedWallet, chargeAmount);
 
-        log.info("Simulated spend of ₹{} from user {} completed successfully", request.getAmount(), email);
+        log.info("Simulated spend of {} {} from user {} completed successfully", wallet.getCurrency(), chargeAmount, email);
         return SpendSimulationResult.completed(savedTxn, "Transaction simulated successfully");
     }
 

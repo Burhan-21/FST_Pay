@@ -77,6 +77,22 @@ export interface Transaction {
   referenceId: string;
   status: SettlementStatus | string;
   createdAt: string;
+  originalAmount?: number;
+  originalCurrency?: string;
+  fxRate?: number;
+  fxFee?: number;
+}
+
+export interface FxQuote {
+  sourceAmount: number;
+  sourceCurrency: string;
+  targetCurrency: string;
+  exchangeRate: number;
+  convertedAmount: number;
+  feePercentage: number;
+  feeAmount: number;
+  totalAmount: number;
+  expiresInSeconds: number;
 }
 
 export interface RewardPoints {

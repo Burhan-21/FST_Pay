@@ -59,6 +59,18 @@ public class Transaction {
     @Builder.Default
     private String status = "COMPLETED";
 
+    @Column(name = "original_amount", precision = 15, scale = 2)
+    private BigDecimal originalAmount;
+
+    @Column(name = "original_currency", length = 3)
+    private String originalCurrency;
+
+    @Column(name = "fx_rate", precision = 10, scale = 4)
+    private BigDecimal fxRate;
+
+    @Column(name = "fx_fee", precision = 15, scale = 2)
+    private BigDecimal fxFee;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;

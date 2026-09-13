@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { formatCurrency, getCategoryEmoji, formatRelativeTime, parseMoneyInput } from '../../utils/helpers';
-import { Search, ArrowUpRight, ArrowDownRight, Plus, AlertCircle, Download, Inbox, Clock, X } from 'lucide-react';
-import { transactionApi } from '../../api/endpoints';
-import type { Transaction } from '../../types';
+import { Search, ArrowUpRight, ArrowDownRight, Plus, AlertCircle, Download, Inbox, Clock, X, Globe } from 'lucide-react';
+import { transactionApi, fxApi } from '../../api/endpoints';
+import type { Transaction, FxQuote } from '../../types';
 import { PageTransition, EmptyState, Modal, Button, SettlementBadge } from '../../components/ui';
 import { TransactionSkeleton } from '../../components/skeletons/PageSkeletons';
 
 const categories = ['ALL', 'FOOD', 'TRANSPORT', 'SHOPPING', 'ENTERTAINMENT', 'EDUCATION', 'HEALTH', 'BILLS', 'OTHER'];
 const simulateCategories = ['FOOD', 'TRANSPORT', 'SHOPPING', 'ENTERTAINMENT', 'EDUCATION', 'HEALTH', 'BILLS', 'OTHER'];
+const supportedCurrencies = ['INR', 'USD', 'EUR', 'GBP', 'AED', 'CAD', 'SGD'];
 
 export default function TransactionsPage() {
   const [txns, setTxns] = useState<Transaction[]>([]);
@@ -25,10 +26,15 @@ export default function TransactionsPage() {
 
   // Simulation Form States
   const [amount, setAmount] = useState('');
+  const [currency, setCurrency] = useState('INR');
   const [category, setCategory] = useState('FOOD');
   const [merchant, setMerchant] = useState('');
   const [description, setDescription] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+
+  // FX Quote State
+  const [fxQuote, setFxQuote] = useState<FxQuote | null>(null);
+  const [isQuoteLoading, setIsQuoteLoading] = useState(false);
 
   const handleExport = async (format: 'csv' | 'pdf') => {
     try {
@@ -113,11 +119,60 @@ export default function TransactionsPage() {
     };
   }, []);
 
+  // Fetch live FX quote when foreign currency and amount are entered
+  useEffect(() => {
+    if (currency === 'INR') {
+      setFxQuote(null);
+      return;
+    }
+    const parsed = parseMoneyInput(amount, 0.01);
+    if (!parsed || parsed <= 0) {
+      setFxQuote(null);
+      return;
+    }
+
+    let isCancelled = false;
+    setIsQuoteLoading(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fxApi.getQuote(parsed, currency, 'INR');
+        if (!isCancelled && res.data?.data) {
+          setFxQuote(res.data.data);
+        }
+      } catch (err) {
+        if (!isCancelled) {
+          console.error('FX quote error:', err);
+          setFxQuote(null);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsQuoteLoading(false);
+        }
+      }
+    }, 300);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+    };
+  }, [amount, currency]);
+
+  const handleCloseSimulate = () => {
+    setShowSimulate(false);
+    setAmount('');
+    setCurrency('INR');
+    setMerchant('');
+    setDescription('');
+    setErrorMsg('');
+    setFxQuote(null);
+  };
+
   const handleSimulate = async (e: React.FormEvent) => {
     e.preventDefault();
-    const parsedAmount = parseMoneyInput(amount, 1);
-    if (parsedAmount === null) {
-      setErrorMsg('Please enter a valid amount (minimum ₹1)');
+    const parsedAmount = parseMoneyInput(amount, 0.01);
+    if (parsedAmount === null || parsedAmount <= 0) {
+      setErrorMsg('Please enter a valid amount');
       return;
     }
     if (!merchant.trim()) {
@@ -133,23 +188,21 @@ export default function TransactionsPage() {
         category,
         merchant,
         description: description || undefined,
+        currency: currency !== 'INR' ? currency : undefined,
       });
 
       // Handle HTTP 202 Accepted (Pending Parent Approval)
       if (res.status === 202 || res.data?.data?.status === 'PENDING_APPROVAL') {
         setApprovalNotice(
           res.data?.message ||
-          `Approval Request Submitted: Your spend of ₹${parsedAmount.toLocaleString()} at ${merchant} exceeded spending limits and was sent to your parent for approval.`
+          `Approval Request Submitted: Your spend of ${currency} ${parsedAmount.toLocaleString()} at ${merchant} exceeded spending limits and was sent to your parent for approval.`
         );
       } else {
         setApprovalNotice(null);
       }
 
       await fetchTransactions();
-      setShowSimulate(false);
-      setAmount('');
-      setMerchant('');
-      setDescription('');
+      handleCloseSimulate();
     } catch (err: unknown) {
       console.error('Simulation failed:', err);
       if (axios.isAxiosError<{ message?: string }>(err)) {
@@ -275,11 +328,25 @@ export default function TransactionsPage() {
                 {getCategoryEmoji(txn.category)}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <p className="text-sm font-medium text-white truncate">{txn.merchant}</p>
                   <SettlementBadge status={txn.status} />
+                  {txn.originalCurrency && txn.originalCurrency !== 'INR' && (
+                    <span
+                      data-testid="foreign-currency-badge"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-primary-500/15 text-primary-300 border border-primary-500/30"
+                    >
+                      <Globe className="w-3 h-3 text-primary-400" />
+                      {txn.originalAmount !== undefined ? txn.originalAmount.toFixed(2) : ''} {txn.originalCurrency}
+                    </span>
+                  )}
                 </div>
-                <p className="text-xs text-surface-400">{txn.description || 'Simulated transaction'} • {formatRelativeTime(txn.createdAt)}</p>
+                <p className="text-xs text-surface-400">
+                  {txn.description || 'Simulated transaction'} • {formatRelativeTime(txn.createdAt)}
+                  {txn.fxRate && txn.originalCurrency && txn.originalCurrency !== 'INR' && (
+                    <span className="text-surface-500"> • 1 {txn.originalCurrency} = ₹{txn.fxRate.toFixed(2)}{txn.fxFee ? ` (Fee: ₹${txn.fxFee.toFixed(2)})` : ''}</span>
+                  )}
+                </p>
               </div>
               <div className="text-right flex items-center gap-3">
                 <div>
@@ -296,7 +363,7 @@ export default function TransactionsPage() {
       </div>
 
       {/* Simulate Modal */}
-      <Modal isOpen={showSimulate} onClose={() => setShowSimulate(false)} title="Simulate Spend">
+      <Modal isOpen={showSimulate} onClose={handleCloseSimulate} title="Simulate Spend">
         <form onSubmit={handleSimulate} className="space-y-4">
           {errorMsg && (
             <div className="p-3 rounded-xl bg-danger-500/10 border border-danger-500/20 text-danger-400 text-xs flex items-center gap-2">
@@ -307,13 +374,35 @@ export default function TransactionsPage() {
 
           <div>
             <label className="input-label">Merchant Name</label>
-            <input type="text" value={merchant} onChange={(e) => setMerchant(e.target.value)} placeholder="e.g. Swiggy, Netflix, Uber" className="input-field" required />
+            <input type="text" value={merchant} onChange={(e) => setMerchant(e.target.value)} placeholder="e.g. Swiggy, Netflix, Uber, Steam" className="input-field" required />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="input-label">Amount (₹)</label>
-              <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="input-field" min="1" step="any" required />
+              <label className="input-label">Currency</label>
+              <select
+                aria-label="Currency"
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                className="select-field"
+              >
+                {supportedCurrencies.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="input-label">Amount ({currency})</label>
+              <input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+                className="input-field"
+                min="0.01"
+                step="any"
+                required
+              />
             </div>
             <div>
               <label className="input-label">Category</label>
@@ -325,13 +414,49 @@ export default function TransactionsPage() {
             </div>
           </div>
 
+          {/* Live FX Quote Breakdown */}
+          {currency !== 'INR' && (
+            <div className="p-3.5 rounded-xl bg-primary-500/10 border border-primary-500/25 text-xs space-y-2 animate-fade-in" data-testid="fx-quote-box">
+              <div className="flex items-center justify-between text-primary-300 font-semibold">
+                <span className="flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5 text-primary-400" />
+                  Live Exchange Rate
+                </span>
+                {isQuoteLoading ? (
+                  <span className="text-surface-400 animate-pulse">Calculating rate...</span>
+                ) : fxQuote ? (
+                  <span>1 {fxQuote.sourceCurrency} = ₹{fxQuote.exchangeRate.toFixed(2)}</span>
+                ) : (
+                  <span className="text-surface-400">Enter amount</span>
+                )}
+              </div>
+
+              {fxQuote && !isQuoteLoading && (
+                <div className="space-y-1.5 pt-1 border-t border-primary-500/15">
+                  <div className="flex justify-between text-surface-400">
+                    <span>Base Conversion:</span>
+                    <span className="text-surface-200 font-medium">₹{fxQuote.convertedAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-surface-400">
+                    <span>Platform FX Fee ({fxQuote.feePercentage}%):</span>
+                    <span className="text-surface-200 font-medium">₹{fxQuote.feeAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-white font-semibold pt-1 border-t border-primary-500/20">
+                    <span>Total Wallet Deduction:</span>
+                    <span className="text-accent-400 font-bold">₹{fxQuote.totalAmount.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div>
             <label className="input-label">Description (Optional)</label>
-            <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. dinner with friends" className="input-field" />
+            <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. Steam game purchase" className="input-field" />
           </div>
 
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setShowSimulate(false)} fullWidth>
+            <Button type="button" variant="secondary" onClick={handleCloseSimulate} fullWidth>
               Cancel
             </Button>
             <Button type="submit" variant="primary" isLoading={isSimulateLoading} fullWidth>

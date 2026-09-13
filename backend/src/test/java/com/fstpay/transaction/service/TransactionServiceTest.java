@@ -48,6 +48,8 @@ class TransactionServiceTest {
     private WalletDailySummaryOperations dailySummaryService;
     @Mock
     private ParentalControlPolicy parentalControlPolicy;
+    @Mock
+    private com.fstpay.fx.service.FxRateService fxRateService;
 
     private TransactionService transactionService;
 
@@ -63,7 +65,8 @@ class TransactionServiceTest {
                 transactionExportService,
                 ruleEngine,
                 dailySummaryService,
-                parentalControlPolicy
+                parentalControlPolicy,
+                fxRateService
         );
 
         testUser = User.builder()
@@ -179,5 +182,82 @@ class TransactionServiceTest {
 
         assertThrows(BadRequestException.class,
                 () -> transactionService.simulateSpend("teen@example.com", request));
+    }
+
+    @Test
+    void simulateSpend_ForeignCurrency_ConvertsAndRecordsFxMetadata() {
+        when(userRepository.findByEmail("teen@example.com")).thenReturn(Optional.of(testUser));
+        when(walletRepository.findByUser(testUser)).thenReturn(Optional.of(testWallet));
+        when(walletRepository.save(any(Wallet.class))).thenAnswer(i -> i.getArgument(0));
+        when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> i.getArgument(0));
+
+        when(ruleEngine.process(any(), any(), any())).thenReturn(
+                RuleEvaluationResult.builder().status(RuleStatus.APPROVED).message("All checks passed").build()
+        );
+
+        when(parentalControlPolicy.evaluate(any(), any(), any(), any(), any(), any()))
+                .thenReturn(ParentalPolicyResult.allowed("All checks passed"));
+
+        // Spend $10.00 USD from INR wallet
+        com.fstpay.fx.dto.FxConversionQuote mockQuote = com.fstpay.fx.dto.FxConversionQuote.builder()
+                .sourceAmount(new BigDecimal("10.00"))
+                .sourceCurrency("USD")
+                .targetCurrency("INR")
+                .exchangeRate(new BigDecimal("86.5000"))
+                .convertedAmount(new BigDecimal("865.00"))
+                .feePercentage(new BigDecimal("1.50"))
+                .feeAmount(new BigDecimal("12.98"))
+                .totalAmount(new BigDecimal("877.98"))
+                .expiresInSeconds(900)
+                .build();
+
+        when(fxRateService.getQuote(new BigDecimal("10.00"), "USD", "INR")).thenReturn(mockQuote);
+
+        SimulateSpendRequest request = new SimulateSpendRequest();
+        request.setAmount(new BigDecimal("10.00"));
+        request.setCurrency("USD");
+        request.setCategory("GAMING");
+        request.setMerchant("Steam Store");
+
+        SpendSimulationResult result = transactionService.simulateSpend("teen@example.com", request);
+
+        assertNotNull(result);
+        assertTrue(result.isCompleted());
+        Transaction txn = result.getTransaction();
+        assertNotNull(txn);
+        // Total charge in INR: 877.98
+        assertEquals(new BigDecimal("877.98"), txn.getAmount());
+        assertEquals(new BigDecimal("4122.02"), testWallet.getBalance());
+        assertEquals(new BigDecimal("10.00"), txn.getOriginalAmount());
+        assertEquals("USD", txn.getOriginalCurrency());
+        assertEquals(new BigDecimal("86.5000"), txn.getFxRate());
+        assertEquals(new BigDecimal("12.98"), txn.getFxFee());
+        assertTrue(txn.getDescription().contains("Converted: USD 10.00 @ 86.5000 + INR 12.98 FX fee"));
+    }
+
+    @Test
+    void simulateSpend_InsufficientBalanceForForeignSpend_ThrowsBadRequest() {
+        when(userRepository.findByEmail("teen@example.com")).thenReturn(Optional.of(testUser));
+        when(walletRepository.findByUser(testUser)).thenReturn(Optional.of(testWallet));
+
+        // Attempt to spend $100 USD (which is > ₹5,000 wallet balance)
+        com.fstpay.fx.dto.FxConversionQuote highQuote = com.fstpay.fx.dto.FxConversionQuote.builder()
+                .sourceAmount(new BigDecimal("100.00"))
+                .sourceCurrency("USD")
+                .targetCurrency("INR")
+                .totalAmount(new BigDecimal("8779.80"))
+                .build();
+
+        when(fxRateService.getQuote(new BigDecimal("100.00"), "USD", "INR")).thenReturn(highQuote);
+
+        SimulateSpendRequest request = new SimulateSpendRequest();
+        request.setAmount(new BigDecimal("100.00"));
+        request.setCurrency("USD");
+        request.setCategory("ELECTRONICS");
+        request.setMerchant("Apple Store");
+
+        BadRequestException ex = assertThrows(BadRequestException.class,
+                () -> transactionService.simulateSpend("teen@example.com", request));
+        assertTrue(ex.getMessage().contains("Insufficient wallet balance"));
     }
 }

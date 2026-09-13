@@ -57,10 +57,18 @@ export const transactionApi = {
   getTransactions: (params?: { page?: number; size?: number; category?: string; type?: string }) =>
     api.get('/transactions', { params }),
   getTransaction: (id: string) => api.get(`/transactions/${id}`),
-  simulateSpend: (data: { amount: number; category: string; merchant: string; description?: string }) =>
+  simulateSpend: (data: { amount: number; category: string; merchant: string; description?: string; currency?: string }) =>
     api.post('/transactions/simulate', data),
   exportTransactions: (format: 'csv' | 'pdf') =>
     api.get('/transactions/export', { params: { format }, responseType: 'blob' }),
+};
+
+// ── FX & Multi-Currency ──
+export const fxApi = {
+  getCurrencies: () => api.get('/fx/currencies'),
+  getRates: (base?: string) => api.get('/fx/rates', { params: { base } }),
+  getQuote: (amount: number, from: string, to?: string) =>
+    api.get('/fx/quote', { params: { amount, from, to: to || 'INR' } }),
 };
 
 // ── Analytics ──

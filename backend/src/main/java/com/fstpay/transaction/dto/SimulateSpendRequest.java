@@ -21,4 +21,6 @@ public class SimulateSpendRequest {
     private String description;
 
     private java.util.UUID cardId;
+
+    private String currency; // INR, USD, EUR, GBP, etc. Defaults to wallet base currency
 }
