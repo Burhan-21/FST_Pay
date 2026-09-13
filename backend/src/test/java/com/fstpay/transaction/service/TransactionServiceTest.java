@@ -12,6 +12,10 @@ import com.fstpay.user.repository.UserRepository;
 import com.fstpay.wallet.entity.Wallet;
 import com.fstpay.wallet.repository.WalletRepository;
 import com.fstpay.wallet.api.WalletDailySummaryOperations;
+import com.fstpay.parent.entity.TransactionApproval;
+import com.fstpay.parent.policy.ParentalControlPolicy;
+import com.fstpay.parent.policy.ParentalPolicyResult;
+import com.fstpay.transaction.dto.SpendSimulationResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,6 +46,8 @@ class TransactionServiceTest {
     private TransactionRuleEngine ruleEngine;
     @Mock
     private WalletDailySummaryOperations dailySummaryService;
+    @Mock
+    private ParentalControlPolicy parentalControlPolicy;
 
     private TransactionService transactionService;
 
@@ -56,7 +62,8 @@ class TransactionServiceTest {
                 userRepository,
                 transactionExportService,
                 ruleEngine,
-                dailySummaryService
+                dailySummaryService,
+                parentalControlPolicy
         );
 
         testUser = User.builder()
@@ -92,20 +99,68 @@ class TransactionServiceTest {
                         .build()
         );
 
+        // Mock policy to allow
+        when(parentalControlPolicy.evaluate(any(), any(), any(), any(), any(), any()))
+                .thenReturn(ParentalPolicyResult.allowed("All checks passed"));
+
         SimulateSpendRequest request = new SimulateSpendRequest();
         request.setAmount(new BigDecimal("500.00"));
         request.setCategory("FOOD");
         request.setMerchant("Swiggy");
 
-        Transaction result = transactionService.simulateSpend("teen@example.com", request);
+        SpendSimulationResult result = transactionService.simulateSpend("teen@example.com", request);
 
         assertNotNull(result);
-        assertEquals("DEBIT", result.getType());
+        assertTrue(result.isCompleted());
+        assertNotNull(result.getTransaction());
+        assertEquals("DEBIT", result.getTransaction().getType());
         assertEquals(new BigDecimal("4500.00"), testWallet.getBalance());
-        assertEquals("FOOD", result.getCategory());
+        assertEquals("FOOD", result.getTransaction().getCategory());
         
         // Verify summary service is invoked
         verify(dailySummaryService, times(1)).trackSpend(any(Wallet.class), eq(new BigDecimal("500.00")));
+    }
+
+    @Test
+    void simulateSpend_WhenParentalControlRequiresApproval_ReturnsPendingApprovalWithoutDebit() {
+        when(userRepository.findByEmail("teen@example.com")).thenReturn(Optional.of(testUser));
+        when(walletRepository.findByUser(testUser)).thenReturn(Optional.of(testWallet));
+
+        when(ruleEngine.process(any(), any(), any())).thenReturn(
+                RuleEvaluationResult.builder()
+                        .status(RuleStatus.APPROVED)
+                        .message("All checks passed")
+                        .build()
+        );
+
+        TransactionApproval approval = TransactionApproval.builder()
+                .id(UUID.randomUUID())
+                .child(testUser)
+                .requestType("SPEND")
+                .amount(new BigDecimal("2500.00"))
+                .status("PENDING")
+                .build();
+
+        when(parentalControlPolicy.evaluate(any(), any(), any(), any(), any(), any()))
+                .thenReturn(ParentalPolicyResult.requiresApproval(approval, "Exceeds max transaction limit"));
+
+        SimulateSpendRequest request = new SimulateSpendRequest();
+        request.setAmount(new BigDecimal("2500.00"));
+        request.setCategory("ELECTRONICS");
+        request.setMerchant("Amazon");
+
+        SpendSimulationResult result = transactionService.simulateSpend("teen@example.com", request);
+
+        assertNotNull(result);
+        assertTrue(result.isRequiresApproval());
+        assertFalse(result.isCompleted());
+        assertNotNull(result.getApproval());
+        assertEquals("PENDING", result.getApproval().getStatus());
+        // Balance remains unchanged
+        assertEquals(new BigDecimal("5000.00"), testWallet.getBalance());
+        verify(walletRepository, never()).save(any());
+        verify(transactionRepository, never()).save(any());
+        verify(dailySummaryService, never()).trackSpend(any(), any());
     }
 
     @Test

@@ -11,6 +11,9 @@ import com.fstpay.wallet.repository.WalletRepository;
 import com.fstpay.wallet.api.WalletDailySummaryOperations;
 import com.fstpay.user.entity.User;
 import com.fstpay.user.repository.UserRepository;
+import com.fstpay.parent.policy.ParentalControlPolicy;
+import com.fstpay.parent.policy.ParentalPolicyResult;
+import com.fstpay.transaction.dto.SpendSimulationResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -35,6 +38,7 @@ public class TransactionService {
     private final TransactionExportService transactionExportService;
     private final TransactionRuleEngine ruleEngine;
     private final WalletDailySummaryOperations summaryService;
+    private final ParentalControlPolicy parentalControlPolicy;
 
     public Page<Transaction> getTransactions(String email, String category, String type, int page, int size) {
         User user = userRepository.findByEmail(email)
@@ -62,14 +66,29 @@ public class TransactionService {
     }
 
     @Transactional
-    public Transaction simulateSpend(String email, SimulateSpendRequest request) {
+    public SpendSimulationResult simulateSpend(String email, SimulateSpendRequest request) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         Wallet wallet = walletRepository.findByUser(user)
                 .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
 
-        // Evaluate all rules via Rule Engine
+        // Evaluate base rules (BalanceRule, CardStatusRule)
         ruleEngine.process(user, wallet, request);
+
+        // Evaluate Parental Control Policy
+        ParentalPolicyResult policyResult = parentalControlPolicy.evaluate(
+                user, wallet, request.getAmount(), request.getCategory(), request.getMerchant(), request.getDescription()
+        );
+
+        if (policyResult.isRejected()) {
+            throw new BadRequestException(policyResult.getReason());
+        }
+
+        if (policyResult.isRequiresApproval()) {
+            log.info("Simulated spend of ₹{} for user {} queued for parent approval: {}",
+                    request.getAmount(), email, policyResult.getReason());
+            return SpendSimulationResult.pendingApproval(policyResult.getApproval(), policyResult.getReason());
+        }
 
         // Deduct balance
         wallet.setBalance(wallet.getBalance().subtract(request.getAmount()));
@@ -94,7 +113,7 @@ public class TransactionService {
         summaryService.trackSpend(savedWallet, request.getAmount());
 
         log.info("Simulated spend of ₹{} from user {} completed successfully", request.getAmount(), email);
-        return savedTxn;
+        return SpendSimulationResult.completed(savedTxn, "Transaction simulated successfully");
     }
 
     public String exportTransactionsCsv(String email) {

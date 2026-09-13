@@ -311,7 +311,9 @@ export interface ParentChildLink {
 export interface TransactionApproval {
   id: string;
   parent?: User;
-  child: User;
+  child?: User;
+  childId?: string;
+  childName?: string;
   requestType: 'SPEND' | 'CARD_FREEZE' | 'CARD_UNFREEZE' | 'CARD_GENERATE' | 'GOAL_WITHDRAW' | 'TRANSFER';
   amount?: number;
   category?: string;
@@ -322,6 +324,13 @@ export interface TransactionApproval {
   parentNote?: string;
   createdAt: string;
   decidedAt?: string;
+}
+
+export interface SpendSimulationResponse {
+  status: 'COMPLETED' | 'PENDING_APPROVAL';
+  message: string;
+  transaction?: Transaction;
+  approval?: TransactionApproval;
 }
 
 export interface ParentNotification {

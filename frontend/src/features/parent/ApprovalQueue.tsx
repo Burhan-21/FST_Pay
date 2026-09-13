@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { parentalApi } from '../../api/endpoints';
-import { Check, X, Loader2, Info, MessageSquare, Clock, Calendar, AlertCircle } from 'lucide-react';
+import { Check, X, Loader2, Info, MessageSquare, Clock, Calendar, AlertCircle, Search, Radio, ShieldCheck } from 'lucide-react';
 import type { TransactionApproval } from '../../types';
 import PageTransition from '../../components/ui/PageTransition';
 import GlassCard from '../../components/ui/GlassCard';
@@ -14,6 +14,8 @@ export default function ApprovalQueue() {
   const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
   const [isLoading, setIsLoading] = useState(true);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedType, setSelectedType] = useState<string>('ALL');
   
   // Note inputs state mapping (approvalId -> noteText)
   const [notes, setNotes] = useState<Record<string, string>>({});
@@ -54,8 +56,22 @@ export default function ApprovalQueue() {
         if (isMounted) setIsLoading(false);
       }
     };
+
     loadData();
-    return () => { isMounted = false; };
+
+    // Real-time listener: automatically reload queue when child submits approval request via SSE
+    const handleApprovalRequest = () => {
+      if (isMounted) {
+        loadData();
+      }
+    };
+
+    window.addEventListener('fst:approval_request', handleApprovalRequest);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('fst:approval_request', handleApprovalRequest);
+    };
   }, []);
 
   const handleResolve = async (id: string, decision: 'APPROVED' | 'REJECTED') => {
@@ -89,6 +105,27 @@ export default function ApprovalQueue() {
     }));
   };
 
+  const activeApprovals = activeTab === 'pending' ? pending : history;
+
+  const filteredApprovals = useMemo(() => {
+    return activeApprovals.filter((app) => {
+      const matchesType = selectedType === 'ALL' || app.requestType === selectedType;
+      const teenName = app.childName || app.child?.fullName || '';
+      const desc = app.description || '';
+      const merchant = app.merchant || '';
+      const cat = app.category || '';
+      const term = searchTerm.toLowerCase();
+
+      const matchesSearch = !searchTerm ||
+        teenName.toLowerCase().includes(term) ||
+        desc.toLowerCase().includes(term) ||
+        merchant.toLowerCase().includes(term) ||
+        cat.toLowerCase().includes(term);
+
+      return matchesType && matchesSearch;
+    });
+  }, [activeApprovals, selectedType, searchTerm]);
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
@@ -100,17 +137,37 @@ export default function ApprovalQueue() {
     );
   }
 
-  const activeApprovals = activeTab === 'pending' ? pending : history;
-
   return (
     <PageTransition>
       <div className="space-y-6">
-        {/* Tab Selectors */}
-        <div className="flex justify-between items-center border-b border-surface-700/50 pb-3">
-          <div className="flex gap-4">
+        {/* Header with Live SSE Indicator */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-surface-700/50 pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-6 h-6 text-primary-400" />
+              <h1 className="text-xl font-bold text-white tracking-tight">Parent Approval Center</h1>
+            </div>
+            <p className="text-xs text-surface-400 mt-0.5">
+              Review and authorize high-value spends, card state changes, and allowance approvals.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 self-start sm:self-auto px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <Radio className="w-3.5 h-3.5" />
+            <span>Live Stream Active</span>
+          </div>
+        </div>
+
+        {/* Tab & Search Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex gap-4 border-b sm:border-b-0 border-surface-700/50 pb-2 sm:pb-0">
             <button
               onClick={() => setActiveTab('pending')}
-              className={`text-base font-bold pb-2 border-b-2 transition-all ${
+              className={`text-sm font-bold pb-1.5 border-b-2 transition-all ${
                 activeTab === 'pending'
                   ? 'border-primary-500 text-white'
                   : 'border-transparent text-surface-400 hover:text-white'
@@ -120,40 +177,73 @@ export default function ApprovalQueue() {
             </button>
             <button
               onClick={() => setActiveTab('history')}
-              className={`text-base font-bold pb-2 border-b-2 transition-all ${
+              className={`text-sm font-bold pb-1.5 border-b-2 transition-all ${
                 activeTab === 'history'
                   ? 'border-primary-500 text-white'
                   : 'border-transparent text-surface-400 hover:text-white'
               }`}
             >
-              Resolution History
+              Resolution History ({history.length})
             </button>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1 sm:w-64">
+              <Search className="w-3.5 h-3.5 text-surface-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search by teen, merchant..."
+                className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-surface-800/60 border border-surface-700/60 text-xs text-white placeholder-surface-500 focus:outline-none focus:border-primary-500 transition-colors"
+              />
+            </div>
+
+            <select
+              value={selectedType}
+              onChange={(e) => setSelectedType(e.target.value)}
+              className="bg-surface-800/60 border border-surface-700/60 text-xs text-surface-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-primary-500"
+            >
+              <option value="ALL">All Types</option>
+              <option value="SPEND">Spends</option>
+              <option value="CARD_FREEZE">Card Freeze</option>
+              <option value="CARD_UNFREEZE">Card Unfreeze</option>
+              <option value="CARD_GENERATE">Card Generate</option>
+            </select>
           </div>
         </div>
 
-        {activeApprovals.length === 0 ? (
+        {filteredApprovals.length === 0 ? (
           <GlassCard padding="none" className="text-center max-w-md mx-auto space-y-4 p-12">
             <Info className="w-10 h-10 text-surface-500 mx-auto" />
             <p className="text-surface-400 text-sm font-medium">
-              {activeTab === 'pending' ? 'No pending approval requests!' : 'No approval history found.'}
+              {searchTerm || selectedType !== 'ALL'
+                ? 'No approval requests match the filter criteria.'
+                : activeTab === 'pending'
+                ? 'No pending approval requests! Everything is clear.'
+                : 'No approval history found.'}
             </p>
           </GlassCard>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {activeApprovals.map((app) => {
+            {filteredApprovals.map((app) => {
               const isPending = app.status === 'PENDING';
               const isApproved = app.status === 'APPROVED';
+              const teenDisplayName = app.childName || app.child?.fullName || 'Teen Account';
+
               return (
                 <GlassCard key={app.id} padding="md" className="flex flex-col justify-between space-y-4 border border-white/5 hover:border-primary-500/10 transition-all">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div>
-                        <span className="text-[10px] text-primary-400 font-bold uppercase tracking-wider block">TEEN</span>
-                        <span className="text-sm text-white font-bold mt-0.5">{app.child?.fullName || 'Child'}</span>
+                        <span className="text-[10px] text-primary-400 font-bold uppercase tracking-wider block">TEENAGER</span>
+                        <span className="text-sm text-white font-bold mt-0.5">{teenDisplayName}</span>
                       </div>
                       <div className="text-right">
                         <span className="text-[10px] text-surface-400 font-bold uppercase tracking-wider block">TYPE</span>
-                        <span className="text-xs text-white font-semibold mt-0.5">{app.requestType}</span>
+                        <span className="text-xs text-primary-300 font-semibold mt-0.5 px-2 py-0.5 rounded bg-primary-500/10 border border-primary-500/20 inline-block">
+                          {app.requestType}
+                        </span>
                       </div>
                     </div>
 
@@ -162,13 +252,13 @@ export default function ApprovalQueue() {
                       {app.amount && app.amount > 0 && (
                         <div className="flex items-center justify-between text-xs pt-1 border-t border-surface-800/40">
                           <span className="text-surface-400">Requested Amount</span>
-                          <span className="text-accent-400 font-bold">₹{app.amount.toLocaleString()}</span>
+                          <span className="text-emerald-400 font-bold text-sm">₹{app.amount.toLocaleString()}</span>
                         </div>
                       )}
                       {app.merchant && (
-                        <div className="flex items-center justify-between text-[10px] text-surface-500">
-                          <span>Merchant: {app.merchant}</span>
-                          <span>Category: {app.category}</span>
+                        <div className="flex items-center justify-between text-[11px] text-surface-400 pt-0.5">
+                          <span>Merchant: <strong className="text-surface-200">{app.merchant}</strong></span>
+                          {app.category && <span>Category: <strong className="text-surface-200">{app.category}</strong></span>}
                         </div>
                       )}
                     </div>
@@ -182,7 +272,7 @@ export default function ApprovalQueue() {
                   {isPending ? (
                     <div className="space-y-3 pt-2">
                       <div className="flex items-center gap-2 input-field px-2.5 py-1">
-                        <MessageSquare className="w-4 h-4 text-surface-500" />
+                        <MessageSquare className="w-4 h-4 text-surface-500 shrink-0" />
                         <input
                           type="text"
                           value={notes[app.id] || ''}
@@ -219,7 +309,11 @@ export default function ApprovalQueue() {
                     <div className="pt-2 border-t border-surface-800/60 space-y-2">
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-surface-400">Resolution status</span>
-                        <span className={`font-bold ${isApproved ? 'text-accent-400' : 'text-rose-400'}`}>
+                        <span className={`font-bold px-2 py-0.5 rounded text-xs ${
+                          isApproved 
+                            ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' 
+                            : 'text-rose-400 bg-rose-500/10 border border-rose-500/20'
+                        }`}>
                           {app.status}
                         </span>
                       </div>
@@ -231,7 +325,7 @@ export default function ApprovalQueue() {
                       {app.decidedAt && (
                         <div className="flex items-center gap-1.5 text-[10px] text-surface-500">
                           <Calendar className="w-3 h-3" />
-                          <span>Resolved at: {new Date(app.decidedAt).toLocaleString()}</span>
+                          <span>Resolved: {new Date(app.decidedAt).toLocaleString()}</span>
                         </div>
                       )}
                     </div>

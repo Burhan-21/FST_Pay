@@ -34,13 +34,8 @@ public class TransactionRuleEngine {
 
         // 2. Evaluate remaining rules
         for (TransactionRule rule : rules) {
-            // If we have an approval bypass, skip spending limit and category checks
-            if (hasBypassApproval && (rule instanceof SpendingLimitRule || rule instanceof CategoryRestrictionRule)) {
-                continue;
-            }
-
-            // We already ran ApprovalRule
-            if (rule instanceof ApprovalRule) {
+            // Parental limits, pre-approvals, and category restrictions are handled comprehensively by ParentalControlPolicy
+            if (rule instanceof ApprovalRule || rule instanceof SpendingLimitRule || rule instanceof CategoryRestrictionRule) {
                 continue;
             }
 
@@ -50,7 +45,7 @@ public class TransactionRuleEngine {
                 throw new BadRequestException(result.getMessage());
             }
             if (result.getStatus() == RuleStatus.PENDING) {
-                log.warn("Rule Engine pending parent approval: {}", result.getMessage());
+                log.warn("Rule Engine pending: {}", result.getMessage());
                 throw new BadRequestException(result.getMessage());
             }
         }

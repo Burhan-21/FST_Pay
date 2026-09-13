@@ -4,6 +4,8 @@ import com.fstpay.common.dto.ApiResponse;
 import com.fstpay.transaction.dto.SimulateSpendRequest;
 import com.fstpay.transaction.entity.Transaction;
 import com.fstpay.transaction.service.TransactionService;
+import org.springframework.http.HttpStatus;
+import com.fstpay.transaction.dto.SpendSimulationResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -52,11 +54,15 @@ public class TransactionController {
 
     @PostMapping("/simulate")
     @Operation(summary = "Simulate a card purchase", description = "Simulates a debit spend on the user's virtual prepaid card. Evaluates transaction rules and triggers approvals if needed.")
-    public ResponseEntity<ApiResponse<Transaction>> simulateSpend(
+    public ResponseEntity<ApiResponse<?>> simulateSpend(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody SimulateSpendRequest request) {
-        Transaction txn = transactionService.simulateSpend(userDetails.getUsername(), request);
-        return ResponseEntity.ok(ApiResponse.success("Transaction simulated successfully", txn));
+        SpendSimulationResult result = transactionService.simulateSpend(userDetails.getUsername(), request);
+        if (result.isRequiresApproval()) {
+            return ResponseEntity.status(HttpStatus.ACCEPTED)
+                    .body(ApiResponse.success(result.getMessage(), result));
+        }
+        return ResponseEntity.ok(ApiResponse.success(result.getMessage(), result.getTransaction()));
     }
 
     @GetMapping("/export")

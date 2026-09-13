@@ -97,6 +97,26 @@ export function useNotificationStream(options: UseNotificationStreamOptions = {}
       }
     });
 
+    es.addEventListener('APPROVAL_REQUEST', (e: MessageEvent) => {
+      try {
+        const payload = JSON.parse(e.data);
+        setLastEvent(payload);
+        window.dispatchEvent(new CustomEvent('fst:approval_request', { detail: payload }));
+      } catch (err) {
+        console.error('Failed to parse SSE APPROVAL_REQUEST payload:', err);
+      }
+    });
+
+    es.addEventListener('APPROVAL_DECISION', (e: MessageEvent) => {
+      try {
+        const payload = JSON.parse(e.data);
+        setLastEvent(payload);
+        window.dispatchEvent(new CustomEvent('fst:approval_decision', { detail: payload }));
+      } catch (err) {
+        console.error('Failed to parse SSE APPROVAL_DECISION payload:', err);
+      }
+    });
+
     es.onmessage = (e: MessageEvent) => {
       if (onMessageRef.current) {
         onMessageRef.current(e);

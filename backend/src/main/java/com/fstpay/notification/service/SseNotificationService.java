@@ -182,6 +182,50 @@ public class SseNotificationService {
         }
     }
 
+    @EventListener
+    public void handleApprovalRequested(com.fstpay.common.event.ApprovalRequestedEvent event) {
+        log.info("SSE received ApprovalRequestedEvent for parent: {}", event.parent() != null ? event.parent().id() : null);
+        if (event.parent() != null && event.parent().id() != null) {
+            sendToUser(event.parent().id(), "APPROVAL_REQUEST", Map.of(
+                    "childId", event.child() != null && event.child().id() != null ? event.child().id().toString() : "",
+                    "childName", event.child() != null && event.child().fullName() != null ? event.child().fullName() : "Teen",
+                    "requestType", event.requestType() != null ? event.requestType() : "SPEND",
+                    "amount", event.amount() != null ? event.amount() : 0,
+                    "merchant", event.merchant() != null ? event.merchant() : "",
+                    "description", event.description() != null ? event.description() : "",
+                    "timestamp", Instant.now().toString()
+            ));
+        }
+    }
+
+    @EventListener
+    public void handleParentApprovalGranted(com.fstpay.common.event.ParentApprovalGrantedEvent event) {
+        log.info("SSE received ParentApprovalGrantedEvent for child: {}", event.child() != null ? event.child().id() : null);
+        if (event.child() != null && event.child().id() != null) {
+            sendToUser(event.child().id(), "APPROVAL_DECISION", Map.of(
+                    "status", "APPROVED",
+                    "requestType", event.requestType() != null ? event.requestType() : "SPEND",
+                    "amount", event.amount() != null ? event.amount() : 0,
+                    "parentName", event.parent() != null && event.parent().fullName() != null ? event.parent().fullName() : "Parent",
+                    "timestamp", Instant.now().toString()
+            ));
+        }
+    }
+
+    @EventListener
+    public void handleParentApprovalRejected(com.fstpay.common.event.ParentApprovalRejectedEvent event) {
+        log.info("SSE received ParentApprovalRejectedEvent for child: {}", event.child() != null ? event.child().id() : null);
+        if (event.child() != null && event.child().id() != null) {
+            sendToUser(event.child().id(), "APPROVAL_DECISION", Map.of(
+                    "status", "REJECTED",
+                    "requestType", event.requestType() != null ? event.requestType() : "SPEND",
+                    "amount", event.amount() != null ? event.amount() : 0,
+                    "parentName", event.parent() != null && event.parent().fullName() != null ? event.parent().fullName() : "Parent",
+                    "timestamp", Instant.now().toString()
+            ));
+        }
+    }
+
     public int getActiveConnectionsCount() {
         return userEmitters.values().stream().mapToInt(List::size).sum();
     }

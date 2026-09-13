@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { formatCurrency, getCategoryEmoji, formatRelativeTime, parseMoneyInput } from '../../utils/helpers';
-import { Search, ArrowUpRight, ArrowDownRight, Plus, AlertCircle, Download, Inbox } from 'lucide-react';
+import { Search, ArrowUpRight, ArrowDownRight, Plus, AlertCircle, Download, Inbox, Clock, X } from 'lucide-react';
 import { transactionApi } from '../../api/endpoints';
 import type { Transaction } from '../../types';
 import { PageTransition, EmptyState, Modal, Button, SettlementBadge } from '../../components/ui';
@@ -16,6 +16,7 @@ export default function TransactionsPage() {
   const [isSimulateLoading, setIsSimulateLoading] = useState(false);
   const [showSimulate, setShowSimulate] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [approvalNotice, setApprovalNotice] = useState<string | null>(null);
 
   // Filters
   const [filter, setFilter] = useState('ALL');
@@ -98,11 +99,17 @@ export default function TransactionsPage() {
       fetchTransactions();
     };
 
+    const handleApprovalDecision = () => {
+      fetchTransactions();
+    };
+
     window.addEventListener('fst:settlement_update', handleSettlementUpdate);
     window.addEventListener('fst:wallet_update', handleWalletUpdate);
+    window.addEventListener('fst:approval_decision', handleApprovalDecision);
     return () => {
       window.removeEventListener('fst:settlement_update', handleSettlementUpdate);
       window.removeEventListener('fst:wallet_update', handleWalletUpdate);
+      window.removeEventListener('fst:approval_decision', handleApprovalDecision);
     };
   }, []);
 
@@ -121,12 +128,23 @@ export default function TransactionsPage() {
     try {
       setIsSimulateLoading(true);
       setErrorMsg('');
-      await transactionApi.simulateSpend({
+      const res = await transactionApi.simulateSpend({
         amount: parsedAmount,
         category,
         merchant,
         description: description || undefined,
       });
+
+      // Handle HTTP 202 Accepted (Pending Parent Approval)
+      if (res.status === 202 || res.data?.data?.status === 'PENDING_APPROVAL') {
+        setApprovalNotice(
+          res.data?.message ||
+          `Approval Request Submitted: Your spend of ₹${parsedAmount.toLocaleString()} at ${merchant} exceeded spending limits and was sent to your parent for approval.`
+        );
+      } else {
+        setApprovalNotice(null);
+      }
+
       await fetchTransactions();
       setShowSimulate(false);
       setAmount('');
@@ -186,6 +204,28 @@ export default function TransactionsPage() {
           </Button>
         </div>
       </div>
+
+      {/* Pending Parent Approval Banner */}
+      {approvalNotice && (
+        <div className="flex items-start justify-between gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 animate-fade-in shadow-lg">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0 mt-0.5">
+              <Clock className="w-4 h-4 text-amber-400" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-white">Pending Parent Authorization</p>
+              <p className="text-xs text-amber-200/90 mt-0.5">{approvalNotice}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setApprovalNotice(null)}
+            className="text-amber-400/80 hover:text-amber-200 transition-colors p-1 rounded-lg hover:bg-white/5"
+            aria-label="Dismiss banner"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="glass-card p-4 space-y-4 page-section">
