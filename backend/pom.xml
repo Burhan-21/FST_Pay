@@ -151,7 +151,7 @@
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-sdk</artifactId>
-            <version>1.39.0</version>
+            <version>1.65.0</version>
         </dependency>
         <dependency>
             <groupId>io.opentelemetry</groupId>
