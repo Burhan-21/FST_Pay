@@ -12,3 +12,4 @@ export { default as PageTransition, StaggerContainer, StaggerItem } from './Page
 export { default as SectionHeader } from './SectionHeader';
 export { default as ProgressRing } from './ProgressRing';
 export { default as Tooltip } from './Tooltip';
+export { SettlementBadge } from './SettlementBadge';

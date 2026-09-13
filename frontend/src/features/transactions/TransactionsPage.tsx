@@ -4,7 +4,7 @@ import { formatCurrency, getCategoryEmoji, formatRelativeTime, parseMoneyInput }
 import { Search, ArrowUpRight, ArrowDownRight, Plus, AlertCircle, Download, Inbox } from 'lucide-react';
 import { transactionApi } from '../../api/endpoints';
 import type { Transaction } from '../../types';
-import { PageTransition, EmptyState, Modal, Button } from '../../components/ui';
+import { PageTransition, EmptyState, Modal, Button, SettlementBadge } from '../../components/ui';
 import { TransactionSkeleton } from '../../components/skeletons/PageSkeletons';
 
 const categories = ['ALL', 'FOOD', 'TRANSPORT', 'SHOPPING', 'ENTERTAINMENT', 'EDUCATION', 'HEALTH', 'BILLS', 'OTHER'];
@@ -213,7 +213,10 @@ export default function TransactionsPage() {
                 {getCategoryEmoji(txn.category)}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">{txn.merchant}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-white truncate">{txn.merchant}</p>
+                  <SettlementBadge status={txn.status} />
+                </div>
                 <p className="text-xs text-surface-400">{txn.description || 'Simulated transaction'} • {formatRelativeTime(txn.createdAt)}</p>
               </div>
               <div className="text-right flex items-center gap-3">

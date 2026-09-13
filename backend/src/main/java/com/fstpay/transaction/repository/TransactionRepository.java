@@ -30,6 +30,16 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
 
     List<Transaction> findByWalletIdAndCreatedAtBetween(UUID walletId, Instant start, Instant end);
 
+    java.util.Optional<Transaction> findByReferenceId(String referenceId);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT t FROM Transaction t WHERE t.referenceId = :referenceId")
+    java.util.Optional<Transaction> findByReferenceIdForUpdate(@Param("referenceId") String referenceId);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT t FROM Transaction t WHERE t.id = :id")
+    java.util.Optional<Transaction> findByIdForUpdate(@Param("id") UUID id);
+
     @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t")
     java.math.BigDecimal sumAllAmounts();
 }

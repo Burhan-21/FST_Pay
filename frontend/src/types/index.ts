@@ -51,6 +51,19 @@ export interface VirtualCard {
   createdAt: string;
 }
 
+export type SettlementStatus = 'PENDING' | 'SETTLED' | 'COMPLETED' | 'FAILED' | 'DISPUTED';
+
+export interface MerchantSettlementWebhookPayload {
+  transactionId?: string;
+  referenceId: string;
+  merchantId: string;
+  settlementAmount: number;
+  currency: string;
+  status: SettlementStatus;
+  settledAt?: string;
+  settlementNote?: string;
+}
+
 export interface Transaction {
   id: string;
   walletId: string;
@@ -62,7 +75,7 @@ export interface Transaction {
   description?: string;
   merchant?: string;
   referenceId: string;
-  status: string;
+  status: SettlementStatus | string;
   createdAt: string;
 }
 
