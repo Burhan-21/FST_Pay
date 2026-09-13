@@ -6,9 +6,10 @@ interface NavbarProps {
   onMenuClick: () => void;
   onSearchClick: () => void;
   title?: string;
+  isLiveConnected?: boolean;
 }
 
-export default function Navbar({ onMenuClick, onSearchClick, title }: NavbarProps) {
+export default function Navbar({ onMenuClick, onSearchClick, title, isLiveConnected }: NavbarProps) {
   const { user } = useAuth();
   const { theme, cycleTheme } = useTheme();
 
@@ -104,9 +105,15 @@ export default function Navbar({ onMenuClick, onSearchClick, title }: NavbarProp
                 ? 'text-surface-400 hover:bg-white/5 hover:text-white'
                 : 'text-slate-400 dark:text-surface-400 hover:bg-slate-200 dark:hover:bg-surface-800 hover:text-slate-900 dark:hover:text-white'
             }`}
+            title={isLiveConnected ? 'Live updates active (SSE connected)' : 'Notifications'}
+            aria-label="Notifications"
           >
             <Bell className="w-5 h-5" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-accent-500 rounded-full ring-2 ring-slate-50 dark:ring-surface-950 amoled:ring-black" />
+            <span
+              className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ring-2 ring-slate-50 dark:ring-surface-950 amoled:ring-black ${
+                isLiveConnected ? 'bg-emerald-400 animate-pulse' : 'bg-accent-500'
+              }`}
+            />
           </button>
 
           {/* Avatar */}

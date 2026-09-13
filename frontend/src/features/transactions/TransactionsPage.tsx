@@ -84,6 +84,28 @@ export default function TransactionsPage() {
     return () => { isMounted = false; };
   }, [filter, typeFilter]);
 
+  useEffect(() => {
+    const handleSettlementUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<{ transactionId: string; status: string }>;
+      const { transactionId, status } = customEvent.detail || {};
+      if (transactionId && status) {
+        setTxns(prev => prev.map(t => (t.id === transactionId ? { ...t, status } : t)));
+      }
+      fetchTransactions();
+    };
+
+    const handleWalletUpdate = () => {
+      fetchTransactions();
+    };
+
+    window.addEventListener('fst:settlement_update', handleSettlementUpdate);
+    window.addEventListener('fst:wallet_update', handleWalletUpdate);
+    return () => {
+      window.removeEventListener('fst:settlement_update', handleSettlementUpdate);
+      window.removeEventListener('fst:wallet_update', handleWalletUpdate);
+    };
+  }, []);
+
   const handleSimulate = async (e: React.FormEvent) => {
     e.preventDefault();
     const parsedAmount = parseMoneyInput(amount, 1);

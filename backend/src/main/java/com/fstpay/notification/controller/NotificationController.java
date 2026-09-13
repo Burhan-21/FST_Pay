@@ -18,6 +18,17 @@ import java.util.List;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final com.fstpay.notification.service.SseNotificationService sseNotificationService;
+
+    @GetMapping(value = "/stream", produces = org.springframework.http.MediaType.TEXT_EVENT_STREAM_VALUE)
+    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter streamNotifications(
+            Authentication authentication,
+            jakarta.servlet.http.HttpServletResponse response
+    ) {
+        response.setHeader("X-Accel-Buffering", "no");
+        response.setHeader("Cache-Control", "no-cache, no-transform");
+        return sseNotificationService.subscribe(authentication.getName());
+    }
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<Notification>>> getNotifications(Authentication authentication) {

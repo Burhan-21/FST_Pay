@@ -385,3 +385,21 @@ export interface ChildDetail {
   activeGoals: WalletGoal[];
   recentTransactions: Transaction[];
 }
+
+export interface SseSettlementUpdatePayload {
+  type: 'SETTLEMENT_UPDATE';
+  transactionId: string;
+  referenceId: string;
+  merchantId: string;
+  status: SettlementStatus;
+  amount: number;
+}
+
+export interface SseWalletUpdatePayload {
+  type: 'WALLET_UPDATE';
+  userId: string;
+  amount: number;
+  balance: number;
+}
+
+export type SseEventPayload = SseSettlementUpdatePayload | SseWalletUpdatePayload | { type: string; [key: string]: unknown };

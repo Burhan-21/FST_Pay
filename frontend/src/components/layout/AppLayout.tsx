@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 import CommandPalette from './CommandPalette';
+import { useNotificationStream } from '../../hooks/useNotificationStream';
 
 const pageTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -21,6 +22,7 @@ const pageTitles: Record<string, string> = {
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const { isConnected } = useNotificationStream();
   const location = useLocation();
   const title = pageTitles[location.pathname] || (location.pathname.startsWith('/parent/child/') ? 'Child Details' : '');
 
@@ -52,6 +54,7 @@ export default function AppLayout() {
           onMenuClick={() => setSidebarOpen(true)}
           title={title}
           onSearchClick={() => setCommandPaletteOpen(true)}
+          isLiveConnected={isConnected}
         />
 
         <main className="flex-1 p-4 lg:p-6 overflow-auto gradient-mesh relative z-10">
