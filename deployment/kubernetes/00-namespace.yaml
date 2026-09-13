@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fstpay
+  labels:
+    app.kubernetes.io/name: fstpay
+    app.kubernetes.io/part-of: fstpay-platform

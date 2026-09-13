@@ -32,6 +32,13 @@ target/
 # Logs
 *.log
 logs/
+backend.log
+
+# Test & Coverage
+test-results/
+playwright-report/
+coverage/
+.nyc_output/
 
 # Misc
 *.pid
