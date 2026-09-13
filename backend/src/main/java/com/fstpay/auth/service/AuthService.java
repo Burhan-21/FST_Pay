@@ -6,6 +6,11 @@ import com.fstpay.auth.entity.RefreshToken;
 import com.fstpay.auth.repository.PasswordResetTokenRepository;
 import com.fstpay.auth.repository.RefreshTokenRepository;
 import com.fstpay.auth.security.JwtProvider;
+import com.fstpay.auth.totp.TotpService;
+import com.fstpay.auth.totp.dto.VerifyBackupCodeRequest;
+import com.fstpay.auth.totp.dto.VerifyTotpRequest;
+import com.fstpay.auth.totp.entity.UserBackupCode;
+import com.fstpay.auth.totp.repository.UserBackupCodeRepository;
 import com.fstpay.common.exception.*;
 import com.fstpay.common.service.AuditService;
 import com.fstpay.user.entity.User;
@@ -44,6 +49,8 @@ public class AuthService {
     private final RecaptchaService recaptchaService;
     private final AuditService auditService;
     private final EntityManager entityManager;
+    private final TotpService totpService;
+    private final UserBackupCodeRepository userBackupCodeRepository;
 
     @Value("${app.auth.max-login-attempts:5}")
     private int maxLoginAttempts;
@@ -167,6 +174,17 @@ public class AuthService {
         user.setLockedUntil(null);
         userRepository.save(user);
 
+        // Check if user has TOTP Two-Factor Authentication enabled
+        if (Boolean.TRUE.equals(user.getTotpEnabled())) {
+            auditService.logAuthEvent(email, "LOGIN_TOTP_CHALLENGE", "TOTP second factor requested");
+            log.info("Login TOTP challenge issued for user: {}", email);
+            return TokenResponse.builder()
+                    .requiresTotp(true)
+                    .requiresOtp(false)
+                    .email(user.getEmail())
+                    .build();
+        }
+
         // Trigger OTP verification (rate-limited per email)
         String otp = otpService.generateOtp(user.getEmail());
         if (otp == null) {
@@ -180,6 +198,8 @@ public class AuthService {
 
         return TokenResponse.builder()
                 .requiresOtp(true)
+                .requiresTotp(false)
+                .email(user.getEmail())
                 .build();
     }
 
@@ -195,6 +215,88 @@ public class AuthService {
             throw new BadRequestException("Invalid or expired OTP");
         }
 
+        auditService.logAuthEvent(email, "OTP_VERIFIED", "User authenticated successfully");
+        return generateAuthTokenResponse(user);
+    }
+
+    @Transactional
+    public TokenResponse verifyTotp(VerifyTotpRequest request) {
+        String email = request.getEmail().toLowerCase().trim();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (!Boolean.TRUE.equals(user.getTotpEnabled()) || user.getTotpSecret() == null) {
+            auditService.logAuthEvent(email, "TOTP_FAILED", "TOTP not enabled for user");
+            throw new BadRequestException("Two-factor authentication is not enabled for this account.");
+        }
+
+        if (!totpService.verifyCode(user.getTotpSecret(), request.getCode())) {
+            auditService.logAuthEvent(email, "TOTP_FAILED", "Invalid TOTP verification code");
+            throw new BadRequestException("Invalid 6-digit verification code. Please check your authenticator app.");
+        }
+
+        auditService.logAuthEvent(email, "TOTP_VERIFIED", "User authenticated via TOTP");
+        log.info("TOTP authentication succeeded for user: {}", email);
+
+        return generateAuthTokenResponse(user);
+    }
+
+    @Transactional
+    public TokenResponse verifyBackupCode(VerifyBackupCodeRequest request) {
+        String email = request.getEmail().toLowerCase().trim();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (!Boolean.TRUE.equals(user.getTotpEnabled())) {
+            auditService.logAuthEvent(email, "BACKUP_CODE_FAILED", "TOTP not enabled for user");
+            throw new BadRequestException("Two-factor authentication is not enabled for this account.");
+        }
+
+        String codeHash = totpService.hashBackupCode(request.getBackupCode());
+        UserBackupCode backupCode = userBackupCodeRepository.findByUserAndCodeHashAndUsedFalse(user, codeHash)
+                .orElseThrow(() -> {
+                    totpService.recordBackupCodeUsed(false);
+                    auditService.logAuthEvent(email, "BACKUP_CODE_FAILED", "Invalid or already used backup code");
+                    return new BadRequestException("Invalid or already used emergency recovery code.");
+                });
+
+        backupCode.setUsed(true);
+        backupCode.setUsedAt(Instant.now());
+        userBackupCodeRepository.save(backupCode);
+        totpService.recordBackupCodeUsed(true);
+
+        auditService.logAuthEvent(email, "BACKUP_CODE_VERIFIED", "User authenticated via emergency backup code");
+        log.info("Emergency recovery backup code redeemed successfully for user: {}", email);
+
+        return generateAuthTokenResponse(user);
+    }
+
+    @Transactional
+    public TokenResponse sendTotpFallbackEmailOtp(String emailParam) {
+        String email = emailParam.toLowerCase().trim();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        String otp = otpService.generateOtp(user.getEmail());
+        if (otp == null) {
+            auditService.logAuthEvent(email, "OTP_RATE_LIMITED", "Fallback OTP generation rate limited");
+            throw new BadRequestException("Please wait before requesting a new OTP.");
+        }
+        emailService.sendOtpEmail(user.getEmail(), otp);
+
+        auditService.logAuthEvent(email, "TOTP_FALLBACK_OTP_SENT", "Fallback login OTP sent to email");
+        log.info("Fallback email OTP sent for user: {}", email);
+
+        return TokenResponse.builder()
+                .requiresOtp(true)
+                .requiresTotp(false)
+                .email(user.getEmail())
+                .build();
+    }
+
+    private TokenResponse generateAuthTokenResponse(User user) {
         // Clean old tokens
         refreshTokenRepository.deleteByUser(user);
 
@@ -202,7 +304,7 @@ public class AuthService {
         if (!user.getIsActive()) {
             user.setIsActive(true);
             userRepository.save(user);
-            log.info("Activated user account: {}", email);
+            log.info("Activated user account: {}", user.getEmail());
         }
 
         String accessToken = jwtProvider.generateAccessToken(user.getEmail(), user.getRole());
@@ -215,13 +317,12 @@ public class AuthService {
                 .build();
         refreshTokenRepository.save(refreshTokenEntity);
 
-        auditService.logAuthEvent(email, "OTP_VERIFIED", "User authenticated successfully");
-
         return TokenResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refresh)
                 .expiresIn(jwtProvider.getAccessTokenExpirationMs() / 1000)
                 .requiresOtp(false)
+                .requiresTotp(false)
                 .user(user)
                 .build();
     }

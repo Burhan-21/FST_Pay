@@ -111,4 +111,11 @@ public class User {
     @Column(name = "biometric_enabled")
     @Builder.Default
     private Boolean biometricEnabled = false;
+
+    @Column(name = "totp_secret")
+    private String totpSecret;
+
+    @Column(name = "totp_enabled")
+    @Builder.Default
+    private Boolean totpEnabled = false;
 }

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../hooks/useAuth';
-import { User, Lock, Shield, Bell, Palette, Loader2, Check, AlertCircle } from 'lucide-react';
-import { userApi, parentalApi } from '../../api/endpoints';
-import type { ParentInvitation, TransactionApproval } from '../../types';
+import { User, Lock, Shield, Bell, Palette, Loader2, Check, AlertCircle, QrCode, Copy, Download, RefreshCw, KeyRound, ShieldCheck } from 'lucide-react';
+import { userApi, parentalApi, totpApi } from '../../api/endpoints';
+import type { ParentInvitation, TransactionApproval, TotpSetupResponse, TotpStatusResponse } from '../../types';
 import PageTransition from '../../components/ui/PageTransition';
 import Modal from '../../components/ui/Modal';
 import Button from '../../components/ui/Button';
@@ -15,6 +15,26 @@ export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  // 2FA TOTP States
+  const [totpStatus, setTotpStatus] = useState<TotpStatusResponse | null>(null);
+  const [totpLoading, setTotpLoading] = useState(false);
+  const [showTotpSetupModal, setShowTotpSetupModal] = useState(false);
+  const [totpSetupData, setTotpSetupData] = useState<TotpSetupResponse | null>(null);
+  const [totpSetupCode, setTotpSetupCode] = useState('');
+  const [totpSetupError, setTotpSetupError] = useState('');
+  const [totpSetupSubmitting, setTotpSetupSubmitting] = useState(false);
+  const [copiedSecret, setCopiedSecret] = useState(false);
+  const [copiedCodes, setCopiedCodes] = useState(false);
+  const [showDisableModal, setShowDisableModal] = useState(false);
+  const [disablePassword, setDisablePassword] = useState('');
+  const [disableError, setDisableError] = useState('');
+  const [disableLoading, setDisableLoading] = useState(false);
+  const [showRegenerateModal, setShowRegenerateModal] = useState(false);
+  const [regenerateCode, setRegenerateCode] = useState('');
+  const [regenerateError, setRegenerateError] = useState('');
+  const [regeneratedCodes, setRegeneratedCodes] = useState<string[] | null>(null);
+  const [regenerateLoading, setRegenerateLoading] = useState(false);
 
   // Profile Form States
   const [fullName, setFullName] = useState(user?.fullName || '');
@@ -78,6 +98,128 @@ export default function SettingsPage() {
     loadParental();
     return () => { isMounted = false; };
   }, [activeTab]);
+
+  const fetchTotpStatus = async () => {
+    try {
+      const res = await totpApi.getStatus();
+      if (res.data?.data) {
+        setTotpStatus(res.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch TOTP status:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'security') {
+      fetchTotpStatus();
+    }
+  }, [activeTab]);
+
+  const startTotpSetup = async () => {
+    setTotpLoading(true);
+    setTotpSetupError('');
+    setTotpSetupCode('');
+    setCopiedSecret(false);
+    setCopiedCodes(false);
+    try {
+      const res = await totpApi.setup();
+      if (res.data?.data) {
+        setTotpSetupData(res.data.data);
+        setShowTotpSetupModal(true);
+      }
+    } catch (err: unknown) {
+      setErrorMsg(axios.isAxiosError<{ message?: string }>(err) ? err.response?.data?.message || 'Failed to initialize 2FA setup.' : 'Failed to initialize 2FA setup.');
+    } finally {
+      setTotpLoading(false);
+    }
+  };
+
+  const handleConfirmTotp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!totpSetupData) return;
+    setTotpSetupSubmitting(true);
+    setTotpSetupError('');
+    try {
+      const res = await totpApi.enable({
+        secret: totpSetupData.secret,
+        code: totpSetupCode,
+        backupCodes: totpSetupData.backupCodes,
+      });
+      if (res.data?.data) {
+        setTotpStatus(res.data.data);
+      }
+      setShowTotpSetupModal(false);
+      setAlertConfig({
+        title: '2FA Enabled Successfully',
+        message: 'Two-Factor Authentication is now active. Make sure your emergency recovery codes are stored safely!',
+      });
+      refreshProfile();
+    } catch (err: unknown) {
+      setTotpSetupError(axios.isAxiosError<{ message?: string }>(err) ? err.response?.data?.message || 'Invalid verification code.' : 'Invalid verification code.');
+    } finally {
+      setTotpSetupSubmitting(false);
+    }
+  };
+
+  const handleDisableTotp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDisableLoading(true);
+    setDisableError('');
+    try {
+      const res = await totpApi.disable({ password: disablePassword });
+      if (res.data?.data) {
+        setTotpStatus(res.data.data);
+      }
+      setShowDisableModal(false);
+      setDisablePassword('');
+      setAlertConfig({
+        title: '2FA Disabled',
+        message: 'Two-Factor Authentication has been deactivated for your account.',
+      });
+      refreshProfile();
+    } catch (err: unknown) {
+      setDisableError(axios.isAxiosError<{ message?: string }>(err) ? err.response?.data?.message || 'Failed to disable 2FA. Check password.' : 'Failed to disable 2FA. Check password.');
+    } finally {
+      setDisableLoading(false);
+    }
+  };
+
+  const handleRegenerateCodes = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRegenerateLoading(true);
+    setRegenerateError('');
+    try {
+      const res = await totpApi.regenerateBackupCodes(regenerateCode);
+      if (res.data?.data) {
+        setRegeneratedCodes(res.data.data);
+        fetchTotpStatus();
+      }
+    } catch (err: unknown) {
+      setRegenerateError(axios.isAxiosError<{ message?: string }>(err) ? err.response?.data?.message || 'Failed to regenerate backup codes.' : 'Failed to regenerate backup codes.');
+    } finally {
+      setRegenerateLoading(false);
+    }
+  };
+
+  const handleCopyCodes = (codes: string[]) => {
+    navigator.clipboard.writeText(codes.join('\n'));
+    setCopiedCodes(true);
+    setTimeout(() => setCopiedCodes(false), 2000);
+  };
+
+  const handleDownloadCodes = (codes: string[]) => {
+    const content = `FST PAY EMERGENCY RECOVERY BACKUP CODES\nGenerated: ${new Date().toISOString()}\nAccount: ${user?.email}\n\n` +
+      codes.map((c, i) => `${i + 1}. ${c}`).join('\n') +
+      '\n\nTreat these codes like passwords. Each code can be used once to access your account if you lose your phone.';
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'fstpay-backup-codes.txt';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -283,25 +425,115 @@ export default function SettingsPage() {
             )}
 
             {activeTab === 'security' && (
-              <div className="space-y-5">
-                <h3 className="text-lg font-display font-semibold text-white">Security Settings</h3>
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-display font-semibold text-white">Security & Authentication</h3>
+                  <p className="text-xs text-surface-400 mt-1">Manage password credentials and multi-factor authentication methods.</p>
+                </div>
+
                 <div className="space-y-4">
+                  {/* Password Card */}
                   <div className="p-4 rounded-xl bg-surface-800/30 border border-surface-700/30">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-white">Change Password</p>
-                        <p className="text-xs text-surface-400 mt-1">Update your password regularly for security</p>
+                        <p className="text-sm font-medium text-white">Account Password</p>
+                        <p className="text-xs text-surface-400 mt-1">Update your login password regularly for safety</p>
                       </div>
                       <Button onClick={() => setShowPasswordModal(true)} variant="secondary" size="sm">Change</Button>
                     </div>
                   </div>
-                  <div className="p-4 rounded-xl bg-surface-800/30 border border-surface-700/30">
+
+                  {/* 2FA Authenticator App (TOTP) Card */}
+                  <div className="p-5 rounded-xl bg-surface-800/30 border border-surface-700/30 space-y-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-primary-500/10 border border-primary-500/20 text-primary-400 flex items-center justify-center shrink-0 mt-0.5">
+                          <ShieldCheck className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold text-white">Authenticator App (TOTP)</p>
+                            {totpStatus?.totpEnabled ? (
+                              <span className="badge-accent">Enabled</span>
+                            ) : (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-surface-700/50 text-surface-400 border border-surface-600/30">
+                                Not Enabled
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-surface-400 mt-1 max-w-lg">
+                            Use Google Authenticator, Authy, or 1Password to generate secure one-time verification codes during sign-in.
+                          </p>
+                        </div>
+                      </div>
+
+                      {totpStatus?.totpEnabled ? (
+                        <div className="flex items-center gap-2">
+                          <Button
+                            onClick={() => {
+                              setShowRegenerateModal(true);
+                              setRegeneratedCodes(null);
+                              setRegenerateCode('');
+                              setRegenerateError('');
+                            }}
+                            variant="secondary"
+                            size="sm"
+                            className="flex items-center gap-1.5"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            Backup Codes
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              setShowDisableModal(true);
+                              setDisablePassword('');
+                              setDisableError('');
+                            }}
+                            variant="ghost"
+                            size="sm"
+                            className="text-danger-400 hover:text-danger-300 hover:bg-danger-500/10"
+                          >
+                            Disable
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          onClick={startTotpSetup}
+                          disabled={totpLoading}
+                          variant="primary"
+                          size="sm"
+                          className="flex items-center gap-2"
+                        >
+                          {totpLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <QrCode className="w-4 h-4" />}
+                          Enable 2FA
+                        </Button>
+                      )}
+                    </div>
+
+                    {totpStatus?.totpEnabled && (
+                      <div className="pt-2 border-t border-surface-700/30 flex items-center justify-between text-xs text-surface-400">
+                        <span className="flex items-center gap-1.5">
+                          <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+                          Emergency Recovery Codes Remaining:
+                          <strong className="text-white font-mono">{totpStatus.backupCodesRemaining} of 8</strong>
+                        </span>
+                        {totpStatus.backupCodesRemaining <= 2 && (
+                          <span className="text-amber-400 text-[11px] font-medium">
+                            Low on recovery codes. Consider regenerating new ones.
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Email OTP Fallback Card */}
+                  <div className="p-4 rounded-xl bg-surface-800/20 border border-surface-700/20">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-white">Two-Factor Authentication</p>
-                        <p className="text-xs text-surface-400 mt-1">Email OTP is enabled by default</p>
+                        <p className="text-sm font-medium text-white">Email Verification Fallback</p>
+                        <p className="text-xs text-surface-400 mt-1">Single-use verification codes sent to {user?.email}</p>
                       </div>
-                      <span className="badge-accent">Enabled</span>
+                      <span className="text-xs text-surface-400">Default Active</span>
                     </div>
                   </div>
                 </div>
@@ -616,6 +848,245 @@ export default function SettingsPage() {
               </Button>
             </div>
           </form>
+        </Modal>
+
+        {/* TOTP SETUP MODAL */}
+        <Modal
+          isOpen={showTotpSetupModal}
+          onClose={() => setShowTotpSetupModal(false)}
+          title="Set Up Authenticator App 2FA"
+        >
+          {totpSetupData && (
+            <div className="space-y-5">
+              {totpSetupError && (
+                <div className="p-3 rounded-xl bg-danger-500/10 border border-danger-500/20 text-danger-400 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{totpSetupError}</span>
+                </div>
+              )}
+
+              {/* Step 1: Scan QR */}
+              <div className="space-y-3">
+                <span className="text-xs font-semibold text-primary-400 uppercase tracking-wider">Step 1: Scan QR Code</span>
+                <p className="text-xs text-surface-300">
+                  Open Google Authenticator, 1Password, or Authy on your mobile device and scan this QR code:
+                </p>
+                {totpSetupData.qrCodeDataUri && (
+                  <div className="flex justify-center p-3 bg-white rounded-xl max-w-xs mx-auto">
+                    <img src={totpSetupData.qrCodeDataUri} alt="TOTP QR Code" className="w-44 h-44" />
+                  </div>
+                )}
+                <div className="space-y-1">
+                  <span className="text-[11px] text-surface-400">Can't scan QR code? Enter this secret key manually:</span>
+                  <div className="flex items-center gap-2 bg-surface-900/80 p-2.5 rounded-lg border border-surface-700/50">
+                    <code className="text-xs font-mono text-white flex-1 select-all break-all">{totpSetupData.secret}</code>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(totpSetupData.secret);
+                        setCopiedSecret(true);
+                        setTimeout(() => setCopiedSecret(false), 2000);
+                      }}
+                      className="text-xs text-primary-400 hover:text-primary-300 flex items-center gap-1 font-medium shrink-0"
+                    >
+                      {copiedSecret ? <Check className="w-3.5 h-3.5 text-accent-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copiedSecret ? 'Copied' : 'Copy'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 2: Save Emergency Backup Codes */}
+              <div className="space-y-2 pt-2 border-t border-surface-700/50">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-1">
+                    <KeyRound className="w-3.5 h-3.5" />
+                    Step 2: Emergency Recovery Codes
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleCopyCodes(totpSetupData.backupCodes)}
+                      className="text-[11px] text-surface-300 hover:text-white flex items-center gap-1"
+                    >
+                      {copiedCodes ? <Check className="w-3 h-3 text-accent-400" /> : <Copy className="w-3 h-3" />}
+                      {copiedCodes ? 'Copied' : 'Copy All'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadCodes(totpSetupData.backupCodes)}
+                      className="text-[11px] text-primary-400 hover:text-primary-300 flex items-center gap-1"
+                    >
+                      <Download className="w-3 h-3" />
+                      Download
+                    </button>
+                  </div>
+                </div>
+                <p className="text-[11px] text-surface-400">
+                  Save these single-use codes in a password manager. They allow login if you ever lose your phone.
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-2.5 rounded-xl bg-surface-900/60 border border-surface-700/50 font-mono text-xs text-center text-surface-200">
+                  {totpSetupData.backupCodes.map((code, idx) => (
+                    <div key={idx} className="bg-surface-800/40 py-1.5 px-2 rounded border border-surface-700/20 tracking-wider">
+                      {code}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Step 3: Enter 6-digit Code to verify */}
+              <form onSubmit={handleConfirmTotp} className="space-y-4 pt-2 border-t border-surface-700/50">
+                <span className="text-xs font-semibold text-primary-400 uppercase tracking-wider block">Step 3: Confirm Setup</span>
+                <div>
+                  <label htmlFor="setup-totp-code" className="input-label">Enter 6-Digit Authenticator Code</label>
+                  <input
+                    id="setup-totp-code"
+                    type="text"
+                    value={totpSetupCode}
+                    onChange={(e) => setTotpSetupCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="000000"
+                    required
+                    maxLength={6}
+                    className="input-field text-center text-2xl font-mono tracking-widest py-2.5"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <Button type="button" onClick={() => setShowTotpSetupModal(false)} variant="ghost" size="sm">
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={totpSetupSubmitting || totpSetupCode.length !== 6} variant="primary" size="sm">
+                    {totpSetupSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <ShieldCheck className="w-4 h-4 mr-1" />}
+                    Activate 2FA
+                  </Button>
+                </div>
+              </form>
+            </div>
+          )}
+        </Modal>
+
+        {/* DISABLE TOTP MODAL */}
+        <Modal
+          isOpen={showDisableModal}
+          onClose={() => setShowDisableModal(false)}
+          title="Disable Two-Factor Authentication"
+        >
+          <form onSubmit={handleDisableTotp} className="space-y-4">
+            {disableError && (
+              <div className="p-3 rounded-xl bg-danger-500/10 border border-danger-500/20 text-danger-400 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{disableError}</span>
+              </div>
+            )}
+            <p className="text-xs text-surface-300">
+              Disabling Two-Factor Authentication lowers your account security. Please enter your account password to confirm.
+            </p>
+            <div>
+              <label htmlFor="disable-password" className="input-label">Account Password</label>
+              <input
+                id="disable-password"
+                type="password"
+                value={disablePassword}
+                onChange={(e) => setDisablePassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                className="input-field"
+                autoFocus
+              />
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button type="button" onClick={() => setShowDisableModal(false)} variant="ghost" size="sm">
+                Cancel
+              </Button>
+              <Button type="submit" disabled={disableLoading || !disablePassword} variant="primary" size="sm" className="bg-rose-600 hover:bg-rose-500">
+                {disableLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+                Confirm Disable 2FA
+              </Button>
+            </div>
+          </form>
+        </Modal>
+
+        {/* REGENERATE BACKUP CODES MODAL */}
+        <Modal
+          isOpen={showRegenerateModal}
+          onClose={() => setShowRegenerateModal(false)}
+          title="Emergency Recovery Backup Codes"
+        >
+          {regeneratedCodes ? (
+            <div className="space-y-4">
+              <div className="p-3 rounded-xl bg-accent-500/10 border border-accent-500/20 text-accent-400 text-xs flex items-center gap-2">
+                <Check className="w-4 h-4 shrink-0" />
+                <span>8 new single-use backup codes generated. Previous codes have been invalidated.</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-white">Your New Recovery Codes</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleCopyCodes(regeneratedCodes)}
+                    className="text-xs text-surface-300 hover:text-white flex items-center gap-1"
+                  >
+                    {copiedCodes ? <Check className="w-3.5 h-3.5 text-accent-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedCodes ? 'Copied' : 'Copy All'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadCodes(regeneratedCodes)}
+                    className="text-xs text-primary-400 hover:text-primary-300 flex items-center gap-1"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Download
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 rounded-xl bg-surface-900/60 border border-surface-700/50 font-mono text-xs text-center text-surface-200">
+                {regeneratedCodes.map((code, idx) => (
+                  <div key={idx} className="bg-surface-800/40 py-2 px-2 rounded border border-surface-700/20 tracking-wider font-semibold">
+                    {code}
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-end pt-2">
+                <Button onClick={() => setShowRegenerateModal(false)} variant="primary" size="sm">
+                  Done
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleRegenerateCodes} className="space-y-4">
+              {regenerateError && (
+                <div className="p-3 rounded-xl bg-danger-500/10 border border-danger-500/20 text-danger-400 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{regenerateError}</span>
+                </div>
+              )}
+              <p className="text-xs text-surface-300">
+                Generating new emergency recovery codes will immediately invalidate any remaining unused backup codes.
+              </p>
+              <div>
+                <label htmlFor="regen-code" className="input-label">Current 6-Digit Authenticator Code (Optional)</label>
+                <input
+                  id="regen-code"
+                  type="text"
+                  value={regenerateCode}
+                  onChange={(e) => setRegenerateCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="000000"
+                  maxLength={6}
+                  className="input-field text-center text-xl font-mono tracking-widest py-2"
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <Button type="button" onClick={() => setShowRegenerateModal(false)} variant="ghost" size="sm">
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={regenerateLoading} variant="primary" size="sm">
+                  {regenerateLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <RefreshCw className="w-4 h-4 mr-1" />}
+                  Generate New Codes
+                </Button>
+              </div>
+            </form>
+          )}
         </Modal>
 
         {/* CUSTOM ALERT MODAL */}

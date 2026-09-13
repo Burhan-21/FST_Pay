@@ -193,6 +193,18 @@
             <version>1.3.30</version>
         </dependency>
 
+        <!-- ZXing for TOTP QR Code generation -->
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>core</artifactId>
+            <version>3.5.3</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>javase</artifactId>
+            <version>3.5.3</version>
+        </dependency>
+
         <!-- Testcontainers for integration tests -->
         <dependency>
             <groupId>org.testcontainers</groupId>

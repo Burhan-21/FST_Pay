@@ -39,6 +39,27 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success("Login successful", response));
     }
 
+    @PostMapping("/totp/verify")
+    @Operation(summary = "Verify TOTP authenticator code", description = "Validates the 6-digit TOTP code from an authenticator app and returns access/refresh JWT tokens on success.")
+    public ResponseEntity<ApiResponse<TokenResponse>> verifyTotp(@Valid @RequestBody com.fstpay.auth.totp.dto.VerifyTotpRequest request) {
+        TokenResponse response = authService.verifyTotp(request);
+        return ResponseEntity.ok(ApiResponse.success("Authentication successful", response));
+    }
+
+    @PostMapping("/totp/verify-backup")
+    @Operation(summary = "Verify emergency backup recovery code", description = "Validates an unused single-use backup code and returns access/refresh JWT tokens on success.")
+    public ResponseEntity<ApiResponse<TokenResponse>> verifyBackupCode(@Valid @RequestBody com.fstpay.auth.totp.dto.VerifyBackupCodeRequest request) {
+        TokenResponse response = authService.verifyBackupCode(request);
+        return ResponseEntity.ok(ApiResponse.success("Emergency backup code accepted", response));
+    }
+
+    @PostMapping("/totp/fallback-email")
+    @Operation(summary = "Request fallback email OTP", description = "Dispatches a fallback verification OTP code to user's registered email if authenticator device is lost.")
+    public ResponseEntity<ApiResponse<TokenResponse>> fallbackEmailOtp(@RequestParam String email) {
+        TokenResponse response = authService.sendTotpFallbackEmailOtp(email);
+        return ResponseEntity.ok(ApiResponse.success("Verification code sent to your email address", response));
+    }
+
     @PostMapping("/refresh")
     @Operation(summary = "Refresh access token", description = "Accepts a valid refresh token and generates a new short-lived access JWT token.")
     public ResponseEntity<ApiResponse<TokenResponse>> refresh(@Valid @RequestBody RefreshRequest request) {

@@ -12,12 +12,33 @@ export const authApi = {
   verifyOtp: (data: { email: string; otp: string }) =>
     api.post('/auth/verify-otp', data),
 
+  verifyTotp: (data: { email: string; code: string }) =>
+    api.post('/auth/totp/verify', data),
+
+  verifyBackupCode: (data: { email: string; backupCode: string }) =>
+    api.post('/auth/totp/verify-backup', data),
+
+  sendTotpFallbackEmailOtp: (email: string) =>
+    api.post('/auth/totp/fallback-email', null, { params: { email } }),
+
   refreshToken: (refreshToken: string) =>
     api.post('/auth/refresh', { refreshToken }),
 
   logout: () => api.post('/auth/logout'),
 
   getStats: () => api.get('/auth/stats'),
+};
+
+// ── Two-Factor Authentication (TOTP) ──
+export const totpApi = {
+  getStatus: () => api.get('/user/totp/status'),
+  setup: () => api.get('/user/totp/setup'),
+  enable: (data: { secret: string; code: string; backupCodes?: string[] }) =>
+    api.post('/user/totp/enable', data),
+  disable: (data: { password?: string; code?: string }) =>
+    api.post('/user/totp/disable', data),
+  regenerateBackupCodes: (code?: string) =>
+    api.post('/user/totp/backup-codes/regenerate', null, { params: { code } }),
 };
 
 // ── User ──

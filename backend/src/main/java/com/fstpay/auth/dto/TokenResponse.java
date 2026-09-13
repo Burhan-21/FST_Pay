@@ -17,5 +17,7 @@ public class TokenResponse {
     private String refreshToken;
     private Long expiresIn;
     private Boolean requiresOtp;
+    private Boolean requiresTotp;
+    private String email;
     private User user;
 }

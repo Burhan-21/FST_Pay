@@ -3,13 +3,13 @@ import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
-import { Eye, EyeOff, ArrowRight, Mail, Lock, Loader2, Sparkles, Shield, TrendingUp } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Mail, Lock, Loader2, Sparkles, Shield, TrendingUp, KeyRound, ShieldCheck } from 'lucide-react';
 import { authApi } from '../../api/endpoints';
 import ReCAPTCHA from 'react-google-recaptcha';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login, verifyOtp, user } = useAuth();
+  const { login, verifyOtp, verifyTotp, verifyBackupCode, user } = useAuth();
   const { theme } = useTheme();
 
   useEffect(() => {
@@ -22,10 +22,13 @@ export default function Login() {
     }
   }, [user, navigate]);
 
-  const [step, setStep] = useState<'credentials' | 'otp'>('credentials');
+  const [step, setStep] = useState<'credentials' | 'otp' | 'totp' | 'backup'>('credentials');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
+  const [totpCode, setTotpCode] = useState('');
+  const [backupCode, setBackupCode] = useState('');
+  const [fallbackSent, setFallbackSent] = useState(false);
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -69,7 +72,11 @@ export default function Login() {
     setIsLoading(true);
     try {
       const result = await login(email, password, recaptchaToken);
-      if (result.requiresOtp) setStep('otp');
+      if (result.requiresTotp) {
+        setStep('totp');
+      } else if (result.requiresOtp) {
+        setStep('otp');
+      }
     } catch (err: unknown) {
       if (axios.isAxiosError<{ message?: string }>(err)) {
         setError(err.response?.data?.message || 'Invalid credentials. Please try again.');
@@ -90,6 +97,52 @@ export default function Login() {
         setError(err.response?.data?.message || 'Invalid OTP. Please try again.');
       } else {
         setError('Invalid OTP. Please try again.');
+      }
+    } finally { setIsLoading(false); }
+  };
+
+  const handleTotpVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+    try {
+      await verifyTotp(email, totpCode);
+    } catch (err: unknown) {
+      if (axios.isAxiosError<{ message?: string }>(err)) {
+        setError(err.response?.data?.message || 'Invalid verification code. Please check your authenticator app.');
+      } else {
+        setError('Invalid verification code. Please check your authenticator app.');
+      }
+    } finally { setIsLoading(false); }
+  };
+
+  const handleBackupVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+    try {
+      await verifyBackupCode(email, backupCode);
+    } catch (err: unknown) {
+      if (axios.isAxiosError<{ message?: string }>(err)) {
+        setError(err.response?.data?.message || 'Invalid or already used backup code.');
+      } else {
+        setError('Invalid or already used backup code.');
+      }
+    } finally { setIsLoading(false); }
+  };
+
+  const handleRequestEmailFallback = async () => {
+    setError('');
+    setIsLoading(true);
+    try {
+      await authApi.sendTotpFallbackEmailOtp(email);
+      setFallbackSent(true);
+      setStep('otp');
+    } catch (err: unknown) {
+      if (axios.isAxiosError<{ message?: string }>(err)) {
+        setError(err.response?.data?.message || 'Failed to send fallback verification code.');
+      } else {
+        setError('Failed to send fallback verification code.');
       }
     } finally { setIsLoading(false); }
   };
@@ -246,10 +299,149 @@ export default function Login() {
                 Made with <span className="text-primary-400">❤</span> for smart spenders
               </p>
             </form>
+          ) : step === 'totp' ? (
+            <form onSubmit={handleTotpVerify} className="space-y-6">
+              <div className="text-center space-y-2">
+                <div className="w-12 h-12 rounded-2xl bg-primary-500/10 border border-primary-500/20 text-primary-400 flex items-center justify-center mx-auto">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-display font-semibold text-white">Authenticator App 2FA</h3>
+                <p className="text-xs text-surface-400">
+                  Enter the 6-digit code from Google Authenticator, 1Password, or Authy.
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="totp-input" className="input-label">Authenticator Code</label>
+                <input
+                  id="totp-input"
+                  type="text"
+                  value={totpCode}
+                  onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="000000"
+                  required
+                  maxLength={6}
+                  className="input-field text-center text-3xl font-mono tracking-[0.5em] py-4"
+                  autoFocus
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading || totpCode.length !== 6}
+                className="btn-gradient w-full flex items-center justify-center gap-2 py-3"
+              >
+                {isLoading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <>
+                    Verify & Sign In
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+
+              <div className="space-y-2 pt-2 text-center border-t border-surface-800">
+                <button
+                  type="button"
+                  onClick={() => { setStep('backup'); setError(''); }}
+                  className="text-xs text-primary-400 hover:text-primary-300 font-medium block w-full py-1"
+                >
+                  Lost your phone? Use an emergency recovery code
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRequestEmailFallback}
+                  disabled={isLoading}
+                  className="text-xs text-surface-400 hover:text-surface-300 block w-full py-1"
+                >
+                  Send code to registered email instead
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setStep('credentials'); setTotpCode(''); setError(''); }}
+                  className="btn-ghost w-full text-xs"
+                >
+                  ← Back to login
+                </button>
+              </div>
+            </form>
+          ) : step === 'backup' ? (
+            <form onSubmit={handleBackupVerify} className="space-y-6">
+              <div className="text-center space-y-2">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
+                  <KeyRound className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-display font-semibold text-white">Emergency Recovery Code</h3>
+                <p className="text-xs text-surface-400">
+                  Enter one of your single-use 8-character backup codes saved during 2FA enrollment.
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="backup-input" className="input-label">Recovery Code (XXXX-XXXX)</label>
+                <input
+                  id="backup-input"
+                  type="text"
+                  value={backupCode}
+                  onChange={(e) => setBackupCode(e.target.value.toUpperCase())}
+                  placeholder="8F4A-9K2C"
+                  required
+                  maxLength={10}
+                  className="input-field text-center text-xl font-mono tracking-widest py-3 uppercase"
+                  autoFocus
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading || backupCode.trim().length < 8}
+                className="btn-gradient w-full flex items-center justify-center gap-2 py-3"
+              >
+                {isLoading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <>
+                    Verify Recovery Code
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+
+              <div className="space-y-2 pt-2 text-center border-t border-surface-800">
+                <button
+                  type="button"
+                  onClick={() => { setStep('totp'); setError(''); }}
+                  className="text-xs text-primary-400 hover:text-primary-300 font-medium block w-full py-1"
+                >
+                  Use Authenticator App 6-digit code
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRequestEmailFallback}
+                  disabled={isLoading}
+                  className="text-xs text-surface-400 hover:text-surface-300 block w-full py-1"
+                >
+                  Send code to registered email instead
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setStep('credentials'); setBackupCode(''); setError(''); }}
+                  className="btn-ghost w-full text-xs"
+                >
+                  ← Back to login
+                </button>
+              </div>
+            </form>
           ) : (
             <form onSubmit={handleOtpVerify} className="space-y-6">
+              {fallbackSent && (
+                <div className="p-3 rounded-xl bg-accent-500/10 border border-accent-500/20 text-accent-400 text-xs text-center">
+                  Verification OTP dispatched to {email}.
+                </div>
+              )}
               <div>
-                <label htmlFor="otp-input" className="input-label">Verification Code</label>
+                <label htmlFor="otp-input" className="input-label">Email Verification Code</label>
                 <input
                   id="otp-input"
                   type="text"
@@ -280,7 +472,7 @@ export default function Login() {
 
               <button
                 type="button"
-                onClick={() => { setStep('credentials'); setOtp(''); setError(''); }}
+                onClick={() => { setStep('credentials'); setOtp(''); setError(''); setFallbackSent(false); }}
                 className="btn-ghost w-full text-sm"
               >
                 ← Back to login

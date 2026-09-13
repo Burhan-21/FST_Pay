@@ -23,6 +23,8 @@ export interface User {
   parentDob?: string;
   parentGender?: string;
   parentAge?: number;
+  biometricEnabled?: boolean;
+  totpEnabled?: boolean;
 }
 
 export interface Wallet {
@@ -172,7 +174,21 @@ export interface TokenResponse {
   refreshToken?: string;
   expiresIn?: number;
   requiresOtp?: boolean;
+  requiresTotp?: boolean;
+  email?: string;
   user?: User;
+}
+
+export interface TotpSetupResponse {
+  secret: string;
+  otpauthUrl: string;
+  qrCodeDataUri: string;
+  backupCodes: string[];
+}
+
+export interface TotpStatusResponse {
+  totpEnabled: boolean;
+  backupCodesRemaining: number;
 }
 
 export interface CardDesign {

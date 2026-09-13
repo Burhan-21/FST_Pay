@@ -48,15 +48,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string, recaptchaToken?: string) => {
     const { data } = await authApi.login({ email, password, recaptchaToken });
+    if (data.data.requiresTotp) {
+      return { requiresTotp: true, requiresOtp: false, email: data.data.email || email };
+    }
     if (data.data.requiresOtp) {
-      return { requiresOtp: true };
+      return { requiresOtp: true, requiresTotp: false, email: data.data.email || email };
     }
     setTokens(data.data);
-    return { requiresOtp: false };
+    return { requiresOtp: false, requiresTotp: false };
   };
 
   const verifyOtp = async (email: string, otp: string) => {
     const { data } = await authApi.verifyOtp({ email, otp });
+    setTokens(data.data);
+  };
+
+  const verifyTotp = async (email: string, code: string) => {
+    const { data } = await authApi.verifyTotp({ email, code });
+    setTokens(data.data);
+  };
+
+  const verifyBackupCode = async (email: string, backupCode: string) => {
+    const { data } = await authApi.verifyBackupCode({ email, backupCode });
     setTokens(data.data);
   };
 
@@ -94,6 +107,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         login,
         verifyOtp,
+        verifyTotp,
+        verifyBackupCode,
         register,
         logout,
         refreshProfile,

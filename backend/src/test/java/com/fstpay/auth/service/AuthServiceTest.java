@@ -55,6 +55,10 @@ class AuthServiceTest {
     private AuditService auditService;
     @Mock
     private EntityManager entityManager;
+    @Mock
+    private com.fstpay.auth.totp.TotpService totpService;
+    @Mock
+    private com.fstpay.auth.totp.repository.UserBackupCodeRepository userBackupCodeRepository;
 
     private PasswordEncoder passwordEncoder;
     private AuthService authService;
@@ -65,9 +69,10 @@ class AuthServiceTest {
         authService = new AuthService(
                 userRepository, walletRepository, refreshTokenRepository,
                 passwordResetTokenRepository, passwordEncoder, jwtProvider,
-                otpService, emailService, recaptchaService, auditService, entityManager
+                otpService, emailService, recaptchaService, auditService, entityManager,
+                totpService, userBackupCodeRepository
         );
-        when(recaptchaService.verifyToken(any())).thenReturn(true);
+        lenient().when(recaptchaService.verifyToken(any())).thenReturn(true);
         lenient().when(otpService.generateOtp(anyString())).thenReturn("123456");
         lenient().doNothing().when(emailService).sendOtpEmail(anyString(), anyString());
     }
@@ -239,5 +244,100 @@ class AuthServiceTest {
         request.setPassword("password123");
 
         assertThrows(BadRequestException.class, () -> authService.login(request));
+    }
+
+    @Test
+    void login_WithTotpEnabled_ReturnsRequiresTotpTrue() {
+        String email = "totpuser@example.com";
+        String password = "Password@123";
+        User user = User.builder()
+                .id(UUID.randomUUID())
+                .email(email)
+                .passwordHash(passwordEncoder.encode(password))
+                .fullName("TOTP User")
+                .isActive(true)
+                .totpEnabled(true)
+                .totpSecret("JBSWY3DPEHPK3PXP")
+                .build();
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+
+        LoginRequest request = new LoginRequest();
+        request.setEmail(email);
+        request.setPassword(password);
+
+        var response = authService.login(request);
+        assertNotNull(response);
+        assertTrue(response.getRequiresTotp());
+        assertFalse(response.getRequiresOtp());
+        verify(emailService, never()).sendOtpEmail(anyString(), anyString());
+    }
+
+    @Test
+    void verifyTotp_WithValidCode_ReturnsAuthTokens() {
+        String email = "totpuser@example.com";
+        User user = User.builder()
+                .id(UUID.randomUUID())
+                .email(email)
+                .role("USER")
+                .isActive(true)
+                .totpEnabled(true)
+                .totpSecret("JBSWY3DPEHPK3PXP")
+                .build();
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        when(totpService.verifyCode("JBSWY3DPEHPK3PXP", "123456")).thenReturn(true);
+        when(jwtProvider.generateAccessToken(email, "USER")).thenReturn("mock-access-token");
+        when(jwtProvider.generateRefreshToken(email)).thenReturn("mock-refresh-token");
+        when(jwtProvider.getAccessTokenExpirationMs()).thenReturn(900000L);
+
+        var request = com.fstpay.auth.totp.dto.VerifyTotpRequest.builder()
+                .email(email)
+                .code("123456")
+                .build();
+
+        var response = authService.verifyTotp(request);
+        assertNotNull(response);
+        assertEquals("mock-access-token", response.getAccessToken());
+        assertEquals("mock-refresh-token", response.getRefreshToken());
+        assertFalse(response.getRequiresTotp());
+    }
+
+    @Test
+    void verifyBackupCode_WithValidCode_MarksUsedAndReturnsTokens() {
+        String email = "totpuser@example.com";
+        User user = User.builder()
+                .id(UUID.randomUUID())
+                .email(email)
+                .role("USER")
+                .isActive(true)
+                .totpEnabled(true)
+                .build();
+
+        com.fstpay.auth.totp.entity.UserBackupCode backupCode = com.fstpay.auth.totp.entity.UserBackupCode.builder()
+                .id(UUID.randomUUID())
+                .user(user)
+                .codeHash("mock-hash")
+                .used(false)
+                .build();
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        when(totpService.hashBackupCode("ABCD-1234")).thenReturn("mock-hash");
+        when(userBackupCodeRepository.findByUserAndCodeHashAndUsedFalse(user, "mock-hash"))
+                .thenReturn(Optional.of(backupCode));
+        when(jwtProvider.generateAccessToken(email, "USER")).thenReturn("mock-access-token");
+        when(jwtProvider.generateRefreshToken(email)).thenReturn("mock-refresh-token");
+        when(jwtProvider.getAccessTokenExpirationMs()).thenReturn(900000L);
+
+        var request = com.fstpay.auth.totp.dto.VerifyBackupCodeRequest.builder()
+                .email(email)
+                .backupCode("ABCD-1234")
+                .build();
+
+        var response = authService.verifyBackupCode(request);
+        assertNotNull(response);
+        assertTrue(backupCode.getUsed());
+        assertNotNull(backupCode.getUsedAt());
+        verify(userBackupCodeRepository).save(backupCode);
     }
 }
