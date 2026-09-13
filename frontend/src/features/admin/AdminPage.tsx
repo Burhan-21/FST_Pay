@@ -19,6 +19,7 @@ import {
   Database,
   Sparkles,
   BarChart3,
+  Repeat,
 } from 'lucide-react';
 import api from '../../api/axios';
 import PageTransition from '../../components/ui/PageTransition';
@@ -620,6 +621,49 @@ export default function AdminPage() {
                         {observability?.guardianApprovalsBiometric ?? 0}
                         <span className="text-xs font-normal text-surface-400 ml-1">biometric</span>
                         <span className="text-xs font-normal text-surface-500 ml-2">/ {observability?.guardianApprovalsManual ?? 0} pin</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 5. Scheduled Allowance Sweeps & Goal Milestones */}
+                <div className="p-5 rounded-xl bg-surface-900/40 border border-surface-700/50 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Repeat className="w-4 h-4 text-purple-400" />
+                      Scheduled Allowance Sweeps & Milestones
+                    </h3>
+                    <Badge variant="accent">Automated Ledger Cron</Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                      <div className="text-xs text-surface-400">Allowance Sweeps Executed</div>
+                      <div className="text-lg font-bold text-emerald-400 mt-1">
+                        {observability?.allowanceSweepsSuccess ?? 0}
+                        <span className="text-xs font-normal text-surface-400 ml-1">swept</span>
+                        {(observability?.allowanceSweepsInsufficientFunds ?? 0) > 0 && (
+                          <span className="text-xs font-normal text-amber-400 ml-2">/ {observability?.allowanceSweepsInsufficientFunds} low bal</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                      <div className="text-xs text-surface-400">Allowance Swept Volume</div>
+                      <div className="text-lg font-bold text-white mt-1">
+                        ₹{(observability?.allowanceTotalAmountInr ?? 0).toFixed(2)}
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                      <div className="text-xs text-surface-400">Goal Milestones Achieved</div>
+                      <div className="text-lg font-bold text-amber-300 mt-1">
+                        {observability?.goalMilestonesReached ?? 0}
+                        <span className="text-xs font-normal text-surface-400 ml-1">tiers unlocked</span>
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                      <div className="text-xs text-surface-400">Sweep Error Faults</div>
+                      <div className="text-lg font-bold text-white mt-1">
+                        {observability?.allowanceSweepsError ?? 0}
+                        <span className="text-xs font-normal text-surface-400 ml-1">failures</span>
                       </div>
                     </div>
                   </div>

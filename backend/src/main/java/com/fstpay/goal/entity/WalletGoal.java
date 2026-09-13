@@ -86,6 +86,10 @@ public class WalletGoal {
     @Builder.Default
     private BigDecimal roundUpAccumulated = BigDecimal.ZERO;
 
+    @Column(name = "last_milestone_awarded")
+    @Builder.Default
+    private Integer lastMilestoneAwarded = 0;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;

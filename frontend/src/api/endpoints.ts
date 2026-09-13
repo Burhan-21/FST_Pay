@@ -1,4 +1,5 @@
 import api from './axios';
+import type { ScheduledAllowance, CreateAllowanceRequest, UpdateAllowanceRequest } from '../types';
 
 // ── Auth ──
 export const authApi = {
@@ -145,6 +146,16 @@ export const parentalApi = {
       amount: data.amount,
       note: data.description
     }),
+  getAllowances: () =>
+    api.get<{ data: ScheduledAllowance[] }>('/parental/allowances'),
+  createAllowance: (data: CreateAllowanceRequest) =>
+    api.post<{ data: ScheduledAllowance }>('/parental/allowances', data),
+  updateAllowance: (id: string, data: UpdateAllowanceRequest) =>
+    api.put<{ data: ScheduledAllowance }>(`/parental/allowances/${id}`, data),
+  deleteAllowance: (id: string) =>
+    api.delete<{ data: null }>(`/parental/allowances/${id}`),
+  triggerAllowance: (id: string) =>
+    api.post<{ data: ScheduledAllowance }>(`/parental/allowances/${id}/trigger`),
   setSpendingLimits: (childId: string, data: { parentalControlEnabled?: boolean; parentalMaxTxnAmount?: number; parentalDailyLimit?: number; parentalWeeklyLimit?: number; parentalMonthlyLimit?: number; parentalRestrictedCategories?: string }) =>
     api.put(`/parental/children/${childId}/limits`, data),
   getPendingApprovals: () =>

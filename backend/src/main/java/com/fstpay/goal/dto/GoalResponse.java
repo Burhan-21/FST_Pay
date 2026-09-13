@@ -31,11 +31,16 @@ public class GoalResponse {
     private Boolean roundUpEnabled;
     private Integer roundUpNearest;
     private BigDecimal roundUpAccumulated;
+    private Integer lastMilestoneAwarded;
+    private Integer nextMilestonePercent;
     private Instant createdAt;
     private Instant updatedAt;
 
     public static GoalResponse fromEntity(WalletGoal goal) {
         if (goal == null) return null;
+        int lastMilestone = goal.getLastMilestoneAwarded() != null ? goal.getLastMilestoneAwarded() : 0;
+        int nextMilestone = lastMilestone < 25 ? 25 : lastMilestone < 50 ? 50 : lastMilestone < 75 ? 75 : 100;
+
         return GoalResponse.builder()
                 .id(goal.getId())
                 .name(goal.getName())
@@ -54,6 +59,8 @@ public class GoalResponse {
                 .roundUpEnabled(goal.getRoundUpEnabled())
                 .roundUpNearest(goal.getRoundUpNearest())
                 .roundUpAccumulated(goal.getRoundUpAccumulated())
+                .lastMilestoneAwarded(lastMilestone)
+                .nextMilestonePercent(nextMilestone)
                 .createdAt(goal.getCreatedAt())
                 .updatedAt(goal.getUpdatedAt())
                 .build();

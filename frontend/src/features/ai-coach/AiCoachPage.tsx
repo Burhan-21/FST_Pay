@@ -821,6 +821,32 @@ export default function AiCoachPage() {
                                 <Calendar className="w-3 h-3" /> {new Date(goal.targetDate).toLocaleDateString()}
                               </span>
                             </div>
+
+                            {/* 4-Step Milestone Checkpoints */}
+                            <div className="grid grid-cols-4 gap-1.5 mt-2.5 pt-2 border-t border-surface-800/60" data-testid="goal-milestones">
+                              {[
+                                { pct: 25, label: '25%', reward: '+25 pts' },
+                                { pct: 50, label: '50%', reward: '+50 pts' },
+                                { pct: 75, label: '75%', reward: '+75 pts' },
+                                { pct: 100, label: '100%', reward: '+100 pts' }
+                              ].map((m) => {
+                                const isReached = progress >= m.pct;
+                                return (
+                                  <div
+                                    key={m.pct}
+                                    className={`text-center py-1 px-1 rounded-md border text-[10px] transition-all ${
+                                      isReached
+                                        ? 'bg-amber-500/15 border-amber-500/30 text-amber-300 font-bold shadow-sm'
+                                        : 'bg-surface-800/30 border-surface-700/40 text-surface-500'
+                                    }`}
+                                    title={`Milestone ${m.label} (${m.reward}) - ${isReached ? 'Unlocked! 🎉' : 'Locked'}`}
+                                  >
+                                    <span className="block leading-tight">{m.label}</span>
+                                    <span className="text-[8px] opacity-80 block">{isReached ? '✨ Done' : m.reward}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
 
                           <div className="flex gap-2">

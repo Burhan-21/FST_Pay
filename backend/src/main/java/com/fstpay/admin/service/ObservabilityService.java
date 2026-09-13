@@ -53,6 +53,13 @@ public class ObservabilityService {
         double approvalsBiometric = sumCounters("fstpay.parental.approvals.decided.total", "auth_type", "biometric_passkey");
         double approvalsManual = sumCounters("fstpay.parental.approvals.decided.total", "auth_type", "manual");
 
+        // Scheduled Allowance Sweeps & Goal Milestones
+        double allowanceSuccess = sumCounters("fstpay.allowance.sweeps.total", "status", "success");
+        double allowanceNoFunds = sumCounters("fstpay.allowance.sweeps.total", "status", "insufficient_funds");
+        double allowanceError = sumCounters("fstpay.allowance.sweeps.total", "status", "error");
+        double allowanceAmount = sumCounters("fstpay.allowance.amount.total");
+        double goalMilestones = sumCounters("fstpay.goal.milestones.reached.total");
+
         // JVM & Runtime
         Runtime rt = Runtime.getRuntime();
         double usedMb = Math.round(((double) (rt.totalMemory() - rt.freeMemory()) / (1024 * 1024)) * 100.0) / 100.0;
@@ -94,6 +101,11 @@ public class ObservabilityService {
                 .guardianApprovalsRejected(approvalsRejected)
                 .guardianApprovalsBiometric(approvalsBiometric)
                 .guardianApprovalsManual(approvalsManual)
+                .allowanceSweepsSuccess(allowanceSuccess)
+                .allowanceSweepsInsufficientFunds(allowanceNoFunds)
+                .allowanceSweepsError(allowanceError)
+                .allowanceTotalAmountInr(Math.round(allowanceAmount * 100.0) / 100.0)
+                .goalMilestonesReached(goalMilestones)
                 .jvmMemoryUsedMb(usedMb)
                 .jvmMemoryMaxMb(maxMb)
                 .systemCpuUsage(cpu)

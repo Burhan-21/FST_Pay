@@ -10,6 +10,9 @@ import com.fstpay.goal.dto.RoundUpRuleResponse;
 import com.fstpay.goal.dto.UpdateGoalRequest;
 import com.fstpay.goal.entity.WalletGoal;
 import com.fstpay.goal.repository.WalletGoalRepository;
+import com.fstpay.notification.enums.NotificationType;
+import com.fstpay.notification.service.NotificationService;
+import com.fstpay.reward.service.RewardsService;
 import com.fstpay.transaction.entity.Transaction;
 import com.fstpay.transaction.repository.TransactionRepository;
 import com.fstpay.user.entity.User;
@@ -19,6 +22,7 @@ import com.fstpay.wallet.repository.WalletRepository;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -42,6 +46,16 @@ public class WalletGoalService {
     private final TransactionRepository transactionRepository;
     private final EventPublisher eventPublisher;
 
+    @Setter
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    @org.springframework.context.annotation.Lazy
+    private RewardsService rewardsService;
+
+    @Setter
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private NotificationService notificationService;
+
+    @Setter
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private io.micrometer.core.instrument.MeterRegistry meterRegistry = new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
 
@@ -202,12 +216,16 @@ public class WalletGoalService {
         goal.setCurrentAmount(goal.getCurrentAmount().add(amount));
         goal.setAllocatedAmount(goal.getAllocatedAmount().add(amount));
 
+        checkAndAwardMilestones(goal);
+
         // Check completion
         boolean justCompleted = false;
         if (goal.getCurrentAmount().compareTo(goal.getTargetAmount()) >= 0) {
-            goal.setStatus("COMPLETED");
-            goal.setCompletedAt(Instant.now());
-            justCompleted = true;
+            if (!"COMPLETED".equals(goal.getStatus())) {
+                goal.setStatus("COMPLETED");
+                goal.setCompletedAt(Instant.now());
+                justCompleted = true;
+            }
         }
 
         WalletGoal savedGoal = walletGoalRepository.save(goal);
@@ -432,12 +450,16 @@ public class WalletGoalService {
         BigDecimal accumulated = goal.getRoundUpAccumulated() != null ? goal.getRoundUpAccumulated() : BigDecimal.ZERO;
         goal.setRoundUpAccumulated(accumulated.add(spareChange));
 
+        checkAndAwardMilestones(goal);
+
         boolean justCompleted = false;
         if (goal.getCurrentAmount().compareTo(goal.getTargetAmount()) >= 0) {
-            goal.setStatus("COMPLETED");
-            goal.setCompletedAt(Instant.now());
-            goal.setRoundUpEnabled(false); // Disable round-up once achieved
-            justCompleted = true;
+            if (!"COMPLETED".equals(goal.getStatus())) {
+                goal.setStatus("COMPLETED");
+                goal.setCompletedAt(Instant.now());
+                goal.setRoundUpEnabled(false); // Disable round-up once achieved
+                justCompleted = true;
+            }
         }
 
         WalletGoal savedGoal = walletGoalRepository.save(goal);
@@ -461,6 +483,134 @@ public class WalletGoalService {
         }
 
         return new RoundUpExecutionResult(spareChange, goal.getId(), goal.getName());
+    }
+
+    @Transactional
+    public WalletGoal allocateFundsFromTransfer(User user, WalletGoal goal, BigDecimal amount) {
+        if (!"ACTIVE".equals(goal.getStatus())) {
+            throw new BadRequestException("Completed or Cancelled goals cannot receive additional funds");
+        }
+
+        BigDecimal scaledAmount = amount.setScale(2, RoundingMode.HALF_UP);
+        if (scaledAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BadRequestException("Allocation amount must be greater than zero");
+        }
+
+        Wallet wallet = walletRepository.findByUser(user)
+                .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
+
+        if (wallet.getBalance().compareTo(scaledAmount) < 0) {
+            throw new BadRequestException("Insufficient wallet balance for goal auto-sweep");
+        }
+
+        // Deduct from child's wallet (which just received allowance)
+        wallet.setBalance(wallet.getBalance().subtract(scaledAmount));
+        walletRepository.save(wallet);
+
+        // Record Transaction
+        Transaction transaction = Transaction.builder()
+                .wallet(wallet)
+                .type("DEBIT")
+                .category("SAVINGS")
+                .amount(scaledAmount)
+                .balanceAfter(wallet.getBalance())
+                .description("Auto-Sweep to goal: " + goal.getName())
+                .merchant("Savings Goal: " + goal.getName())
+                .referenceId("SWEEP-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
+                .status("COMPLETED")
+                .build();
+        transactionRepository.save(transaction);
+
+        // Update Goal
+        goal.setCurrentAmount(goal.getCurrentAmount().add(scaledAmount));
+        goal.setAllocatedAmount(goal.getAllocatedAmount().add(scaledAmount));
+
+        checkAndAwardMilestones(goal);
+
+        boolean justCompleted = false;
+        if (goal.getCurrentAmount().compareTo(goal.getTargetAmount()) >= 0) {
+            if (!"COMPLETED".equals(goal.getStatus())) {
+                goal.setStatus("COMPLETED");
+                goal.setCompletedAt(Instant.now());
+                justCompleted = true;
+            }
+        }
+
+        WalletGoal savedGoal = walletGoalRepository.save(goal);
+
+        if (justCompleted) {
+            eventPublisher.publish(GoalCompletedEvent.create(
+                    savedGoal.getUser(),
+                    savedGoal.getId(),
+                    savedGoal.getName(),
+                    savedGoal.getTargetAmount(),
+                    goalCompletedPoints
+            ));
+            log.info("Goal completed via auto-sweep: {} for user {}. GoalCompletedEvent published.", savedGoal.getName(), user.getEmail());
+        }
+
+        return savedGoal;
+    }
+
+    private void checkAndAwardMilestones(WalletGoal goal) {
+        if (goal.getTargetAmount() == null || goal.getTargetAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+
+        BigDecimal current = goal.getCurrentAmount() != null ? goal.getCurrentAmount() : BigDecimal.ZERO;
+        double progressPercent = current.divide(goal.getTargetAmount(), 4, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100)).doubleValue();
+
+        int lastAwarded = goal.getLastMilestoneAwarded() != null ? goal.getLastMilestoneAwarded() : 0;
+        User user = goal.getUser();
+
+        int[] milestones = {25, 50, 75, 100};
+        int[] pointsReward = {25, 50, 75, 100};
+        int[] xpReward = {50, 100, 150, 250};
+
+        for (int i = 0; i < milestones.length; i++) {
+            int milestone = milestones[i];
+            if (progressPercent >= milestone && lastAwarded < milestone) {
+                lastAwarded = milestone;
+                goal.setLastMilestoneAwarded(milestone);
+
+                int pts = pointsReward[i];
+                int xp = xpReward[i];
+
+                if (rewardsService != null) {
+                    try {
+                        rewardsService.addPoints(user, pts, "Goal milestone " + milestone + "%: " + goal.getName());
+                        rewardsService.addXp(user, xp, "Goal milestone " + milestone + "%: " + goal.getName());
+                    } catch (Exception e) {
+                        log.warn("Failed to award milestone rewards to {}: {}", user.getEmail(), e.getMessage());
+                    }
+                }
+
+                if (notificationService != null) {
+                    try {
+                        notificationService.sendNotification(
+                                user,
+                                null,
+                                NotificationType.GOAL_COMPLETED,
+                                "Milestone " + milestone + "% Reached! 🎯",
+                                String.format("You've reached %d%% of your '%s' goal! Earned +%d points and +%d XP.",
+                                        milestone, goal.getName(), pts, xp)
+                        );
+                    } catch (Exception e) {
+                        log.warn("Failed to send milestone notification to {}: {}", user.getEmail(), e.getMessage());
+                    }
+                }
+
+                if (meterRegistry != null) {
+                    try {
+                        meterRegistry.counter("fstpay.goal.milestones.reached.total", "milestone", milestone + "%").increment();
+                    } catch (Exception ignored) {}
+                }
+
+                log.info("User {} reached {}% milestone for goal {} (+{} pts, +{} XP)",
+                        user.getEmail(), milestone, goal.getName(), pts, xp);
+            }
+        }
     }
 
     @Getter

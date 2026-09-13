@@ -6,9 +6,10 @@ import { formatCurrency } from '../../utils/helpers';
 import { Link } from 'react-router-dom';
 import {
   Wallet, Shield, ArrowUpRight, Check, Bell,
-  Loader2, Send, ToggleLeft, ToggleRight, Info, Users, Target, Activity, AlertCircle
+  Loader2, Send, ToggleLeft, ToggleRight, Info, Users, Target, Activity, AlertCircle,
+  Repeat, Play, Pause, Trash2, Clock
 } from 'lucide-react';
-import type { ParentDashboardData, ChildSummary } from '../../types';
+import type { ParentDashboardData, ChildSummary, ScheduledAllowance, WalletGoal } from '../../types';
 import PageTransition from '../../components/ui/PageTransition';
 import GlassCard from '../../components/ui/GlassCard';
 import Button from '../../components/ui/Button';
@@ -26,6 +27,19 @@ export default function ParentDashboard() {
   const [pocketMoneyOpen, setPocketMoneyOpen] = useState(false);
   const [limitsOpen, setLimitsOpen] = useState(false);
 
+  // Scheduled Allowance state
+  const [allowances, setAllowances] = useState<ScheduledAllowance[]>([]);
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  const [allowanceChildId, setAllowanceChildId] = useState('');
+  const [allowanceAmount, setAllowanceAmount] = useState('250');
+  const [allowanceFrequency, setAllowanceFrequency] = useState<'WEEKLY' | 'BIWEEKLY' | 'MONTHLY'>('WEEKLY');
+  const [allowanceDayOfWeek, setAllowanceDayOfWeek] = useState('MONDAY');
+  const [allowanceDayOfMonth, setAllowanceDayOfMonth] = useState('1');
+  const [allowanceGoalId, setAllowanceGoalId] = useState('');
+  const [allowanceNote, setAllowanceNote] = useState('Weekly pocket money');
+  const [childGoals, setChildGoals] = useState<WalletGoal[]>([]);
+  const [triggeringId, setTriggeringId] = useState<string | null>(null);
+
   // Custom alert state
   const [alertConfig, setAlertConfig] = useState<{ title: string; message: string } | null>(null);
 
@@ -42,9 +56,15 @@ export default function ParentDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const res = await parentalApi.getDashboard();
-      if (res.data?.data) {
-        setData(res.data.data);
+      const [dashRes, allowRes] = await Promise.all([
+        parentalApi.getDashboard(),
+        parentalApi.getAllowances().catch(() => ({ data: { data: [] as ScheduledAllowance[] } }))
+      ]);
+      if (dashRes.data?.data) {
+        setData(dashRes.data.data);
+      }
+      if (allowRes.data?.data) {
+        setAllowances(allowRes.data.data);
       }
     } catch (err: unknown) {
       console.error('Failed to load parent dashboard:', err);
@@ -58,9 +78,13 @@ export default function ParentDashboard() {
     let isMounted = true;
     const loadDashboard = async () => {
       try {
-        const res = await parentalApi.getDashboard();
-        if (isMounted && res.data?.data) {
-          setData(res.data.data);
+        const [dashRes, allowRes] = await Promise.all([
+          parentalApi.getDashboard(),
+          parentalApi.getAllowances().catch(() => ({ data: { data: [] as ScheduledAllowance[] } }))
+        ]);
+        if (isMounted) {
+          if (dashRes.data?.data) setData(dashRes.data.data);
+          if (allowRes.data?.data) setAllowances(allowRes.data.data);
         }
       } catch (err: unknown) {
         console.error('Failed to load parent dashboard:', err);
@@ -95,6 +119,115 @@ export default function ParentDashboard() {
       });
     } finally {
       setSubmittingAction(false);
+    }
+  };
+
+  const openScheduleModal = async (child?: ChildSummary) => {
+    const cId = child ? child.id : (data?.children[0]?.id || '');
+    setAllowanceChildId(cId);
+    setAllowanceAmount('250');
+    setAllowanceFrequency('WEEKLY');
+    setAllowanceDayOfWeek('MONDAY');
+    setAllowanceDayOfMonth('1');
+    setAllowanceGoalId('');
+    setAllowanceNote('Weekly pocket money');
+    setScheduleModalOpen(true);
+
+    if (cId) {
+      try {
+        const detailsRes = await parentalApi.getChildDetails(cId);
+        setChildGoals(detailsRes.data?.data?.activeGoals || []);
+      } catch {
+        setChildGoals([]);
+      }
+    }
+  };
+
+  const handleChildSelectForSchedule = async (cId: string) => {
+    setAllowanceChildId(cId);
+    setAllowanceGoalId('');
+    try {
+      const detailsRes = await parentalApi.getChildDetails(cId);
+      setChildGoals(detailsRes.data?.data?.activeGoals || []);
+    } catch {
+      setChildGoals([]);
+    }
+  };
+
+  const handleCreateSchedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!allowanceChildId || !allowanceAmount) return;
+    setSubmittingAction(true);
+    try {
+      await parentalApi.createAllowance({
+        childId: allowanceChildId,
+        amount: parseFloat(allowanceAmount),
+        frequency: allowanceFrequency,
+        dayOfWeek: (allowanceFrequency === 'WEEKLY' || allowanceFrequency === 'BIWEEKLY') ? allowanceDayOfWeek : undefined,
+        dayOfMonth: allowanceFrequency === 'MONTHLY' ? parseInt(allowanceDayOfMonth, 10) : undefined,
+        targetGoalId: allowanceGoalId ? allowanceGoalId : undefined,
+        note: allowanceNote
+      });
+      setScheduleModalOpen(false);
+      fetchDashboardData();
+      setAlertConfig({
+        title: 'Schedule Created',
+        message: 'Automated allowance schedule configured successfully! Pocket money sweeps will execute automatically.'
+      });
+    } catch (err: unknown) {
+      setAlertConfig({
+        title: 'Schedule Failed',
+        message: axios.isAxiosError<{ message?: string }>(err)
+          ? err.response?.data?.message || 'Failed to create allowance schedule.'
+          : 'Failed to create allowance schedule.'
+      });
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
+
+  const handleToggleSchedule = async (id: string, currentActive: boolean) => {
+    try {
+      await parentalApi.updateAllowance(id, { active: !currentActive });
+      fetchDashboardData();
+    } catch {
+      setAlertConfig({
+        title: 'Update Failed',
+        message: 'Could not update allowance schedule status.'
+      });
+    }
+  };
+
+  const handleTriggerSchedule = async (id: string) => {
+    setTriggeringId(id);
+    try {
+      await parentalApi.triggerAllowance(id);
+      fetchDashboardData();
+      setAlertConfig({
+        title: 'Sweep Executed',
+        message: 'Scheduled allowance sweep executed immediately! Funds transferred successfully.'
+      });
+    } catch (err: unknown) {
+      setAlertConfig({
+        title: 'Sweep Failed',
+        message: axios.isAxiosError<{ message?: string }>(err)
+          ? err.response?.data?.message || 'Failed to trigger sweep. Check wallet balance.'
+          : 'Failed to trigger sweep. Check wallet balance.'
+      });
+    } finally {
+      setTriggeringId(null);
+    }
+  };
+
+  const handleDeleteSchedule = async (id: string) => {
+    try {
+      await parentalApi.deleteAllowance(id);
+      fetchDashboardData();
+    } catch {
+      setAlertConfig({
+        title: 'Delete Failed',
+        message: 'Could not delete scheduled allowance.'
+      });
     }
   };
 
@@ -287,6 +420,15 @@ export default function ParentDashboard() {
                           Send Pocket Money
                         </Button>
                         <Button
+                          onClick={() => openScheduleModal(child)}
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs gap-1.5 px-3 py-1.5 border border-surface-700/60 hover:border-purple-500/30"
+                        >
+                          <Repeat className="w-3.5 h-3.5 text-purple-400" />
+                          Schedule Allowance
+                        </Button>
+                        <Button
                           onClick={() => openLimitsModal(child)}
                           variant="ghost"
                           size="sm"
@@ -295,6 +437,156 @@ export default function ParentDashboard() {
                           <Shield className="w-3.5 h-3.5 text-primary-400" />
                           Adjust Limits
                         </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </GlassCard>
+
+            {/* Scheduled Allowances & Auto-Sweeps */}
+            <GlassCard padding="lg" className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-surface-700/50 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-400">
+                    <Repeat className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-display font-bold text-white tracking-wide">
+                      Scheduled Allowances & Auto-Sweeps
+                    </h3>
+                    <p className="text-xs text-surface-400">
+                      Automated weekly/monthly pocket money transfers and savings goal auto-allocations
+                    </p>
+                  </div>
+                </div>
+                {data && data.children.length > 0 && (
+                  <Button
+                    onClick={() => openScheduleModal()}
+                    variant="primary"
+                    size="sm"
+                    className="text-xs flex items-center gap-1.5 shadow-md shadow-purple-500/20"
+                  >
+                    <Repeat className="w-3.5 h-3.5" />
+                    New Schedule
+                  </Button>
+                )}
+              </div>
+
+              {allowances.length === 0 ? (
+                <div className="text-center py-8 px-4 border border-dashed border-surface-700 rounded-2xl bg-surface-900/20">
+                  <Clock className="w-8 h-8 text-surface-500 mx-auto mb-2" />
+                  <p className="text-surface-300 text-sm font-medium">No recurring allowances scheduled.</p>
+                  <p className="text-xs text-surface-500 mt-1 max-w-sm mx-auto">
+                    Set up automatic weekly or monthly transfers so your teen always receives their pocket money on time, or sweep it directly into their savings goals!
+                  </p>
+                  {data && data.children.length > 0 && (
+                    <Button
+                      onClick={() => openScheduleModal()}
+                      variant="secondary"
+                      size="sm"
+                      className="mt-3 text-xs"
+                    >
+                      Schedule Allowance
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {allowances.map((s) => (
+                    <div
+                      key={s.id}
+                      className="p-4 rounded-xl border border-white/5 bg-white/2 hover:border-purple-500/20 transition-all space-y-3"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-purple-500/15 flex items-center justify-center text-purple-300 font-bold text-sm">
+                            {s.childName?.charAt(0) || 'T'}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-sm font-bold text-white">{s.childName}</h4>
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                s.active
+                                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+                                  : 'bg-surface-700/50 text-surface-400'
+                              }`}>
+                                {s.active ? 'Active' : 'Paused'}
+                              </span>
+                            </div>
+                            <span className="text-xs text-surface-400">
+                              {s.frequency} {s.frequency === 'MONTHLY' ? `(Day ${s.dayOfMonth})` : `(${s.dayOfWeek})`}
+                              {s.note ? ` • ${s.note}` : ''}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="text-right sm:text-right">
+                          <span className="text-base font-bold text-white">
+                            ₹{s.amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                          <span className="text-[10px] text-surface-400 block">
+                            Next: {s.nextRunDate}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Destination / Auto-Sweep Target */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-surface-800/60 text-xs">
+                        <div className="flex items-center gap-1.5">
+                          {s.targetGoalName ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-300 text-[11px] font-medium border border-purple-500/20">
+                              <Target className="w-3 h-3 text-purple-400" />
+                              Auto-Sweep to: {s.targetGoalName}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-surface-400 text-[11px]">
+                              <Wallet className="w-3 h-3 text-surface-400" />
+                              Direct to teen wallet
+                            </span>
+                          )}
+                          {s.lastRunDate && (
+                            <span className="text-[10px] text-surface-500 ml-1">
+                              (Last run: {s.lastRunDate})
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            onClick={() => handleTriggerSchedule(s.id)}
+                            disabled={triggeringId === s.id}
+                            variant="ghost"
+                            size="sm"
+                            className="text-[11px] h-7 px-2.5 gap-1 text-primary-400 hover:text-primary-300"
+                            title="Run sweep transfer now"
+                          >
+                            {triggeringId === s.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Play className="w-3 h-3" />
+                            )}
+                            Run Now
+                          </Button>
+                          <Button
+                            onClick={() => handleToggleSchedule(s.id, s.active)}
+                            variant="ghost"
+                            size="sm"
+                            className="text-[11px] h-7 px-2.5 gap-1 text-surface-300 hover:text-white"
+                          >
+                            {s.active ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                            {s.active ? 'Pause' : 'Resume'}
+                          </Button>
+                          <Button
+                            onClick={() => handleDeleteSchedule(s.id)}
+                            variant="ghost"
+                            size="sm"
+                            className="text-[11px] h-7 px-2 text-danger-400 hover:text-danger-300"
+                            title="Delete schedule"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -409,7 +701,7 @@ export default function ParentDashboard() {
             </GlassCard>
 
             {/* Notifications feed */}
-            {data && data.recentNotifications.length > 0 && (
+            {data && (data.recentNotifications?.length ?? 0) > 0 && (
               <GlassCard padding="lg">
                 <h3 className="text-lg font-display font-bold text-white tracking-wide border-b border-surface-700/50 pb-3 mb-3 flex items-center justify-between">
                   <span>Alerts History</span>
@@ -604,6 +896,150 @@ export default function ParentDashboard() {
               </Button>
             </form>
           )}
+        </Modal>
+
+        {/* Schedule Allowance Modal */}
+        <Modal
+          isOpen={scheduleModalOpen}
+          onClose={() => setScheduleModalOpen(false)}
+          title="Schedule Recurring Allowance"
+        >
+          <form onSubmit={handleCreateSchedule} className="space-y-4">
+            {data && data.children.length > 1 && (
+              <div>
+                <label className="input-label">Select Teen</label>
+                <select
+                  value={allowanceChildId}
+                  onChange={(e) => handleChildSelectForSchedule(e.target.value)}
+                  className="input-field py-2 text-sm focus:ring-2 focus:ring-primary-500 bg-surface-900 text-white"
+                >
+                  {data.children.map((child) => (
+                    <option key={child.id} value={child.id}>
+                      {child.fullName} ({child.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div>
+              <label htmlFor="allowAmount" className="input-label">Allowance Amount (₹)</label>
+              <input
+                id="allowAmount"
+                type="number"
+                step="0.01"
+                min="1"
+                required
+                value={allowanceAmount}
+                onChange={(e) => setAllowanceAmount(e.target.value)}
+                placeholder="250.00"
+                className="input-field py-2 text-sm focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="input-label">Frequency</label>
+                <select
+                  value={allowanceFrequency}
+                  onChange={(e) => setAllowanceFrequency(e.target.value as 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY')}
+                  className="input-field py-2 text-sm focus:ring-2 focus:ring-primary-500 bg-surface-900 text-white"
+                >
+                  <option value="WEEKLY">Weekly</option>
+                  <option value="BIWEEKLY">Bi-Weekly (Every 2 Weeks)</option>
+                  <option value="MONTHLY">Monthly</option>
+                </select>
+              </div>
+
+              {allowanceFrequency === 'MONTHLY' ? (
+                <div>
+                  <label className="input-label">Day of Month</label>
+                  <select
+                    value={allowanceDayOfMonth}
+                    onChange={(e) => setAllowanceDayOfMonth(e.target.value)}
+                    className="input-field py-2 text-sm focus:ring-2 focus:ring-primary-500 bg-surface-900 text-white"
+                  >
+                    {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
+                      <option key={d} value={d}>
+                        Day {d}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div>
+                  <label className="input-label">Day of Week</label>
+                  <select
+                    value={allowanceDayOfWeek}
+                    onChange={(e) => setAllowanceDayOfWeek(e.target.value)}
+                    className="input-field py-2 text-sm focus:ring-2 focus:ring-primary-500 bg-surface-900 text-white"
+                  >
+                    <option value="MONDAY">Monday</option>
+                    <option value="TUESDAY">Tuesday</option>
+                    <option value="WEDNESDAY">Wednesday</option>
+                    <option value="THURSDAY">Thursday</option>
+                    <option value="FRIDAY">Friday</option>
+                    <option value="SATURDAY">Saturday</option>
+                    <option value="SUNDAY">Sunday</option>
+                  </select>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="input-label flex items-center justify-between">
+                <span>Direct Auto-Sweep to Goal (Optional)</span>
+                {childGoals.length > 0 && (
+                  <span className="text-[10px] text-purple-400 font-semibold">
+                    {childGoals.length} Active Goals
+                  </span>
+                )}
+              </label>
+              <select
+                value={allowanceGoalId}
+                onChange={(e) => setAllowanceGoalId(e.target.value)}
+                className="input-field py-2 text-sm focus:ring-2 focus:ring-primary-500 bg-surface-900 text-white"
+              >
+                <option value="">Direct to Teen's Wallet (Default)</option>
+                {childGoals.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    🎯 Auto-Sweep into: {g.name} (₹{g.currentAmount} / ₹{g.targetAmount})
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-surface-400 mt-1">
+                When selected, the allowance will automatically be swept from the teen's wallet directly into this savings goal!
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="allowNote" className="input-label">Note / Description</label>
+              <input
+                id="allowNote"
+                type="text"
+                value={allowanceNote}
+                onChange={(e) => setAllowanceNote(e.target.value)}
+                placeholder="e.g., Weekly pocket money, Book allowance"
+                className="input-field py-2 text-sm focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+
+            <Button
+              type="submit"
+              disabled={submittingAction}
+              variant="primary"
+              className="w-full py-2.5 flex items-center justify-center gap-2 text-sm font-bold shadow-lg shadow-purple-500/25"
+            >
+              {submittingAction ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  <Repeat className="w-4 h-4" />
+                  Confirm Allowance Schedule
+                </>
+              )}
+            </Button>
+          </form>
         </Modal>
 
         {/* CUSTOM ALERT MODAL */}

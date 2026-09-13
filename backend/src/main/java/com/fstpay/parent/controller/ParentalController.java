@@ -40,6 +40,7 @@ public class ParentalController {
     private final NotificationService notificationService;
     private final VirtualCardOperations virtualCardService;
     private final UserRepository userRepository;
+    private final ScheduledAllowanceService scheduledAllowanceService;
 
     // ── Public Endpoints ──
 
@@ -126,6 +127,50 @@ public class ParentalController {
             @Valid @RequestBody PocketMoneyRequest request) {
         pocketMoneyService.sendPocketMoney(userDetails.getUsername(), request);
         return ResponseEntity.ok(ApiResponse.success("Pocket money transferred successfully", null));
+    }
+
+    @GetMapping("/allowances")
+    @Operation(summary = "Get scheduled allowances", description = "Retrieves all active and paused recurring allowance schedules configured by the parent.")
+    public ResponseEntity<ApiResponse<List<ScheduledAllowanceResponse>>> getAllowances(@AuthenticationPrincipal UserDetails userDetails) {
+        List<ScheduledAllowanceResponse> allowances = scheduledAllowanceService.getAllowancesForParent(userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponse.success(allowances));
+    }
+
+    @PostMapping("/allowances")
+    @Operation(summary = "Create scheduled allowance", description = "Creates a recurring pocket money allowance schedule with optional direct savings goal auto-sweep.")
+    public ResponseEntity<ApiResponse<ScheduledAllowanceResponse>> createAllowance(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Valid @RequestBody CreateAllowanceRequest request) {
+        ScheduledAllowanceResponse response = scheduledAllowanceService.createAllowance(userDetails.getUsername(), request);
+        return ResponseEntity.ok(ApiResponse.success("Scheduled allowance created successfully", response));
+    }
+
+    @PutMapping("/allowances/{id}")
+    @Operation(summary = "Update scheduled allowance", description = "Updates recurring allowance configuration, frequency, amount, or pauses/resumes the schedule.")
+    public ResponseEntity<ApiResponse<ScheduledAllowanceResponse>> updateAllowance(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable UUID id,
+            @RequestBody UpdateAllowanceRequest request) {
+        ScheduledAllowanceResponse response = scheduledAllowanceService.updateAllowance(userDetails.getUsername(), id, request);
+        return ResponseEntity.ok(ApiResponse.success("Scheduled allowance updated successfully", response));
+    }
+
+    @DeleteMapping("/allowances/{id}")
+    @Operation(summary = "Delete scheduled allowance", description = "Permanently removes a scheduled allowance.")
+    public ResponseEntity<ApiResponse<String>> deleteAllowance(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable UUID id) {
+        scheduledAllowanceService.deleteAllowance(userDetails.getUsername(), id);
+        return ResponseEntity.ok(ApiResponse.success("Scheduled allowance deleted successfully", null));
+    }
+
+    @PostMapping("/allowances/{id}/trigger")
+    @Operation(summary = "Trigger scheduled allowance now", description = "Executes an immediate manual sweep of the scheduled allowance.")
+    public ResponseEntity<ApiResponse<ScheduledAllowanceResponse>> triggerAllowanceNow(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable UUID id) {
+        ScheduledAllowanceResponse response = scheduledAllowanceService.triggerAllowanceNow(userDetails.getUsername(), id);
+        return ResponseEntity.ok(ApiResponse.success("Scheduled allowance triggered successfully", response));
     }
 
     @PutMapping("/children/{childId}/limits")

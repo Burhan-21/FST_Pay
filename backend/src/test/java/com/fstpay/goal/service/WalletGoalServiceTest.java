@@ -44,6 +44,10 @@ class WalletGoalServiceTest {
     private TransactionRepository transactionRepository;
     @Mock
     private EventPublisher eventPublisher;
+    @Mock
+    private com.fstpay.reward.service.RewardsService rewardsService;
+    @Mock
+    private com.fstpay.notification.service.NotificationService notificationService;
 
     private WalletGoalService walletGoalService;
 
@@ -55,6 +59,8 @@ class WalletGoalServiceTest {
         walletGoalService = new WalletGoalService(
                 walletGoalRepository, userRepository, walletRepository, transactionRepository, eventPublisher
         );
+        walletGoalService.setRewardsService(rewardsService);
+        walletGoalService.setNotificationService(notificationService);
         ReflectionTestUtils.setField(walletGoalService, "goalCompletedPoints", 100);
 
         user = User.builder().id(UUID.randomUUID()).email("test@example.com").fullName("Test Teen").build();
@@ -310,5 +316,58 @@ class WalletGoalServiceTest {
 
         assertNull(result);
         assertEquals(new BigDecimal("2.00"), wallet.getBalance()); // Unchanged
+    }
+
+    @Test
+    void allocateFunds_AwardsMilestoneRewards_At25Percent() {
+        UUID goalId = UUID.randomUUID();
+        WalletGoal goal = WalletGoal.builder()
+                .id(goalId)
+                .user(user)
+                .name("Camera")
+                .targetAmount(new BigDecimal("1000.00"))
+                .currentAmount(BigDecimal.ZERO)
+                .allocatedAmount(BigDecimal.ZERO)
+                .lastMilestoneAwarded(0)
+                .status("ACTIVE")
+                .build();
+
+        GoalFundRequest request = GoalFundRequest.builder().amount(new BigDecimal("250.00")).build();
+
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
+        when(walletGoalRepository.findByIdAndUser(goalId, user)).thenReturn(Optional.of(goal));
+        when(walletRepository.findByUser(user)).thenReturn(Optional.of(wallet));
+        when(walletGoalRepository.save(any(WalletGoal.class))).thenAnswer(i -> i.getArgument(0));
+
+        WalletGoal result = walletGoalService.allocateFunds("test@example.com", goalId, request);
+
+        assertEquals(25, result.getLastMilestoneAwarded());
+        verify(rewardsService, times(1)).addPoints(eq(user), eq(25), contains("25%"));
+        verify(rewardsService, times(1)).addXp(eq(user), eq(50), contains("25%"));
+        verify(notificationService, times(1)).sendNotification(eq(user), isNull(), any(), contains("25%"), anyString());
+    }
+
+    @Test
+    void allocateFundsFromTransfer_Success() {
+        WalletGoal goal = WalletGoal.builder()
+                .id(UUID.randomUUID())
+                .user(user)
+                .name("Tablet")
+                .targetAmount(new BigDecimal("2000.00"))
+                .currentAmount(BigDecimal.ZERO)
+                .allocatedAmount(BigDecimal.ZERO)
+                .lastMilestoneAwarded(0)
+                .status("ACTIVE")
+                .build();
+
+        when(walletRepository.findByUser(user)).thenReturn(Optional.of(wallet));
+        when(walletGoalRepository.save(any(WalletGoal.class))).thenAnswer(i -> i.getArgument(0));
+
+        WalletGoal result = walletGoalService.allocateFundsFromTransfer(user, goal, new BigDecimal("500.00"));
+
+        assertEquals(new BigDecimal("500.00"), result.getCurrentAmount());
+        assertEquals(new BigDecimal("500.00"), wallet.getBalance());
+        assertEquals(25, result.getLastMilestoneAwarded());
+        verify(transactionRepository, times(1)).save(any(Transaction.class));
     }
 }

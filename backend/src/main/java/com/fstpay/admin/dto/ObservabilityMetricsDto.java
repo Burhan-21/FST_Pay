@@ -45,6 +45,13 @@ public class ObservabilityMetricsDto {
     private double guardianApprovalsBiometric;
     private double guardianApprovalsManual;
 
+    // Scheduled Allowance Sweeps & Goal Milestones
+    private double allowanceSweepsSuccess;
+    private double allowanceSweepsInsufficientFunds;
+    private double allowanceSweepsError;
+    private double allowanceTotalAmountInr;
+    private double goalMilestonesReached;
+
     // System & Runtime
     private double jvmMemoryUsedMb;
     private double jvmMemoryMaxMb;

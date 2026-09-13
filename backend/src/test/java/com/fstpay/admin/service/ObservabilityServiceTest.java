@@ -43,6 +43,11 @@ class ObservabilityServiceTest {
         meterRegistry.counter("fstpay.parental.approvals.decided.total", "decision", "approved", "auth_type", "biometric_passkey").increment(6);
         meterRegistry.counter("fstpay.parental.approvals.decided.total", "decision", "rejected", "auth_type", "manual").increment(1);
 
+        meterRegistry.counter("fstpay.allowance.sweeps.total", "status", "success", "frequency", "WEEKLY").increment(8);
+        meterRegistry.counter("fstpay.allowance.sweeps.total", "status", "insufficient_funds", "frequency", "WEEKLY").increment(2);
+        meterRegistry.counter("fstpay.allowance.amount.total").increment(1250.00);
+        meterRegistry.counter("fstpay.goal.milestones.reached.total", "milestone", "25%").increment(4);
+
         ObservabilityMetricsDto dto = observabilityService.getObservabilityMetrics();
 
         assertNotNull(dto);
@@ -69,6 +74,11 @@ class ObservabilityServiceTest {
         assertEquals(1.0, dto.getGuardianApprovalsRejected());
         assertEquals(6.0, dto.getGuardianApprovalsBiometric());
         assertEquals(1.0, dto.getGuardianApprovalsManual());
+
+        assertEquals(8.0, dto.getAllowanceSweepsSuccess());
+        assertEquals(2.0, dto.getAllowanceSweepsInsufficientFunds());
+        assertEquals(1250.00, dto.getAllowanceTotalAmountInr());
+        assertEquals(4.0, dto.getGoalMilestonesReached());
 
         assertTrue(dto.getJvmMemoryMaxMb() > 0);
     }

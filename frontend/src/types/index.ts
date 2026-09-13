@@ -221,6 +221,8 @@ export interface WalletGoal {
   roundUpEnabled?: boolean;
   roundUpNearest?: number;
   roundUpAccumulated?: number;
+  lastMilestoneAwarded?: number;
+  nextMilestonePercent?: number;
   completedAt?: string;
   cancelledAt?: string;
   createdAt: string;
@@ -566,10 +568,57 @@ export interface ObservabilityMetrics {
   guardianApprovalsBiometric: number;
   guardianApprovalsManual: number;
 
+  allowanceSweepsSuccess: number;
+  allowanceSweepsInsufficientFunds: number;
+  allowanceSweepsError: number;
+  allowanceTotalAmountInr: number;
+  goalMilestonesReached: number;
+
   jvmMemoryUsedMb: number;
   jvmMemoryMaxMb: number;
   systemCpuUsage: number;
   uptimeSeconds: number;
+}
+
+export interface ScheduledAllowance {
+  id: string;
+  parentId: string;
+  parentName: string;
+  childId: string;
+  childName: string;
+  childEmail: string;
+  amount: number;
+  frequency: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY';
+  dayOfWeek?: string;
+  dayOfMonth?: number;
+  targetGoalId?: string;
+  targetGoalName?: string;
+  note?: string;
+  active: boolean;
+  nextRunDate: string;
+  lastRunDate?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAllowanceRequest {
+  childId: string;
+  amount: number;
+  frequency: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY';
+  dayOfWeek?: string;
+  dayOfMonth?: number;
+  targetGoalId?: string;
+  note?: string;
+}
+
+export interface UpdateAllowanceRequest {
+  amount?: number;
+  frequency?: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY';
+  dayOfWeek?: string;
+  dayOfMonth?: number;
+  targetGoalId?: string;
+  note?: string;
+  active?: boolean;
 }
 
 export type SseEventPayload = SseSettlementUpdatePayload | SseWalletUpdatePayload | SseAiAlertPayload | { type: string; [key: string]: unknown };
