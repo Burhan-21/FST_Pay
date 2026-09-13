@@ -37,6 +37,9 @@ public class FxRateService {
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private io.micrometer.core.instrument.MeterRegistry meterRegistry = new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+
     public FxRateService(
             @Autowired(required = false) StringRedisTemplate redisTemplate,
             ObjectMapper objectMapper) {
@@ -116,6 +119,12 @@ public class FxRateService {
         String from = normalize(fromCurrency);
         String to = normalize(toCurrency);
 
+        if (meterRegistry != null) {
+            try {
+                meterRegistry.counter("fstpay.fx.quotes.requested.total", "from", from, "to", to).increment();
+            } catch (Exception ignored) {}
+        }
+
         BigDecimal rate = getExchangeRate(from, to);
         BigDecimal convertedAmount = amount.multiply(rate).setScale(2, RoundingMode.HALF_UP);
 
@@ -150,11 +159,22 @@ public class FxRateService {
                     Map<String, String> rawMap = objectMapper.readValue(cachedJson, new TypeReference<>() {});
                     Map<String, BigDecimal> parsed = new LinkedHashMap<>();
                     rawMap.forEach((k, v) -> parsed.put(k, new BigDecimal(v)));
+                    if (meterRegistry != null) {
+                        try {
+                            meterRegistry.counter("fstpay.fx.cache.hits.total").increment();
+                        } catch (Exception ignored) {}
+                    }
                     return parsed;
                 }
             } catch (Exception e) {
                 log.warn("Redis FX cache read failed, falling back to in-memory rates: {}", e.getMessage());
             }
+        }
+
+        if (meterRegistry != null) {
+            try {
+                meterRegistry.counter("fstpay.fx.cache.misses.total").increment();
+            } catch (Exception ignored) {}
         }
 
         // Cache miss or Redis unavailable: use defaults

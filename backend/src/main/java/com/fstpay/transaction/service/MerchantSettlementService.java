@@ -28,95 +28,134 @@ public class MerchantSettlementService {
     private final EventPublisher eventPublisher;
     private final NotificationService notificationService;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private io.micrometer.core.instrument.MeterRegistry meterRegistry = new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+
     @Transactional
     public MerchantSettlementResponse processSettlement(MerchantSettlementWebhookRequest request) {
         log.info("Processing merchant settlement webhook for referenceId: {}, merchantId: {}, status: {}",
                 request.getReferenceId(), request.getMerchantId(), request.getStatus());
 
-        // 1. Pessimistic lock lookup by referenceId (or transactionId fallback)
-        Optional<Transaction> txnOpt = transactionRepository.findByReferenceIdForUpdate(request.getReferenceId());
-        if (txnOpt.isEmpty() && request.getTransactionId() != null) {
-            txnOpt = transactionRepository.findByIdForUpdate(request.getTransactionId());
+        io.micrometer.core.instrument.Timer.Sample timerSample = null;
+        if (meterRegistry != null && meterRegistry.config() != null) {
+            try {
+                timerSample = io.micrometer.core.instrument.Timer.start(meterRegistry);
+            } catch (Exception ignored) {}
         }
 
-        if (txnOpt.isEmpty()) {
-            log.error("Transaction not found for settlement reference: {}", request.getReferenceId());
-            throw new ResourceNotFoundException("Transaction not found for reference: " + request.getReferenceId());
-        }
+        try {
+            // 1. Pessimistic lock lookup by referenceId (or transactionId fallback)
+            Optional<Transaction> txnOpt = transactionRepository.findByReferenceIdForUpdate(request.getReferenceId());
+            if (txnOpt.isEmpty() && request.getTransactionId() != null) {
+                txnOpt = transactionRepository.findByIdForUpdate(request.getTransactionId());
+            }
 
-        Transaction transaction = txnOpt.get();
+            if (txnOpt.isEmpty()) {
+                log.error("Transaction not found for settlement reference: {}", request.getReferenceId());
+                if (meterRegistry != null) {
+                    try {
+                        meterRegistry.counter("fstpay.webhooks.settlements.processed.total", "status", "not_found").increment();
+                    } catch (Exception ignored) {}
+                }
+                throw new ResourceNotFoundException("Transaction not found for reference: " + request.getReferenceId());
+            }
 
-        // 2. Idempotency Guard: If already settled, do not re-process
-        if ("SETTLED".equalsIgnoreCase(transaction.getStatus())) {
-            log.info("Transaction {} is already settled. Ignoring duplicate webhook callback.", transaction.getId());
+            Transaction transaction = txnOpt.get();
+
+            // 2. Idempotency Guard: If already settled, do not re-process
+            if ("SETTLED".equalsIgnoreCase(transaction.getStatus())) {
+                log.info("Transaction {} is already settled. Ignoring duplicate webhook callback.", transaction.getId());
+                if (meterRegistry != null) {
+                    try {
+                        meterRegistry.counter("fstpay.webhooks.settlements.processed.total", "status", "already_settled").increment();
+                    } catch (Exception ignored) {}
+                }
+                return MerchantSettlementResponse.builder()
+                        .status("IGNORED_DUPLICATE")
+                        .transactionId(transaction.getId())
+                        .referenceId(transaction.getReferenceId())
+                        .settlementStatus("SETTLED")
+                        .message("Transaction has already been settled")
+                        .processedAt(Instant.now())
+                        .build();
+            }
+
+            // 3. Amount consistency validation
+            if (request.getSettlementAmount().compareTo(transaction.getAmount()) != 0) {
+                log.error("Settlement amount mismatch for transaction {}: expected {}, received {}",
+                        transaction.getId(), transaction.getAmount(), request.getSettlementAmount());
+                if (meterRegistry != null) {
+                    try {
+                        meterRegistry.counter("fstpay.webhooks.settlements.processed.total", "status", "mismatch").increment();
+                    } catch (Exception ignored) {}
+                }
+                throw new IllegalArgumentException(String.format(
+                        "Settlement amount mismatch: expected %s, but received %s",
+                        transaction.getAmount(), request.getSettlementAmount()
+                ));
+            }
+
+            // 4. Update transaction status
+            String finalStatus = request.getStatus().toUpperCase();
+            transaction.setStatus(finalStatus);
+            transactionRepository.save(transaction);
+            log.info("Updated transaction {} status to {}", transaction.getId(), finalStatus);
+
+            // 5. Publish Domain Event via Transactional Outbox
+            UUID walletId = transaction.getWallet() != null ? transaction.getWallet().getId() : null;
+            User user = (transaction.getWallet() != null) ? transaction.getWallet().getUser() : null;
+            UUID userId = (user != null) ? user.getId() : null;
+
+            eventPublisher.publish(MerchantSettlementEvent.create(
+                    transaction.getId(),
+                    transaction.getReferenceId(),
+                    request.getMerchantId(),
+                    request.getSettlementAmount(),
+                    finalStatus,
+                    walletId,
+                    userId
+            ));
+
+            // 6. Notify user of settlement confirmation
+            if (user != null) {
+                String title = "SETTLED".equalsIgnoreCase(finalStatus)
+                        ? "Payment Settled"
+                        : "Payment Settlement " + finalStatus;
+                String message = String.format(
+                        "Your payment of ₹%s at %s has been %s (Ref: %s).",
+                        request.getSettlementAmount().toPlainString(),
+                        transaction.getMerchant() != null ? transaction.getMerchant() : request.getMerchantId(),
+                        finalStatus.toLowerCase(),
+                        transaction.getReferenceId()
+                );
+
+                try {
+                    notificationService.sendNotification(user, null, NotificationType.SYSTEM, title, message);
+                } catch (Exception e) {
+                    log.warn("Failed to dispatch in-app settlement notification to user {}: {}", user.getId(), e.getMessage());
+                }
+            }
+
+            if (meterRegistry != null) {
+                try {
+                    meterRegistry.counter("fstpay.webhooks.settlements.processed.total", "status", "settled").increment();
+                } catch (Exception ignored) {}
+            }
+
             return MerchantSettlementResponse.builder()
-                    .status("IGNORED_DUPLICATE")
+                    .status("SUCCESS")
                     .transactionId(transaction.getId())
                     .referenceId(transaction.getReferenceId())
-                    .settlementStatus("SETTLED")
-                    .message("Transaction has already been settled")
+                    .settlementStatus(finalStatus)
+                    .message("Settlement processed successfully")
                     .processedAt(Instant.now())
                     .build();
-        }
-
-        // 3. Amount consistency validation
-        if (request.getSettlementAmount().compareTo(transaction.getAmount()) != 0) {
-            log.error("Settlement amount mismatch for transaction {}: expected {}, received {}",
-                    transaction.getId(), transaction.getAmount(), request.getSettlementAmount());
-            throw new IllegalArgumentException(String.format(
-                    "Settlement amount mismatch: expected %s, but received %s",
-                    transaction.getAmount(), request.getSettlementAmount()
-            ));
-        }
-
-        // 4. Update transaction status
-        String finalStatus = request.getStatus().toUpperCase();
-        transaction.setStatus(finalStatus);
-        transactionRepository.save(transaction);
-        log.info("Updated transaction {} status to {}", transaction.getId(), finalStatus);
-
-        // 5. Publish Domain Event via Transactional Outbox
-        UUID walletId = transaction.getWallet() != null ? transaction.getWallet().getId() : null;
-        User user = (transaction.getWallet() != null) ? transaction.getWallet().getUser() : null;
-        UUID userId = (user != null) ? user.getId() : null;
-
-        eventPublisher.publish(MerchantSettlementEvent.create(
-                transaction.getId(),
-                transaction.getReferenceId(),
-                request.getMerchantId(),
-                request.getSettlementAmount(),
-                finalStatus,
-                walletId,
-                userId
-        ));
-
-        // 6. Notify user of settlement confirmation
-        if (user != null) {
-            String title = "SETTLED".equalsIgnoreCase(finalStatus)
-                    ? "Payment Settled"
-                    : "Payment Settlement " + finalStatus;
-            String message = String.format(
-                    "Your payment of ₹%s at %s has been %s (Ref: %s).",
-                    request.getSettlementAmount().toPlainString(),
-                    transaction.getMerchant() != null ? transaction.getMerchant() : request.getMerchantId(),
-                    finalStatus.toLowerCase(),
-                    transaction.getReferenceId()
-            );
-
-            try {
-                notificationService.sendNotification(user, null, NotificationType.SYSTEM, title, message);
-            } catch (Exception e) {
-                log.warn("Failed to dispatch in-app settlement notification to user {}: {}", user.getId(), e.getMessage());
+        } finally {
+            if (timerSample != null && meterRegistry != null) {
+                try {
+                    timerSample.stop(meterRegistry.timer("fstpay.webhooks.processing.duration"));
+                } catch (Exception ignored) {}
             }
         }
-
-        return MerchantSettlementResponse.builder()
-                .status("SUCCESS")
-                .transactionId(transaction.getId())
-                .referenceId(transaction.getReferenceId())
-                .settlementStatus(finalStatus)
-                .message("Settlement processed successfully")
-                .processedAt(Instant.now())
-                .build();
     }
 }

@@ -200,3 +200,12 @@ export const webauthnApi = {
   getApprovalChallenge: (approvalId: string) =>
     api.get(`/parental/webauthn/approvals/${approvalId}/challenge`),
 };
+
+// ── Admin ──
+export const adminApi = {
+  getStats: () => api.get('/admin/stats'),
+  getUsers: (params?: { page?: number; size?: number }) => api.get('/admin/users', { params }),
+  toggleActive: (id: string) => api.post(`/admin/users/${id}/toggle-active`),
+  getTransactions: (params?: { page?: number; size?: number }) => api.get('/admin/transactions', { params }),
+  getObservability: () => api.get('/admin/observability'),
+};

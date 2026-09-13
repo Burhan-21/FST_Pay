@@ -90,6 +90,12 @@ class AiCoachServiceTest {
         analyticsResponse.setNetSavings(new BigDecimal("3000.00"));
         analyticsResponse.setDailyAverageSpend(new BigDecimal("66.67"));
         analyticsResponse.setSpendByCategory(new HashMap<>());
+        
+        lenient().when(meterRegistry.counter(anyString(), any(String[].class))).thenReturn(mock(io.micrometer.core.instrument.Counter.class));
+        lenient().when(meterRegistry.summary(anyString())).thenReturn(mock(io.micrometer.core.instrument.DistributionSummary.class));
+        lenient().when(meterRegistry.summary(anyString(), any(String[].class))).thenReturn(mock(io.micrometer.core.instrument.DistributionSummary.class));
+        lenient().when(meterRegistry.timer(anyString(), any(String[].class))).thenReturn(mock(io.micrometer.core.instrument.Timer.class));
+        lenient().when(meterRegistry.config()).thenReturn(new io.micrometer.core.instrument.simple.SimpleMeterRegistry().config());
     }
 
     @Test

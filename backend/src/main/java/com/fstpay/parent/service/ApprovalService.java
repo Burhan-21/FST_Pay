@@ -40,6 +40,9 @@ public class ApprovalService {
     @Lazy
     private final ApprovalProcessor approvalProcessor;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private io.micrometer.core.instrument.MeterRegistry meterRegistry = new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+
     @Transactional
     public TransactionApproval requestApproval(String childEmail, SpendApprovalRequest request) {
         User child = userRepository.findByEmail(childEmail)
@@ -112,6 +115,15 @@ public class ApprovalService {
         }
 
         TransactionApproval saved = transactionApprovalRepository.save(approval);
+
+        if (meterRegistry != null) {
+            try {
+                String authType = Boolean.TRUE.equals(saved.getBiometricVerified()) ? "biometric_passkey" : "manual";
+                meterRegistry.counter("fstpay.parental.approvals.decided.total",
+                        "decision", approved ? "approved" : "rejected",
+                        "auth_type", authType).increment();
+            } catch (Exception ignored) {}
+        }
 
         // Publish Event (handles notification sends)
         if (approved) {

@@ -35,6 +35,9 @@ public class WebAuthnService {
     private final Optional<StringRedisTemplate> redisTemplate;
     private final ObjectMapper objectMapper;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private io.micrometer.core.instrument.MeterRegistry meterRegistry = new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+
     @Value("${fstpay.webauthn.rp-id:localhost}")
     private String rpId;
 
@@ -90,6 +93,11 @@ public class WebAuthnService {
     public UserWebAuthnCredential verifyRegistration(User user, WebAuthnRegisterRequest request) {
         String storedChallenge = getChallenge("reg:" + user.getId());
         if (storedChallenge == null) {
+            if (meterRegistry != null) {
+                try {
+                    meterRegistry.counter("fstpay.webauthn.registrations.total", "algorithm", "unknown", "status", "failure").increment();
+                } catch (Exception ignored) {}
+            }
             throw new BadRequestException("Registration challenge expired or not found. Please try again.");
         }
 
@@ -100,6 +108,11 @@ public class WebAuthnService {
 
         // Check for existing credential ID duplicate
         if (credentialRepository.findByCredentialId(request.getCredentialId()).isPresent()) {
+            if (meterRegistry != null) {
+                try {
+                    meterRegistry.counter("fstpay.webauthn.registrations.total", "algorithm", "unknown", "status", "failure").increment();
+                } catch (Exception ignored) {}
+            }
             throw new BadRequestException("This security credential has already been registered.");
         }
 
@@ -127,6 +140,13 @@ public class WebAuthnService {
 
         clearChallenge("reg:" + user.getId());
         log.info("Registered new WebAuthn credential {} for parent {}", saved.getCredentialId(), user.getEmail());
+
+        if (meterRegistry != null) {
+            try {
+                meterRegistry.counter("fstpay.webauthn.registrations.total", "algorithm", algo, "status", "success").increment();
+            } catch (Exception ignored) {}
+        }
+
         return saved;
     }
 
@@ -164,39 +184,55 @@ public class WebAuthnService {
     @Transactional
     public boolean verifyBiometricAssertion(User parent, UUID approvalId, String credentialId,
                                             String clientDataJSON, String authenticatorData, String signature) {
-        String cacheKey = "auth:" + parent.getId() + ":" + approvalId;
-        String storedChallenge = getChallenge(cacheKey);
-        if (storedChallenge == null) {
-            throw new BadRequestException("Biometric authentication challenge expired or invalid for this request.");
+        try {
+            String cacheKey = "auth:" + parent.getId() + ":" + approvalId;
+            String storedChallenge = getChallenge(cacheKey);
+            if (storedChallenge == null) {
+                throw new BadRequestException("Biometric authentication challenge expired or invalid for this request.");
+            }
+
+            UserWebAuthnCredential credential = credentialRepository.findByCredentialId(credentialId)
+                    .orElseThrow(() -> new ResourceNotFoundException("WebAuthn credential not recognized"));
+
+            if (!credential.getUser().getId().equals(parent.getId())) {
+                throw new BadRequestException("Credential does not belong to the authenticating guardian.");
+            }
+
+            // Validate challenge in clientDataJSON
+            if (clientDataJSON != null && !clientDataJSON.isBlank()) {
+                validateClientDataChallenge(clientDataJSON, storedChallenge);
+            }
+
+            // Verify cryptographic signature
+            boolean isValid = verifySignature(credential, clientDataJSON, authenticatorData, signature);
+            if (!isValid) {
+                log.warn("Biometric assertion signature verification failed for user {}", parent.getEmail());
+                throw new BadRequestException("Biometric cryptographic signature verification failed.");
+            }
+
+            // Increment sign count and update last used
+            credential.setSignCount(credential.getSignCount() + 1);
+            credential.setLastUsedAt(Instant.now());
+            credentialRepository.save(credential);
+
+            clearChallenge(cacheKey);
+            log.info("Biometric assertion successfully verified for approval {} by parent {}", approvalId, parent.getEmail());
+
+            if (meterRegistry != null) {
+                try {
+                    meterRegistry.counter("fstpay.webauthn.verifications.total", "status", "success").increment();
+                } catch (Exception ignored) {}
+            }
+
+            return true;
+        } catch (Exception e) {
+            if (meterRegistry != null) {
+                try {
+                    meterRegistry.counter("fstpay.webauthn.verifications.total", "status", "failure").increment();
+                } catch (Exception ignored) {}
+            }
+            throw e;
         }
-
-        UserWebAuthnCredential credential = credentialRepository.findByCredentialId(credentialId)
-                .orElseThrow(() -> new ResourceNotFoundException("WebAuthn credential not recognized"));
-
-        if (!credential.getUser().getId().equals(parent.getId())) {
-            throw new BadRequestException("Credential does not belong to the authenticating guardian.");
-        }
-
-        // Validate challenge in clientDataJSON
-        if (clientDataJSON != null && !clientDataJSON.isBlank()) {
-            validateClientDataChallenge(clientDataJSON, storedChallenge);
-        }
-
-        // Verify cryptographic signature
-        boolean isValid = verifySignature(credential, clientDataJSON, authenticatorData, signature);
-        if (!isValid) {
-            log.warn("Biometric assertion signature verification failed for user {}", parent.getEmail());
-            throw new BadRequestException("Biometric cryptographic signature verification failed.");
-        }
-
-        // Increment sign count and update last used
-        credential.setSignCount(credential.getSignCount() + 1);
-        credential.setLastUsedAt(Instant.now());
-        credentialRepository.save(credential);
-
-        clearChallenge(cacheKey);
-        log.info("Biometric assertion successfully verified for approval {} by parent {}", approvalId, parent.getEmail());
-        return true;
     }
 
     /**

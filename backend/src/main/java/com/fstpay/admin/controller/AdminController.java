@@ -18,10 +18,16 @@ import java.util.UUID;
 public class AdminController {
 
     private final AdminService adminService;
+    private final com.fstpay.admin.service.ObservabilityService observabilityService;
 
     @GetMapping("/stats")
     public ResponseEntity<ApiResponse<AdminStatsResponse>> getStats() {
         return ResponseEntity.ok(ApiResponse.success(adminService.getStats()));
+    }
+
+    @GetMapping("/observability")
+    public ResponseEntity<ApiResponse<com.fstpay.admin.dto.ObservabilityMetricsDto>> getObservability() {
+        return ResponseEntity.ok(ApiResponse.success(observabilityService.getObservabilityMetrics()));
     }
 
     @GetMapping("/users")

@@ -535,4 +535,41 @@ export interface AiBudgetAnomaly {
   detectedAt: string;
 }
 
+export interface ObservabilityMetrics {
+  monteCarloSimulationsSuccess: number;
+  monteCarloSimulationsFailed: number;
+  monteCarloAvgDurationMs: number;
+  roundUpSweepsSuccess: number;
+  roundUpSweepsInsufficientFunds: number;
+  roundUpTotalAmountInr: number;
+
+  fxQuotesRequested: number;
+  fxConversionsExecuted: number;
+  fxFeesCollectedInr: number;
+  fxCacheHits: number;
+  fxCacheMisses: number;
+  fxCacheHitRatio: number;
+
+  webhooksReceivedValid: number;
+  webhooksReceivedInvalid: number;
+  webhooksSettled: number;
+  webhooksDuplicates: number;
+  webhooksMismatches: number;
+  webhooksAvgProcessingDurationMs: number;
+
+  webauthnRegistrationsSuccess: number;
+  webauthnRegistrationsFailed: number;
+  webauthnVerificationsSuccess: number;
+  webauthnVerificationsFailed: number;
+  guardianApprovalsApproved: number;
+  guardianApprovalsRejected: number;
+  guardianApprovalsBiometric: number;
+  guardianApprovalsManual: number;
+
+  jvmMemoryUsedMb: number;
+  jvmMemoryMaxMb: number;
+  systemCpuUsage: number;
+  uptimeSeconds: number;
+}
+
 export type SseEventPayload = SseSettlementUpdatePayload | SseWalletUpdatePayload | SseAiAlertPayload | { type: string; [key: string]: unknown };

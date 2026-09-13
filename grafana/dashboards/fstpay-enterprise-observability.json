@@ -1,0 +1,320 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 100,
+      "title": "AI Financial Coach & Monte Carlo Projections",
+      "type": "row"
+    },
+    {
+      "id": 1,
+      "title": "Monte Carlo Simulation Rate & Status",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum by (status) (rate(fstpay_aicoach_cashflow_simulations_total[1m]))",
+          "legendFormat": "Status: {{status}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Monte Carlo Duration (Mean ms)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "targets": [
+        {
+          "expr": "1000 * rate(fstpay_aicoach_cashflow_simulation_duration_seconds_sum{model=\"monte_carlo\"}[1m]) / rate(fstpay_aicoach_cashflow_simulation_duration_seconds_count{model=\"monte_carlo\"}[1m])",
+          "legendFormat": "Mean Duration (ms)"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Automated Round-Up Micro-Savings (INR/min)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 9
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "targets": [
+        {
+          "expr": "rate(fstpay_aicoach_roundup_amount_total[1m]) * 60",
+          "legendFormat": "Saved Volume (?/min)"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Round-Up Sweeps by Nearest Step",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 9
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum by (status, nearest) (rate(fstpay_aicoach_roundup_sweeps_total[1m]))",
+          "legendFormat": "{{status}} (Nearest ?{{nearest}})"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
+      "id": 101,
+      "title": "Multi-Currency & FX Engine",
+      "type": "row"
+    },
+    {
+      "id": 5,
+      "title": "FX Conversions Executed (Pair Breakdown)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 18
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum by (from, to) (rate(fstpay_fx_conversions_executed_total[1m]))",
+          "legendFormat": "{{from}} -> {{to}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "FX Fees Collected (?/min)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 18
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "targets": [
+        {
+          "expr": "rate(fstpay_fx_fee_collected_total[1m]) * 60",
+          "legendFormat": "FX Fee Revenue (?/min)"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "FX Redis Cache Hit Ratio (%)",
+      "type": "gauge",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 18
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "targets": [
+        {
+          "expr": "100 * (sum(rate(fstpay_fx_cache_hits_total[5m])) / (sum(rate(fstpay_fx_cache_hits_total[5m])) + sum(rate(fstpay_fx_cache_misses_total[5m])) > 0))",
+          "legendFormat": "Hit Ratio %"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 26
+      },
+      "id": 102,
+      "title": "Merchant Settlements & Webhooks",
+      "type": "row"
+    },
+    {
+      "id": 8,
+      "title": "Incoming Webhooks & HMAC Status",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 27
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum by (status) (rate(fstpay_webhooks_received_total[1m]))",
+          "legendFormat": "{{status}}"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Settlements Processed Breakdown",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 27
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum by (status) (rate(fstpay_webhooks_settlements_processed_total[1m]))",
+          "legendFormat": "Status: {{status}}"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 35
+      },
+      "id": 103,
+      "title": "Biometric WebAuthn & Parental Approvals",
+      "type": "row"
+    },
+    {
+      "id": 10,
+      "title": "Passkey Registrations & Verifications",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 36
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum by (status) (rate(fstpay_webauthn_registrations_total[1m]))",
+          "legendFormat": "Registration: {{status}}"
+        },
+        {
+          "expr": "sum by (status) (rate(fstpay_webauthn_verifications_total[1m]))",
+          "legendFormat": "Verification: {{status}}"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Guardian Approvals: Biometric vs Manual",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 36
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum by (decision, auth_type) (rate(fstpay_parental_approvals_decided_total[1m]))",
+          "legendFormat": "{{decision}} ({{auth_type}})"
+        }
+      ]
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "tags": [
+    "fstpay",
+    "fintech",
+    "production",
+    "observability"
+  ],
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m"
+    ]
+  },
+  "timezone": "browser",
+  "title": "FST Pay - Enterprise Observability & Financial Telemetry",
+  "uid": "fstpay-enterprise-obs",
+  "version": 1
+}

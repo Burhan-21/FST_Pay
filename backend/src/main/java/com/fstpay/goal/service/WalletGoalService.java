@@ -42,6 +42,9 @@ public class WalletGoalService {
     private final TransactionRepository transactionRepository;
     private final EventPublisher eventPublisher;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private io.micrometer.core.instrument.MeterRegistry meterRegistry = new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+
     @Value("${rewards.goal-completed-points:100}")
     private int goalCompletedPoints;
 
@@ -397,6 +400,11 @@ public class WalletGoalService {
         // Check if wallet has sufficient balance remaining for the spare change
         if (wallet.getBalance().compareTo(spareChange) < 0) {
             log.warn("Round-up skipped for user {}: insufficient wallet balance for spare change {}", user.getEmail(), spareChange);
+            if (meterRegistry != null) {
+                try {
+                    meterRegistry.counter("fstpay.aicoach.roundup.sweeps.total", "status", "insufficient_funds", "nearest", String.valueOf(stepInt)).increment();
+                } catch (Exception ignored) {}
+            }
             return null;
         }
 
@@ -434,6 +442,13 @@ public class WalletGoalService {
 
         WalletGoal savedGoal = walletGoalRepository.save(goal);
         log.info("Auto round-up processed for user {}: saved {} into goal {}", user.getEmail(), spareChange, goal.getName());
+
+        if (meterRegistry != null) {
+            try {
+                meterRegistry.counter("fstpay.aicoach.roundup.sweeps.total", "status", "success", "nearest", String.valueOf(stepInt)).increment();
+                meterRegistry.counter("fstpay.aicoach.roundup.amount.total").increment(spareChange.doubleValue());
+            } catch (Exception ignored) {}
+        }
 
         if (justCompleted) {
             eventPublisher.publish(GoalCompletedEvent.create(

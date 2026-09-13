@@ -1,0 +1,42 @@
+groups:
+  - name: fstpay_financial_alerts
+    rules:
+      - alert: HighMonteCarloLatency
+        expr: rate(fstpay_aicoach_cashflow_simulation_duration_seconds_sum{model="monte_carlo"}[5m]) / rate(fstpay_aicoach_cashflow_simulation_duration_seconds_count{model="monte_carlo"}[5m]) > 0.5
+        for: 1m
+        labels:
+          severity: warning
+          component: aicoach
+        annotations:
+          summary: "Monte Carlo cashflow simulation latency is degraded (>500ms)"
+          description: "Average Monte Carlo simulation duration has exceeded 500ms for over 1 minute."
+
+      - alert: HighWebhookDropRate
+        expr: sum(rate(fstpay_webhooks_received_total{status="invalid_signature"}[5m])) / (sum(rate(fstpay_webhooks_received_total[5m])) > 0) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          component: webhooks
+        annotations:
+          summary: "High merchant settlement webhook drop rate (>5%)"
+          description: "Over 5% of incoming settlement webhooks failed HMAC signature verification in the last 2 minutes."
+
+      - alert: FxRateCacheDegraded
+        expr: sum(rate(fstpay_fx_cache_misses_total[5m])) / (sum(rate(fstpay_fx_cache_hits_total[5m])) + sum(rate(fstpay_fx_cache_misses_total[5m])) > 0) > 0.50
+        for: 5m
+        labels:
+          severity: warning
+          component: fx-wallet
+        annotations:
+          summary: "FX rate cache miss ratio exceeds 50%"
+          description: "Redis FX cache is missing rates frequently; fallback to static in-memory rates active."
+
+      - alert: HighRunoutRiskRate
+        expr: sum(rate(fstpay_aicoach_cashflow_runout_risk_sum[10m])) / (sum(rate(fstpay_aicoach_cashflow_runout_risk_count[10m])) > 0) > 60.0
+        for: 10m
+        labels:
+          severity: info
+          component: aicoach
+        annotations:
+          summary: "High average user runout risk detected across teens"
+          description: "Average cashflow 30-day runout risk probability exceeded 60% over the last 10 minutes."

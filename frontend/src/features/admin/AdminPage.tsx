@@ -9,6 +9,16 @@ import {
   XCircle, 
   Search, 
   Loader2,
+  Activity,
+  Cpu,
+  ExternalLink,
+  RefreshCw,
+  Zap,
+  Globe,
+  ShieldCheck,
+  Database,
+  Sparkles,
+  BarChart3,
 } from 'lucide-react';
 import api from '../../api/axios';
 import PageTransition from '../../components/ui/PageTransition';
@@ -16,6 +26,7 @@ import GlassCard from '../../components/ui/GlassCard';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import StatCard from '../../components/ui/StatCard';
+import type { ObservabilityMetrics } from '../../types';
 
 interface AdminStats {
   totalUsers: number;
@@ -49,28 +60,53 @@ export default function AdminPage() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [transactions, setTransactions] = useState<AdminTransaction[]>([]);
+  const [observability, setObservability] = useState<ObservabilityMetrics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshingObs, setIsRefreshingObs] = useState(false);
+  const [autoRefreshObs, setAutoRefreshObs] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'users' | 'transactions'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'transactions' | 'observability'>('users');
   const [actioningUserId, setActioningUserId] = useState<string | null>(null);
 
   const fetchAdminData = async () => {
     try {
       setIsLoading(true);
-      const [statsRes, usersRes, txsRes] = await Promise.all([
+      const [statsRes, usersRes, txsRes, obsRes] = await Promise.all([
         api.get('/admin/stats'),
         api.get('/admin/users?size=50'),
-        api.get('/admin/transactions?size=50')
+        api.get('/admin/transactions?size=50'),
+        api.get('/admin/observability')
       ]);
       setStats(statsRes.data.data);
       setUsers(usersRes.data.data.content);
       setTransactions(txsRes.data.data.content);
+      setObservability(obsRes.data.data);
     } catch (error) {
       console.error('Error fetching admin data:', error);
     } finally {
       setIsLoading(false);
     }
   };
+
+  const refreshObservability = async () => {
+    try {
+      setIsRefreshingObs(true);
+      const res = await api.get('/admin/observability');
+      setObservability(res.data.data);
+    } catch (error) {
+      console.error('Error refreshing observability metrics:', error);
+    } finally {
+      setIsRefreshingObs(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'observability' || !autoRefreshObs) return;
+    const interval = setInterval(() => {
+      refreshObservability();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [activeTab, autoRefreshObs]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetching effect: async setState after await is architecturally correct
   useEffect(() => { fetchAdminData(); }, []);
@@ -171,18 +207,53 @@ export default function AdminPage() {
             >
               Transaction Logs
             </button>
+            <button
+              onClick={() => { setActiveTab('observability'); setSearchQuery(''); }}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-1.5 ${
+                activeTab === 'observability' 
+                  ? 'bg-primary-600/20 text-primary-400 border border-primary-500/30' 
+                  : 'text-surface-400 hover:text-white hover:bg-surface-800'
+              }`}
+            >
+              <Activity className="w-4 h-4 text-emerald-400" />
+              Live Observability
+            </button>
           </div>
 
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-500" />
-            <input
-              type="text"
-              placeholder={`Search ${activeTab}...`}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="input-field pl-10 text-sm w-full"
-            />
-          </div>
+          {activeTab === 'observability' ? (
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-xs text-surface-400 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={autoRefreshObs}
+                  onChange={(e) => setAutoRefreshObs(e.target.checked)}
+                  className="rounded border-surface-700 bg-surface-900 text-primary-600 focus:ring-primary-500"
+                />
+                Auto-refresh (5s)
+              </label>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={refreshObservability}
+                disabled={isRefreshingObs}
+                className="flex items-center gap-1.5 text-xs py-1.5 px-3"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingObs ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
+          ) : (
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-500" />
+              <input
+                type="text"
+                placeholder={`Search ${activeTab}...`}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="input-field pl-10 text-sm w-full"
+              />
+            </div>
+          )}
         </div>
 
         {/* Lists */}
@@ -273,7 +344,7 @@ export default function AdminPage() {
                 </tbody>
               </table>
             </div>
-          ) : (
+          ) : activeTab === 'transactions' ? (
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -337,6 +408,265 @@ export default function AdminPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+          ) : (
+            <div className="p-6 space-y-6">
+              {/* Observability Endpoint / Header Banner */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl bg-surface-900/60 border border-surface-700/60">
+                <div className="flex items-center gap-3">
+                  <div className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-white flex items-center gap-2">
+                      Micrometer Prometheus Metrics Active
+                      <Badge variant="accent">Scrape Interval: 5s</Badge>
+                    </div>
+                    <div className="text-xs text-surface-400 mt-0.5">
+                      Target: <code className="text-primary-300">/actuator/prometheus</code> &bull; Grafana Dashboard UID: <code className="text-primary-300">fstpay-enterprise-obs</code>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <a
+                    href="/actuator/prometheus"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-800 hover:bg-surface-700 text-surface-200 border border-surface-600 transition-colors"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 text-primary-400" />
+                    Raw Prometheus Feed
+                  </a>
+                  <a
+                    href="http://localhost:3001"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-600 hover:bg-primary-500 text-white shadow-sm transition-colors"
+                  >
+                    <BarChart3 className="w-3.5 h-3.5" />
+                    Open in Grafana (:3001)
+                  </a>
+                </div>
+              </div>
+
+              {/* 4 Pillars of Telemetry */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* 1. AI Financial Coach & Monte Carlo Cashflow */}
+                <div className="p-5 rounded-xl bg-surface-900/40 border border-surface-700/50 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-purple-400" />
+                      AI Coach & Monte Carlo Simulation
+                    </h3>
+                    <Badge variant="neutral">Algorithm: M=200 D=30</Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                      <div className="text-xs text-surface-400">Simulation Status</div>
+                      <div className="text-lg font-bold text-emerald-400 mt-1">
+                        {observability?.monteCarloSimulationsSuccess ?? 0}
+                        <span className="text-xs font-normal text-surface-400 ml-1">ok</span>
+                        {(observability?.monteCarloSimulationsFailed ?? 0) > 0 && (
+                          <span className="text-xs font-normal text-rose-400 ml-2">/ {observability?.monteCarloSimulationsFailed} err</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                      <div className="text-xs text-surface-400">Avg Simulation Latency</div>
+                      <div className="text-lg font-bold text-white mt-1">
+                        {observability?.monteCarloAvgDurationMs ?? 0}
+                        <span className="text-xs font-normal text-surface-400 ml-1">ms</span>
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                      <div className="text-xs text-surface-400">Round-Up Sweeps</div>
+                      <div className="text-lg font-bold text-primary-400 mt-1">
+                        {observability?.roundUpSweepsSuccess ?? 0}
+                        <span className="text-xs font-normal text-surface-400 ml-1">swept</span>
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                      <div className="text-xs text-surface-400">Micro-Savings Volume</div>
+                      <div className="text-lg font-bold text-amber-400 mt-1">
+                        ₹{(observability?.roundUpTotalAmountInr ?? 0).toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. FX Multi-Currency Engine */}
+                <div className="p-5 rounded-xl bg-surface-900/40 border border-surface-700/50 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Globe className="w-4 h-4 text-blue-400" />
+                      Multi-Currency & FX Engine
+                    </h3>
+                    <Badge variant="accent">Cache TTL: 15m</Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                      <div className="text-xs text-surface-400">Conversions Executed</div>
+                      <div className="text-lg font-bold text-white mt-1">
+                        {observability?.fxConversionsExecuted ?? 0}
+                        <span className="text-xs font-normal text-surface-400 ml-1">
+                          ({observability?.fxQuotesRequested ?? 0} quotes)
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                      <div className="text-xs text-surface-400">Platform FX Revenue</div>
+                      <div className="text-lg font-bold text-emerald-400 mt-1">
+                        ₹{(observability?.fxFeesCollectedInr ?? 0).toFixed(2)}
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                      <div className="text-xs text-surface-400">Redis Cache Hit Ratio</div>
+                      <div className="text-lg font-bold text-cyan-400 mt-1">
+                        {(observability?.fxCacheHitRatio ?? 100).toFixed(1)}%
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                      <div className="text-xs text-surface-400">Cache Hits / Misses</div>
+                      <div className="text-lg font-bold text-white mt-1">
+                        {observability?.fxCacheHits ?? 0}
+                        <span className="text-xs font-normal text-surface-400 ml-1">hits</span>
+                        <span className="text-xs font-normal text-surface-500 ml-2">/ {observability?.fxCacheMisses ?? 0} miss</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Merchant Settlements & Webhooks */}
+                <div className="p-5 rounded-xl bg-surface-900/40 border border-surface-700/50 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-amber-400" />
+                      Settlement Webhooks & Gateway Callbacks
+                    </h3>
+                    <Badge variant="neutral">HMAC-SHA256 Protected</Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                      <div className="text-xs text-surface-400">Webhooks Received</div>
+                      <div className="text-lg font-bold text-emerald-400 mt-1">
+                        {observability?.webhooksReceivedValid ?? 0}
+                        <span className="text-xs font-normal text-surface-400 ml-1">valid</span>
+                        {(observability?.webhooksReceivedInvalid ?? 0) > 0 && (
+                          <span className="text-xs font-normal text-rose-400 ml-2">/ {observability?.webhooksReceivedInvalid} dropped</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                      <div className="text-xs text-surface-400">Settled Transactions</div>
+                      <div className="text-lg font-bold text-white mt-1">
+                        {observability?.webhooksSettled ?? 0}
+                        <span className="text-xs font-normal text-surface-400 ml-1">settled</span>
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                      <div className="text-xs text-surface-400">Idempotency Duplicates</div>
+                      <div className="text-lg font-bold text-surface-300 mt-1">
+                        {observability?.webhooksDuplicates ?? 0}
+                        <span className="text-xs font-normal text-surface-400 ml-1">ignored</span>
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                      <div className="text-xs text-surface-400">Avg Settlement Latency</div>
+                      <div className="text-lg font-bold text-white mt-1">
+                        {observability?.webhooksAvgProcessingDurationMs ?? 0}
+                        <span className="text-xs font-normal text-surface-400 ml-1">ms</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Biometric WebAuthn & Parental Approvals */}
+                <div className="p-5 rounded-xl bg-surface-900/40 border border-surface-700/50 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                      WebAuthn Passkeys & Co-Signing
+                    </h3>
+                    <Badge variant="accent">FIDO2 / W3C L3</Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                      <div className="text-xs text-surface-400">Passkey Registrations</div>
+                      <div className="text-lg font-bold text-emerald-400 mt-1">
+                        {observability?.webauthnRegistrationsSuccess ?? 0}
+                        <span className="text-xs font-normal text-surface-400 ml-1">enrolled</span>
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                      <div className="text-xs text-surface-400">Biometric Assertions</div>
+                      <div className="text-lg font-bold text-primary-400 mt-1">
+                        {observability?.webauthnVerificationsSuccess ?? 0}
+                        <span className="text-xs font-normal text-surface-400 ml-1">verified</span>
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                      <div className="text-xs text-surface-400">Guardian Approvals</div>
+                      <div className="text-lg font-bold text-white mt-1">
+                        {observability?.guardianApprovalsApproved ?? 0}
+                        <span className="text-xs font-normal text-emerald-400 ml-1">approved</span>
+                        <span className="text-xs font-normal text-rose-400 ml-2">/ {observability?.guardianApprovalsRejected ?? 0} rej</span>
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                      <div className="text-xs text-surface-400">Biometric vs Manual</div>
+                      <div className="text-lg font-bold text-purple-400 mt-1">
+                        {observability?.guardianApprovalsBiometric ?? 0}
+                        <span className="text-xs font-normal text-surface-400 ml-1">biometric</span>
+                        <span className="text-xs font-normal text-surface-500 ml-2">/ {observability?.guardianApprovalsManual ?? 0} pin</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 5. System & JVM Runtime Telemetry */}
+              <div className="p-5 rounded-xl bg-surface-900/40 border border-surface-700/50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Cpu className="w-4 h-4 text-cyan-400" />
+                    Host Runtime & JVM Container Metrics
+                  </h3>
+                  <div className="text-xs text-surface-400 flex items-center gap-1">
+                    <Database className="w-3.5 h-3.5 text-surface-400" />
+                    Spring Boot Actuator Micrometer
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                    <div className="text-xs text-surface-400">JVM Heap Memory</div>
+                    <div className="text-base font-bold text-white mt-1">
+                      {observability?.jvmMemoryUsedMb ?? 0} MB
+                      <span className="text-xs font-normal text-surface-400 ml-1">/ {observability?.jvmMemoryMaxMb ?? 0} MB</span>
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                    <div className="text-xs text-surface-400">System CPU Usage</div>
+                    <div className="text-base font-bold text-amber-400 mt-1">
+                      {(observability?.systemCpuUsage ?? 0).toFixed(1)}%
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                    <div className="text-xs text-surface-400">Application Uptime</div>
+                    <div className="text-base font-bold text-emerald-400 mt-1">
+                      {Math.floor((observability?.uptimeSeconds ?? 0) / 3600)}h {Math.floor(((observability?.uptimeSeconds ?? 0) % 3600) / 60)}m
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                    <div className="text-xs text-surface-400">Actuator Health</div>
+                    <div className="text-base font-bold text-emerald-400 mt-1 flex items-center gap-1.5">
+                      <CheckCircle className="w-4 h-4" />
+                      UP (200 OK)
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </GlassCard>

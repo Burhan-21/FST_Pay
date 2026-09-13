@@ -44,6 +44,9 @@ public class TransactionService {
     private final FxRateService fxRateService;
     private final com.fstpay.goal.service.WalletGoalService walletGoalService;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private io.micrometer.core.instrument.MeterRegistry meterRegistry = new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+
     public Page<Transaction> getTransactions(String email, String category, String type, int page, int size) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -101,6 +104,18 @@ public class TransactionService {
                     : "Spend at " + request.getMerchant();
             description = String.format("%s (Converted: %s %.2f @ %.4f + %s %.2f FX fee)",
                     descPrefix, originalCurrency, originalAmount, fxRate, wallet.getCurrency(), fxFee);
+
+            if (meterRegistry != null) {
+                try {
+                    meterRegistry.counter("fstpay.fx.conversions.executed.total", "from", originalCurrency, "to", wallet.getCurrency()).increment();
+                    if (fxFee != null) {
+                        meterRegistry.counter("fstpay.fx.fee.collected.total", "currency", wallet.getCurrency()).increment(fxFee.doubleValue());
+                    }
+                    if (originalAmount != null) {
+                        meterRegistry.summary("fstpay.fx.conversion.amount", "from", originalCurrency).record(originalAmount.doubleValue());
+                    }
+                } catch (Exception ignored) {}
+            }
 
             log.info("FX conversion applied for user {}: {} {} -> {} {} (fee: {})",
                     email, originalAmount, originalCurrency, chargeAmount, wallet.getCurrency(), fxFee);

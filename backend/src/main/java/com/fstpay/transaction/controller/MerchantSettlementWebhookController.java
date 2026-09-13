@@ -24,6 +24,9 @@ public class MerchantSettlementWebhookController {
     private final MerchantSettlementService settlementService;
     private final WebhookSignatureValidator signatureValidator;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private io.micrometer.core.instrument.MeterRegistry meterRegistry = new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+
     @PostMapping("/merchant-settlement")
     @Operation(
             summary = "Process merchant settlement callback",
@@ -43,8 +46,19 @@ public class MerchantSettlementWebhookController {
 
         if (signature == null || !signatureValidator.isValidSignature(canonicalPayload, signature)) {
             log.warn("Unauthorized webhook attempt rejected: invalid HMAC signature for reference {}", request.getReferenceId());
+            if (meterRegistry != null) {
+                try {
+                    meterRegistry.counter("fstpay.webhooks.received.total", "status", "invalid_signature").increment();
+                } catch (Exception ignored) {}
+            }
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("Invalid or missing X-Webhook-Signature header"));
+        }
+
+        if (meterRegistry != null) {
+            try {
+                meterRegistry.counter("fstpay.webhooks.received.total", "status", "valid").increment();
+            } catch (Exception ignored) {}
         }
 
         MerchantSettlementResponse response = settlementService.processSettlement(request);
