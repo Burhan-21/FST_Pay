@@ -66,4 +66,20 @@ public class AiCoachController {
         BudgetPlanningResponse response = aiCoachService.getBudgetPlan(userDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.success(response));
     }
+
+    @GetMapping("/alerts")
+    @Operation(summary = "Get proactive budget anomaly alerts", description = "Retrieves real-time detected budget anomalies and overspending spikes for the authenticated user.")
+    public ResponseEntity<ApiResponse<List<com.fstpay.aicoach.dto.AiBudgetAnomalyDto>>> getAlerts(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        List<com.fstpay.aicoach.dto.AiBudgetAnomalyDto> alerts = aiCoachService.detectAnomalies(userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponse.success(alerts));
+    }
+
+    @PostMapping("/scan")
+    @Operation(summary = "Run on-demand proactive scan", description = "Executes an immediate financial diagnostic scan, generates notifications and SSE alerts for detected anomalies.")
+    public ResponseEntity<ApiResponse<List<com.fstpay.aicoach.dto.AiBudgetAnomalyDto>>> runScan(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        List<com.fstpay.aicoach.dto.AiBudgetAnomalyDto> alerts = aiCoachService.runProactiveScan(userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponse.success("Proactive scan completed successfully", alerts));
+    }
 }

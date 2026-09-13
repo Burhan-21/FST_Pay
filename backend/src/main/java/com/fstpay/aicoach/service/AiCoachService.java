@@ -5,6 +5,8 @@ import com.fstpay.aicoach.dto.ChatResponse;
 import com.fstpay.aicoach.dto.HealthScoreResponse;
 import com.fstpay.aicoach.dto.ForecastResponse;
 import com.fstpay.aicoach.dto.BudgetPlanningResponse;
+import com.fstpay.aicoach.dto.AiBudgetAnomalyDto;
+import com.fstpay.common.event.AiBudgetAnomalyEvent;
 import com.fstpay.aicoach.entity.AiSession;
 import com.fstpay.aicoach.repository.AiSessionRepository;
 import com.fstpay.aicoach.provider.AiProvider;
@@ -12,6 +14,10 @@ import com.fstpay.aicoach.provider.GeminiProvider;
 import com.fstpay.aicoach.provider.OpenAiProvider;
 import com.fstpay.aicoach.provider.FallbackProvider;
 import com.fstpay.aicoach.strategy.TipStrategy;
+import com.fstpay.notification.enums.NotificationType;
+import com.fstpay.notification.service.NotificationService;
+import org.springframework.context.ApplicationEventPublisher;
+import java.time.Instant;
 import com.fstpay.analytics.dto.AnalyticsResponse;
 import com.fstpay.analytics.service.AnalyticsService;
 import com.fstpay.common.exception.ResourceNotFoundException;
@@ -57,6 +63,8 @@ public class AiCoachService {
     private final FallbackProvider fallbackProvider;
     private final List<TipStrategy> tipStrategies;
     private final io.micrometer.core.instrument.MeterRegistry meterRegistry;
+    private final NotificationService notificationService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Value("${ai.provider:gemini}")
     private String aiProvider;
@@ -316,6 +324,159 @@ public class AiCoachService {
                 .recommendedAllocation(recommended)
                 .actualAllocation(actual)
                 .build();
+    }
+
+    public List<AiBudgetAnomalyDto> detectAnomalies(String email) {
+        User user = getUserByEmail(email);
+        Wallet wallet = walletRepository.findByUser(user).orElse(null);
+        BigDecimal balance = wallet != null ? wallet.getBalance() : BigDecimal.ZERO;
+
+        AnalyticsResponse analytics30 = analyticsService.getAnalytics(email, 30);
+        AnalyticsResponse analytics7 = analyticsService.getAnalytics(email, 7);
+        List<WalletGoal> goals = walletGoalRepository.findByUser(user);
+
+        List<AiBudgetAnomalyDto> anomalies = new ArrayList<>();
+        Instant now = Instant.now();
+
+        // 1. Category Spike Anomaly
+        if (analytics7.getSpendByCategory() != null && analytics30.getSpendByCategory() != null) {
+            for (Map.Entry<String, BigDecimal> entry : analytics7.getSpendByCategory().entrySet()) {
+                String cat = entry.getKey();
+                BigDecimal weekSpend = entry.getValue();
+                BigDecimal monthSpend = analytics30.getSpendByCategory().getOrDefault(cat, BigDecimal.ZERO);
+                BigDecimal weeklyBaseline = monthSpend.divide(new BigDecimal("4.0"), 2, RoundingMode.HALF_UP);
+
+                if (weekSpend.compareTo(new BigDecimal("500.00")) >= 0) {
+                    BigDecimal threshold = weeklyBaseline.multiply(new BigDecimal("1.50"));
+                    if (weeklyBaseline.compareTo(BigDecimal.ZERO) == 0 || weekSpend.compareTo(threshold) > 0) {
+                        String severity = weekSpend.compareTo(weeklyBaseline.multiply(new BigDecimal("2.00"))) > 0 ? "ALERT" : "WARNING";
+                        BigDecimal pctAbove = weeklyBaseline.compareTo(BigDecimal.ZERO) > 0
+                                ? weekSpend.subtract(weeklyBaseline).divide(weeklyBaseline, 2, RoundingMode.HALF_UP).multiply(new BigDecimal("100"))
+                                : new BigDecimal("100");
+
+                        anomalies.add(AiBudgetAnomalyDto.builder()
+                                .anomalyType("CATEGORY_SPIKE")
+                                .severity(severity)
+                                .category(cat)
+                                .currentAmount(weekSpend)
+                                .baselineAmount(weeklyBaseline)
+                                .title(String.format("%s Spending Spike Detected", cat))
+                                .message(String.format("You spent ₹%.2f on %s in the last 7 days, which is %.0f%% above your weekly baseline of ₹%.2f.",
+                                        weekSpend, cat, pctAbove, weeklyBaseline))
+                                .actionableAdvice(String.format("Consider pausing discretionary %s purchases or setting a ₹%.2f weekly cap.", cat, weeklyBaseline))
+                                .detectedAt(now)
+                                .build());
+                    }
+                }
+            }
+        }
+
+        // 2. Wants vs Needs Imbalance
+        BigDecimal totalWeekSpend = analytics7.getTotalDebit();
+        if (totalWeekSpend != null && totalWeekSpend.compareTo(new BigDecimal("500.00")) > 0 && analytics7.getSpendByCategory() != null) {
+            BigDecimal wantsSpend = BigDecimal.ZERO;
+            for (Map.Entry<String, BigDecimal> entry : analytics7.getSpendByCategory().entrySet()) {
+                if (!isNeedCategory(entry.getKey())) {
+                    wantsSpend = wantsSpend.add(entry.getValue());
+                }
+            }
+            BigDecimal wantsRatio = wantsSpend.divide(totalWeekSpend, 2, RoundingMode.HALF_UP);
+            if (wantsRatio.compareTo(new BigDecimal("0.50")) > 0) {
+                anomalies.add(AiBudgetAnomalyDto.builder()
+                        .anomalyType("WANTS_IMBALANCE")
+                        .severity("WARNING")
+                        .category("WANTS")
+                        .currentAmount(wantsSpend)
+                        .baselineAmount(totalWeekSpend.multiply(new BigDecimal("0.30")).setScale(2, RoundingMode.HALF_UP))
+                        .title("High Non-Essential Spending")
+                        .message(String.format("Non-essential purchases (Wants) accounted for %.0f%% of your spending this week (₹%.2f of ₹%.2f). Recommended ceiling is 30%%.",
+                                wantsRatio.multiply(new BigDecimal("100")), wantsSpend, totalWeekSpend))
+                        .actionableAdvice("Apply the 24-hour rule before buying non-essential items to divert at least 20% into savings.")
+                        .detectedAt(now)
+                        .build());
+            }
+        }
+
+        // 3. Goal At Risk
+        if (goals != null) {
+            for (WalletGoal goal : goals) {
+                if ("ACTIVE".equalsIgnoreCase(goal.getStatus()) && goal.getTargetDate() != null && goal.getTargetAmount() != null) {
+                    long daysRemaining = ChronoUnit.DAYS.between(LocalDate.now(), goal.getTargetDate());
+                    BigDecimal progress = goal.getCurrentAmount().divide(goal.getTargetAmount(), 2, RoundingMode.HALF_UP);
+
+                    if (daysRemaining <= 14 && progress.compareTo(new BigDecimal("0.70")) < 0) {
+                        anomalies.add(AiBudgetAnomalyDto.builder()
+                                .anomalyType("GOAL_AT_RISK")
+                                .severity("WARNING")
+                                .category("SAVINGS")
+                                .currentAmount(goal.getCurrentAmount())
+                                .baselineAmount(goal.getTargetAmount())
+                                .title(String.format("Goal '%s' at Risk", goal.getName()))
+                                .message(String.format("Goal '%s' has only %d days left until %s, but you've saved %.0f%% (₹%.2f of ₹%.2f).",
+                                        goal.getName(), daysRemaining, goal.getTargetDate(), progress.multiply(new BigDecimal("100")),
+                                        goal.getCurrentAmount(), goal.getTargetAmount()))
+                                .actionableAdvice(String.format("Allocate ₹%.2f from your next wallet top-up to stay on track for your target date.",
+                                        goal.getTargetAmount().subtract(goal.getCurrentAmount())))
+                                .detectedAt(now)
+                                .build());
+                    }
+                }
+            }
+        }
+
+        // 4. Burn-Rate Risk
+        BigDecimal dailyAvg = analytics7.getDailyAverageSpend();
+        if (dailyAvg != null && dailyAvg.compareTo(new BigDecimal("50.00")) > 0 && balance.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal daysUntilExhaustion = balance.divide(dailyAvg, 1, RoundingMode.HALF_UP);
+            if (daysUntilExhaustion.compareTo(new BigDecimal("7.0")) < 0) {
+                anomalies.add(AiBudgetAnomalyDto.builder()
+                        .anomalyType("BURN_RATE_RISK")
+                        .severity("ALERT")
+                        .category("WALLET")
+                        .currentAmount(balance)
+                        .baselineAmount(dailyAvg.multiply(new BigDecimal("7.0")).setScale(2, RoundingMode.HALF_UP))
+                        .title("Wallet Depletion Risk")
+                        .message(String.format("At your current burn rate of ₹%.2f/day, your remaining wallet balance of ₹%.2f may only last %s days.",
+                                dailyAvg, balance, daysUntilExhaustion))
+                        .actionableAdvice("Reduce daily discretionary spending or request pocket money top-up before balance hits zero.")
+                        .detectedAt(now)
+                        .build());
+            }
+        }
+
+        return anomalies;
+    }
+
+    @Transactional
+    public List<AiBudgetAnomalyDto> runProactiveScan(String email) {
+        User user = getUserByEmail(email);
+        List<AiBudgetAnomalyDto> anomalies = detectAnomalies(email);
+
+        for (AiBudgetAnomalyDto anomaly : anomalies) {
+            notificationService.sendNotification(
+                    user,
+                    null,
+                    NotificationType.AI_INSIGHT,
+                    anomaly.getTitle(),
+                    anomaly.getMessage() + " Tip: " + anomaly.getActionableAdvice()
+            );
+
+            eventPublisher.publishEvent(AiBudgetAnomalyEvent.create(
+                    user.getId(),
+                    user.getEmail(),
+                    anomaly.getAnomalyType(),
+                    anomaly.getCategory(),
+                    anomaly.getSeverity(),
+                    anomaly.getCurrentAmount(),
+                    anomaly.getBaselineAmount(),
+                    anomaly.getTitle(),
+                    anomaly.getMessage(),
+                    anomaly.getActionableAdvice(),
+                    anomaly.getDetectedAt()
+            ));
+        }
+
+        return anomalies;
     }
 
     private AiProvider selectProvider() {

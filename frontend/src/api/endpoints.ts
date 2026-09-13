@@ -77,6 +77,8 @@ export const aiApi = {
   getTips: () => api.get('/ai-coach/tips'),
   getForecast: () => api.get('/ai-coach/forecast'),
   getBudgetPlan: () => api.get('/ai-coach/budget'),
+  getAlerts: () => api.get('/ai-coach/alerts'),
+  runScan: () => api.post('/ai-coach/scan'),
 };
 
 // ── Goals ──

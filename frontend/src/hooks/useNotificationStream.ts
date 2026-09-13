@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import type { SseEventPayload, SseSettlementUpdatePayload, SseWalletUpdatePayload } from '../types';
+import type { SseEventPayload, SseSettlementUpdatePayload, SseWalletUpdatePayload, SseAiAlertPayload } from '../types';
 
 export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error';
 
@@ -7,22 +7,25 @@ interface UseNotificationStreamOptions {
   enabled?: boolean;
   onSettlementUpdate?: (payload: SseSettlementUpdatePayload) => void;
   onWalletUpdate?: (payload: SseWalletUpdatePayload) => void;
+  onAiAlert?: (payload: SseAiAlertPayload) => void;
   onMessage?: (event: MessageEvent) => void;
 }
 
 export function useNotificationStream(options: UseNotificationStreamOptions = {}) {
-  const { enabled = true, onSettlementUpdate, onWalletUpdate, onMessage } = options;
+  const { enabled = true, onSettlementUpdate, onWalletUpdate, onAiAlert, onMessage } = options;
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
   const [lastEvent, setLastEvent] = useState<SseEventPayload | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
 
   const onSettlementUpdateRef = useRef(onSettlementUpdate);
   const onWalletUpdateRef = useRef(onWalletUpdate);
+  const onAiAlertRef = useRef(onAiAlert);
   const onMessageRef = useRef(onMessage);
 
   useEffect(() => {
     onSettlementUpdateRef.current = onSettlementUpdate;
     onWalletUpdateRef.current = onWalletUpdate;
+    onAiAlertRef.current = onAiAlert;
     onMessageRef.current = onMessage;
   });
 
@@ -78,6 +81,19 @@ export function useNotificationStream(options: UseNotificationStreamOptions = {}
         window.dispatchEvent(new CustomEvent('fst:wallet_update', { detail: payload }));
       } catch (err) {
         console.error('Failed to parse SSE WALLET_UPDATE payload:', err);
+      }
+    });
+
+    es.addEventListener('AI_ALERT', (e: MessageEvent) => {
+      try {
+        const payload: SseAiAlertPayload = JSON.parse(e.data);
+        setLastEvent(payload);
+        if (onAiAlertRef.current) {
+          onAiAlertRef.current(payload);
+        }
+        window.dispatchEvent(new CustomEvent('fst:ai_alert', { detail: payload }));
+      } catch (err) {
+        console.error('Failed to parse SSE AI_ALERT payload:', err);
       }
     });
 

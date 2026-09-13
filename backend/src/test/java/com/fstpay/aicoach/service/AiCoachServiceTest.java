@@ -61,6 +61,10 @@ class AiCoachServiceTest {
     private FallbackProvider fallbackProvider;
     @Mock
     private io.micrometer.core.instrument.MeterRegistry meterRegistry;
+    @Mock
+    private com.fstpay.notification.service.NotificationService notificationService;
+    @Mock
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     private AiCoachService aiCoachService;
 
@@ -74,7 +78,7 @@ class AiCoachServiceTest {
                 aiSessionRepository, userRepository, analyticsService, walletRepository,
                 transactionRepository, walletGoalRepository, rewardPointsRepository,
                 geminiProvider, openAiProvider, fallbackProvider, new ArrayList<>(),
-                meterRegistry
+                meterRegistry, notificationService, eventPublisher
         );
 
         user = User.builder().id(UUID.randomUUID()).email("test@example.com").fullName("Test Teen").build();

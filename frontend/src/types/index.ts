@@ -402,4 +402,29 @@ export interface SseWalletUpdatePayload {
   balance: number;
 }
 
-export type SseEventPayload = SseSettlementUpdatePayload | SseWalletUpdatePayload | { type: string; [key: string]: unknown };
+export interface SseAiAlertPayload {
+  type: 'AI_ALERT';
+  anomalyType: string;
+  category: string;
+  severity: 'ALERT' | 'WARNING' | 'INFO';
+  currentAmount: number;
+  baselineAmount: number;
+  title: string;
+  message: string;
+  actionableAdvice: string;
+  detectedAt: string;
+}
+
+export interface AiBudgetAnomaly {
+  anomalyType: 'CATEGORY_SPIKE' | 'WANTS_IMBALANCE' | 'GOAL_AT_RISK' | 'BURN_RATE_RISK' | string;
+  severity: 'ALERT' | 'WARNING' | 'INFO';
+  category: string;
+  currentAmount: number;
+  baselineAmount: number;
+  title: string;
+  message: string;
+  actionableAdvice: string;
+  detectedAt: string;
+}
+
+export type SseEventPayload = SseSettlementUpdatePayload | SseWalletUpdatePayload | SseAiAlertPayload | { type: string; [key: string]: unknown };

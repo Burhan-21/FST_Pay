@@ -164,6 +164,24 @@ public class SseNotificationService {
         }
     }
 
+    @EventListener
+    public void handleAiBudgetAnomaly(com.fstpay.common.event.AiBudgetAnomalyEvent event) {
+        log.info("SSE received AiBudgetAnomalyEvent for user: {}", event.userId());
+        if (event.userId() != null) {
+            sendToUser(event.userId(), "AI_ALERT", Map.of(
+                    "anomalyType", event.anomalyType(),
+                    "category", event.category() != null ? event.category() : "GENERAL",
+                    "severity", event.severity(),
+                    "currentAmount", event.currentAmount() != null ? event.currentAmount() : 0,
+                    "baselineAmount", event.baselineAmount() != null ? event.baselineAmount() : 0,
+                    "title", event.title(),
+                    "message", event.message(),
+                    "actionableAdvice", event.actionableAdvice() != null ? event.actionableAdvice() : "",
+                    "detectedAt", event.detectedAt() != null ? event.detectedAt().toString() : Instant.now().toString()
+            ));
+        }
+    }
+
     public int getActiveConnectionsCount() {
         return userEmitters.values().stream().mapToInt(List::size).sum();
     }

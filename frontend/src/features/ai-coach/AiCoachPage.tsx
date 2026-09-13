@@ -14,10 +14,14 @@ import {
   Trash2,
   ShieldCheck,
   Info,
-  AlertCircle
+  AlertCircle,
+  BellRing,
+  AlertTriangle,
+  CheckCircle2,
+  RefreshCw
 } from 'lucide-react';
 import { aiApi, goalsApi, walletApi } from '../../api/endpoints';
-import type { WalletGoal, HealthScoreData, ForecastData, BudgetPlanData } from '../../types';
+import type { WalletGoal, HealthScoreData, ForecastData, BudgetPlanData, AiBudgetAnomaly } from '../../types';
 import {
   BarChart,
   Bar,
@@ -77,7 +81,7 @@ const educationalLessons = [
 ];
 
 export default function AiCoachPage() {
-  const [activeTab, setActiveTab] = useState<'chat' | 'health' | 'goals' | 'budget' | 'learning'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'health' | 'goals' | 'budget' | 'alerts' | 'learning'>('chat');
 
   // Chat states
   const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
@@ -92,6 +96,10 @@ export default function AiCoachPage() {
   const [budgetData, setBudgetData] = useState<BudgetPlanData | null>(null);
   const [goals, setGoals] = useState<WalletGoal[]>([]);
   const [walletBalance, setWalletBalance] = useState<number>(0);
+
+  // Proactive Alerts state
+  const [alerts, setAlerts] = useState<AiBudgetAnomaly[]>([]);
+  const [isScanning, setIsScanning] = useState(false);
 
   // Global UI states
   const [isLoadingData, setIsLoadingData] = useState(false);
@@ -122,13 +130,14 @@ export default function AiCoachPage() {
   const fetchAnalyticsAndGoals = async () => {
     try {
       setIsLoadingData(true);
-      const [healthRes, tipsRes, forecastRes, budgetRes, goalsRes, walletRes] = await Promise.all([
+      const [healthRes, tipsRes, forecastRes, budgetRes, goalsRes, walletRes, alertsRes] = await Promise.all([
         aiApi.getHealthScore(),
         aiApi.getTips(),
         aiApi.getForecast(),
         aiApi.getBudgetPlan(),
         goalsApi.getGoals(),
-        walletApi.getWallet()
+        walletApi.getWallet(),
+        aiApi.getAlerts().catch(() => ({ data: { data: [] } }))
       ]);
 
       setHealthData(healthRes.data.data);
@@ -137,12 +146,36 @@ export default function AiCoachPage() {
       setBudgetData(budgetRes.data.data);
       setGoals(goalsRes.data.data);
       setWalletBalance(walletRes.data.data?.balance || 0);
+      setAlerts(alertsRes.data.data || []);
     } catch (err) {
       console.error('Failed to load analytical metrics:', err);
     } finally {
       setIsLoadingData(false);
     }
   };
+
+  const handleRunScan = async () => {
+    try {
+      setIsScanning(true);
+      const res = await aiApi.runScan();
+      setAlerts(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to run proactive scan:', err);
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleAiAlertEvent = (e: Event) => {
+      const customEvent = e as CustomEvent<AiBudgetAnomaly>;
+      if (customEvent.detail) {
+        setAlerts((prev) => [customEvent.detail, ...prev]);
+      }
+    };
+    window.addEventListener('fst:ai_alert', handleAiAlertEvent);
+    return () => window.removeEventListener('fst:ai_alert', handleAiAlertEvent);
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'chat') {
@@ -299,18 +332,30 @@ export default function AiCoachPage() {
             <p className="text-surface-400 text-sm">Smart diagnostics, budgeting, and savings coach</p>
           </div>
 
-          <div className="flex bg-surface-800/80 p-1 rounded-xl border border-surface-700/30 backdrop-blur">
-            {['chat', 'health', 'goals', 'budget', 'learning'].map((tab) => (
+          <div className="flex flex-wrap bg-surface-800/80 p-1 rounded-xl border border-surface-700/30 backdrop-blur gap-1">
+            {[
+              { id: 'chat', label: 'Money Coach' },
+              { id: 'alerts', label: 'Proactive Alerts', count: alerts.length },
+              { id: 'health', label: 'Health Score' },
+              { id: 'goals', label: 'Savings Goals' },
+              { id: 'budget', label: 'Budget & Forecast' },
+              { id: 'learning', label: 'Financial Learning' }
+            ].map((tab) => (
               <button
-                key={tab}
-                onClick={() => setActiveTab(tab as 'chat' | 'health' | 'goals' | 'budget' | 'learning')}
-                className={`px-4 py-2 rounded-lg text-xs font-semibold capitalize transition-all ${
-                  activeTab === tab 
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                className={`relative px-3.5 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all flex items-center gap-1.5 ${
+                  activeTab === tab.id 
                     ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/25' 
                     : 'text-surface-400 hover:text-white'
                 }`}
               >
-                {tab === 'chat' ? 'Money Coach' : tab === 'goals' ? 'Savings Goals' : tab === 'budget' ? 'Budget & Forecast' : tab === 'learning' ? 'Financial Learning' : 'Health Score'}
+                <span>{tab.label}</span>
+                {tab.count !== undefined && tab.count > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-danger-500 text-white animate-pulse">
+                    {tab.count}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -381,6 +426,118 @@ export default function AiCoachPage() {
                     <Send className="w-4 h-4" />
                   </button>
                 </div>
+              </div>
+            )}
+
+            {/* TAB: PROACTIVE ALERTS */}
+            {activeTab === 'alerts' && (
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-card p-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400">
+                      <BellRing className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-white font-semibold text-base">Proactive Anomaly Monitor</h3>
+                      <p className="text-xs text-surface-400">Automated weekly diagnostic scans with instant anomaly detection</p>
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={handleRunScan}
+                    disabled={isScanning}
+                    variant="primary"
+                    size="sm"
+                    className="flex items-center gap-2 self-start sm:self-center shadow-lg shadow-purple-500/25"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${isScanning ? 'animate-spin' : ''}`} />
+                    <span>{isScanning ? 'Scanning...' : 'Run Instant Scan'}</span>
+                  </Button>
+                </div>
+
+                {alerts.length === 0 ? (
+                  <GlassCard padding="none" className="text-center p-12">
+                    <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mx-auto mb-3">
+                      <CheckCircle2 className="w-8 h-8" />
+                    </div>
+                    <h3 className="text-white font-semibold text-lg">All Clear! No Budget Anomalies</h3>
+                    <p className="text-surface-400 text-sm mt-1 max-w-md mx-auto">
+                      Your recent spending is well-aligned with your baseline. Category thresholds, goals, and burn rates are completely healthy.
+                    </p>
+                    <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold">
+                      <ShieldCheck className="w-3.5 h-3.5" /> Next automated scan scheduled for Monday 08:00 AM
+                    </div>
+                  </GlassCard>
+                ) : (
+                  <div className="space-y-4">
+                    {alerts.map((alert, idx) => {
+                      const isAlert = alert.severity === 'ALERT';
+                      const isWarning = alert.severity === 'WARNING';
+                      const borderClass = isAlert
+                        ? 'border-rose-500/40 bg-rose-950/10'
+                        : isWarning
+                        ? 'border-amber-500/40 bg-amber-950/10'
+                        : 'border-purple-500/40 bg-purple-950/10';
+
+                      const badgeClass = isAlert
+                        ? 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                        : isWarning
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                        : 'bg-purple-500/20 text-purple-300 border-purple-500/30';
+
+                      return (
+                        <div
+                          key={idx}
+                          className={`glass-card p-5 border ${borderClass} transition-all relative overflow-hidden`}
+                        >
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <div className="flex items-center gap-2">
+                              {isAlert ? (
+                                <AlertCircle className="w-5 h-5 text-rose-400 flex-shrink-0" />
+                              ) : (
+                                <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0" />
+                              )}
+                              <h4 className="font-display font-bold text-white text-base">{alert.title}</h4>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase ${badgeClass}`}>
+                                {alert.severity}
+                              </span>
+                              <span className="text-[10px] text-surface-500 font-mono">
+                                {alert.detectedAt ? new Date(alert.detectedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                              </span>
+                            </div>
+                          </div>
+
+                          <p className="text-sm text-surface-300 mt-1 mb-3">{alert.message}</p>
+
+                          {alert.currentAmount !== undefined && alert.baselineAmount !== undefined && (
+                            <div className="grid grid-cols-2 gap-3 mb-3 p-3 rounded-xl bg-surface-900/60 border border-surface-700/30">
+                              <div>
+                                <span className="text-[10px] text-surface-400 uppercase tracking-wider block">Current Value</span>
+                                <span className="text-sm font-bold text-white">₹{Number(alert.currentAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] text-surface-400 uppercase tracking-wider block">Expected Baseline</span>
+                                <span className="text-sm font-bold text-surface-300">₹{Number(alert.baselineAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                              </div>
+                            </div>
+                          )}
+
+                          {alert.actionableAdvice && (
+                            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-200 text-xs">
+                              <Sparkles className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
+                              <div>
+                                <span className="font-semibold text-purple-300 block mb-0.5">Coach Recommendation</span>
+                                <span>{alert.actionableAdvice}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
