@@ -1,0 +1,38 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fstpay-ingress
+  namespace: fstpay
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/limit-rps: "20"
+spec:
+  tls:
+    - hosts:
+        - pay.fstpay.com
+        - api.fstpay.com
+      secretName: fstpay-tls-cert
+  rules:
+    - host: pay.fstpay.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: fstpay-frontend
+                port:
+                  number: 80
+    - host: api.fstpay.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: fstpay-backend
+                port:
+                  number: 8080

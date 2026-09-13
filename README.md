@@ -1,207 +1,184 @@
-# FST Pay — AI-Powered Digital Wallet
+# FST Pay — AI-Powered Digital Wallet & Smart Virtual Card Platform
 
-Smart wallet for teens & young adults (ages 12+) with virtual cards, AI coaching, and parental controls.
+[![Backend CI Pipeline](https://github.com/Burhan-21/FST_Pay/actions/workflows/backend.yml/badge.svg)](https://github.com/Burhan-21/FST_Pay/actions/workflows/backend.yml)
+[![Frontend CI Pipeline](https://github.com/Burhan-21/FST_Pay/actions/workflows/frontend.yml/badge.svg)](https://github.com/Burhan-21/FST_Pay/actions/workflows/frontend.yml)
+[![License: Proprietary](https://img.shields.io/badge/License-Proprietary-blue.svg)](#)
+[![Java: 17+](https://img.shields.io/badge/Java-17%2B-orange.svg)](https://adoptium.net/)
+[![Spring Boot: 3.3.6](https://img.shields.io/badge/Spring%20Boot-3.3.6-brightgreen.svg)](https://spring.io/projects/spring-boot)
+[![React: 19](https://img.shields.io/badge/React-19-blue.svg)](https://react.dev/)
+[![TypeScript: 5.8+](https://img.shields.io/badge/TypeScript-5.8%2B-blue.svg)](https://www.typescriptlang.org/)
+[![Deploy: Vercel](https://img.shields.io/badge/Deploy-Vercel-black.svg)](https://vercel.com)
+[![Deploy: Render](https://img.shields.io/badge/Deploy-Render-46E3B7.svg)](https://render.com)
 
-## Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| Frontend | React 19 + TypeScript 6 + Vite + Tailwind CSS |
-| Backend | Java 17 + Spring Boot 3.3.6 + Maven |
-| Database | PostgreSQL 16 (with Flyway migrations) |
-| Cache | Redis 7 (OTP storage, sessions) |
-| Auth | JWT (access + refresh tokens), OTP, reCAPTCHA |
-| Rate Limiting | Bucket4j (LRU cache) |
-
-## Quick Start
-
-### Prerequisites
-- Java 17+, Node.js 20+, Docker Desktop
-
-### 1. Environment Setup
-
-```bash
-cp .env.example .env
-# Edit .env with your values (JWT_SECRET, DB password, etc.)
-```
-
-### 2. Start Infrastructure (PostgreSQL + Redis)
-
-```bash
-docker compose up -d fstpay-postgres fstpay-redis
-```
-
-### 3. Backend
-
-```bash
-cd backend
-mvn clean compile -q    # verify compilation
-mvn test               # run 33 unit tests
-mvn spring-boot:run    # start on http://localhost:8080
-```
-
-### 4. Frontend
-
-```bash
-cd frontend
-npm install
-npm run test           # run 33 unit tests
-npm run dev            # start on http://localhost:5173
-```
-
-### 5. Full Docker Deployment
-
-```bash
-docker compose up --build
-```
-
-## Environment Variables
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `POSTGRES_PASSWORD` | ✅ | — | Database password |
-| `JWT_SECRET` | ✅ | — | Base64-encoded 256+ bit secret |
-| `CORS_ALLOWED_ORIGINS` | ✅ | `http://localhost:5173` | Comma-separated origins |
-| `MAIL_USERNAME` | — | — | SMTP username |
-| `MAIL_PASSWORD` | — | — | SMTP password |
-| `ADMIN_EMAIL` | — | — | Auto-seed admin on startup |
-| `ADMIN_PASSWORD` | — | — | Admin password (min 8 chars) |
-| `RECAPTCHA_SECRET_KEY` | — | — | Google reCAPTCHA v2 |
-| `GEMINI_API_KEY` | — | — | AI Coach (Gemini) |
-| `REDIS_PASSWORD` | — | — | Redis auth password |
-| `LOG_LEVEL` | — | `INFO` | `INFO`, `WARN`, `DEBUG` |
-
-## API Overview
-
-All endpoints prefixed with `/api/v1`.
-
-| Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/auth/register` | POST | No | Register with email + password |
-| `/auth/login` | POST | No | Login with credentials |
-| `/auth/verify-otp` | POST | No | Verify 6-digit OTP |
-| `/auth/refresh` | POST | No | Refresh JWT token pair |
-| `/auth/logout` | POST | Bearer | Invalidate refresh tokens |
-| `/auth/stats` | GET | No | Public platform stats |
-| `/users/me` | GET/PUT | Bearer | Profile read/update |
-| `/users/me/password` | PUT | Bearer | Change password |
-| `/wallet` | GET | Bearer | Get wallet balance |
-| `/wallet/topup` | POST | Bearer | Add funds (UPI, etc.) |
-| `/cards` | GET/POST | Bearer | List / create virtual cards |
-| `/cards/{id}/freeze` | POST | Bearer | Freeze a card |
-| `/cards/{id}/limit` | PUT | Bearer | Update spending limits |
-| `/transactions` | GET | Bearer | Transaction history |
-| `/transactions/simulate` | POST | Bearer | Simulate a purchase |
-| `/analytics` | GET | Bearer | Spending analytics |
-| `/ai-coach/chat` | POST | Bearer | AI financial advice |
-| `/rewards` | GET | Bearer | Reward points & streaks |
-| `/admin/*` | * | ADMIN | Admin dashboard & stats |
-
-## Testing
-
-```bash
-# Backend (38 tests: 33 unit + 5 integration)
-cd backend && mvn test
-
-# Integration tests (requires Docker)
-cd backend && mvn test -Dtest="com.fstpay.integration.*" -DfailIfNoTests=false
-
-# Frontend (33 tests)
-cd frontend && npm run test
-
-# Full build verification
-cd frontend && npm run build    # TypeScript + production build
-```
-
-## Deployment
-
-### GitHub
-
-Repository: https://github.com/Burhan-21/FST_Pay
-
-### Backend → Render
-
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Burhan-21/FST_Pay)
-
-1. Go to https://dashboard.render.com
-2. Click **New +** → **Web Service**
-3. Connect your `FST_Pay` repo
-4. Render auto-detects `render.yaml` — or manually configure:
-   - **Name:** `fstpay-backend`
-   - **Runtime:** `Docker`
-   - **Dockerfile Path:** `./backend/Dockerfile`
-   - **Health Check Path:** `/actuator/health`
-5. Add environment variables:
-   - `SPRING_DATASOURCE_URL` — use Render's managed PostgreSQL URL
-   - `JWT_SECRET` — generate a 256-bit base64 secret
-   - `CORS_ALLOWED_ORIGINS` — `https://fst-pay.vercel.app`
-   - `ADMIN_EMAIL` + `ADMIN_PASSWORD` — for admin seeding
-6. Deploy
-
-### Frontend → Vercel
-
-[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Burhan-21/FST_Pay)
-
-1. Go to https://vercel.com/new
-2. Import your `FST_Pay` repo
-3. Configure:
-   - **Framework Preset:** Vite
-   - **Root Directory:** `frontend`
-   - **Build Command:** `npm run build`
-   - **Output Directory:** `dist`
-4. Add environment variable:
-   - `VITE_API_URL` — `https://fstpay-backend.onrender.com/api/v1`
-5. Deploy
+**FST Pay** (Fast · Secure · Trusted) is an enterprise-grade fintech platform engineered for teenagers (ages 12+), parents, and young adults. It pairs instant virtual prepaid cards and automated savings goals with an AI-driven financial mentor and parental supervision controls.
 
 ---
 
-## Security Features
+## 🏗 System Architecture
 
-- **No hardcoded secrets** — all credentials via environment variables
-- **Account lockout** — 5 failed attempts → 15-minute lock
-- **Rate limiting** — per-IP, per-endpoint with LRU eviction
-- **Password policy** — 8+ chars, uppercase, lowercase, digit, special
-- **Age verification** — minimum 12 years old
-- **OTP throttling** — 60-second cooldown per email
-- **reCAPTCHA** — bot protection on register/login
-- **Security headers** — CSP, HSTS, X-Frame-Options, X-Content-Type-Options
-- **JWT rotation** — refresh token invalidated on each use
-- **Pessimistic locking** — prevents race conditions on login attempts
+```mermaid
+flowchart TD
+    subgraph ClientLayer["Frontend Edge (Vercel)"]
+        UI[React 19 SPA + Vite + Tailwind CSS]
+        UI -->|Global Edge CDN & SSL| EndUser([End User / Mobile Browser])
+    end
 
-## Project Structure
+    subgraph BackendPaaS["Backend & Data Platform (Render PaaS)"]
+        UI -->|REST API /api/v1/*| SpringBoot[Spring Boot 3.3.6 Modular Monolith]
+        SpringBoot -->|Connection Pool| Postgres[(Render Managed PostgreSQL 16)]
+        SpringBoot -->|Cache & Rate Limiting| Redis[(Render Managed Redis 7)]
+        SpringBoot -->|Transactional Outbox| OutboxQueue[Outbox Event Dispatcher]
+    end
+
+    subgraph FutureOCI["Future Migration Target (Oracle Cloud Free Tier)"]
+        OCI_VM[OCI Ampere A1 VM: 4 OCPU / 24GB RAM]
+        CFTunnel[Cloudflare Zero Trust Tunnel] --> OCI_VM
+        OCI_VM --> ComposeStack[Docker Compose: Postgres + Redis + Kafka + Services]
+    end
+
+    BackendPaaS -.->|Documented Migration Path| FutureOCI
+```
+
+---
+
+## ⚡ Tech Stack
+
+| Tier | Technologies | Highlights |
+|------|--------------|------------|
+| **Frontend** | React 19, TypeScript, Vite, Tailwind CSS, TanStack Query, Framer Motion, Recharts | Glassmorphism, AMOLED theme, 3D card flip, 100% WCAG 2.1 AA |
+| **Backend** | Java 17+, Spring Boot 3.3.6, Spring Security, Spring Data JPA, Lombok | Modular Monolith (14 domains), Interface Contracts, ArchUnit |
+| **Messaging** | Transactional Outbox Pattern, Apache Kafka 3.7, Spring Domain Events | At-least-once delivery, optimistic concurrency, no dual-writes |
+| **Data & Cache**| PostgreSQL 16 (Flyway migrations V1–V13), Redis 7 | Pessimistic locking for balance mutations, sliding session cache |
+| **Security** | JWT (HMAC-SHA256), Bucket4j Rate Limiting, BCrypt, reCAPTCHA v2 | Strict startup validation, PAN masking, OWASP Top 10 hardened |
+| **Observability**| Logstash JSON Encoder, OpenTelemetry Tracing, Prometheus Actuator | MDC correlation tracking (`X-Correlation-Id`), Grafana-ready |
+| **Deployment** | **Vercel** (Frontend) + **Render** (Backend & DB) + **OCI** (Future Roadmap) | Multi-stage Docker layertools, K8s manifests, Cloudflare Tunnel |
+
+---
+
+## 📁 Repository Layout
 
 ```
-├── backend/                    # Spring Boot 3.3.6 (Java 17)
-│   ├── src/
-│   │   ├── main/java/com/fstpay/
-│   │   │   ├── auth/           # Auth, JWT, OTP, reCAPTCHA
-│   │   │   ├── wallet/         # Wallet & top-ups
-│   │   │   ├── card/           # Virtual cards
-│   │   │   ├── transaction/    # Spending & history
-│   │   │   ├── analytics/      # Spending analytics
-│   │   │   ├── aicoach/        # AI financial coach
-│   │   │   ├── reward/         # Points & streaks
-│   │   │   ├── user/           # Profile & parental controls
-│   │   │   ├── admin/          # Admin dashboard
-│   │   │   ├── notification/   # Email service
-│   │   │   └── common/         # Config, filters, exceptions
-│   │   ├── main/resources/
-│   │   │   ├── application.yml
-│   │   │   └── db/migration/   # Flyway migrations (V1-V6)
-│   │   └── test/               # 4 test classes (33 tests)
-│   ├── Dockerfile
-│   └── pom.xml
-├── frontend/                   # React 19 + TypeScript 6
-│   ├── src/
-│   │   ├── api/                # Axios client + endpoint definitions
-│   │   ├── context/            # Auth, Theme providers
-│   │   ├── features/           # Pages (auth, dashboard, wallet, cards...)
-│   │   ├── types/              # TypeScript interfaces
-│   │   └── utils/              # Helpers + tests
-│   ├── Dockerfile
-│   └── package.json
-├── docker-compose.yml
-├── docker-compose.override.yml # Local dev overrides
-├── nginx.conf
-└── .env.example
+FST_Pay/
+├── backend/                  # Spring Boot 3.3.6 Java Application
+│   ├── src/main/java/        # 14 Domain Modules & Shared Contracts
+│   ├── src/main/resources/   # App Configuration & Flyway Migrations (db/migration)
+│   ├── Dockerfile            # 3-Stage Multi-stage Distroless Layered Container
+│   └── pom.xml               # Maven Project Configuration & Dependencies
+├── frontend/                 # React 19 Single Page Application
+│   ├── src/                  # Atomic Components, Features, Contexts, Hooks, Theme
+│   ├── vercel.json           # Production Vercel Edge Configuration & Headers
+│   ├── tailwind.config.js    # Design Tokens & Palette Definitions
+│   └── package.json          # Frontend Dependencies & Scripts
+├── deployment/               # Enterprise Deployment Hub
+│   ├── vercel/               # Vercel Production Configuration & Deployment Guide
+│   ├── render/               # Render Infrastructure-as-Code Blueprint (render.yaml)
+│   ├── cloud/oracle/         # Oracle Cloud Always Free Migration Runbook & cloud-init
+│   ├── kubernetes/           # Production K8s Manifests (StatefulSets, HPA, Ingress)
+│   ├── docker/               # Production Docker Compose Configurations
+│   └── nginx/                # Production Reverse Proxy Configuration
+├── design/                   # UI/UX & Design System Specifications
+│   ├── tokens.md             # CSS Variables, Brand Colors & Elevation Tokens
+│   ├── react-components.md   # Atomic Hierarchy & Component Architecture
+│   └── design-system.md      # WCAG 2.1 AA Standards & Responsive Guidelines
+├── docs/                     # Centralized Technical Documentation
+│   ├── prd.md                # Complete Product Requirements Document
+│   ├── architecture.md       # Multi-Tier System Architecture & Diagrams
+│   ├── memory.md             # Engineering Memory, Invariants & Technical Debt
+│   ├── decisions.md          # Architecture Decision Records (ADRs) Master Register
+│   ├── agents.md             # AI Agent Workflows, Guardrails & Maintenance Playbooks
+│   └── archive/              # Historical Milestone Checklists & Sprint Summaries
+├── scripts/                  # Automation & Operational Tooling (dev, ops, release)
+├── docker-compose.yml        # Root Compose for Instant Local Full-Stack Bootstrapping
+├── render.yaml               # Root Render Blueprint Specification
+├── rules.md                  # Engineering & Coding Standards (SOLID, Commits, PRs)
+├── testing.md                # Testing Protocols (Unit, ArchUnit, Testcontainers, E2E)
+└── SECURITY.md               # Security Policy, Vulnerability Disclosure & OWASP Controls
 ```
+
+---
+
+## 🚀 Quick Start (Local Development)
+
+### Prerequisites
+- **Java 17+** & **Maven 3.9+**
+- **Node.js 20+** & **npm 10+**
+- **Docker Desktop**
+
+### Option A: Local Native Development
+```bash
+# 1. Start Infrastructure (PostgreSQL 16 on 5434, Redis 7 on 6380)
+docker compose up -d fstpay-postgres fstpay-redis
+
+# 2. Start Backend (Spring Boot)
+cd backend
+mvn clean compile
+mvn test                  # Run full test suite (76 tests + 12 ArchUnit checks)
+mvn spring-boot:run       # Starts at http://localhost:8080
+
+# 3. Start Frontend (React 19)
+cd ../frontend
+npm install
+npm run test              # Run Vitest test suite (33 tests)
+npm run dev               # Starts at http://localhost:5173
+```
+
+### Option B: Full Docker Compose
+```bash
+docker compose up --build
+```
+- Frontend: `http://localhost:80`
+- Backend API: `http://localhost:8080/api/v1`
+- Swagger UI: `http://localhost:8080/swagger-ui.html`
+- Health Endpoint: `http://localhost:8080/actuator/health`
+
+---
+
+## 🌐 Production Deployment
+
+### 1. Frontend on Vercel
+Deploy the `frontend/` directory to **Vercel** with one click.
+- Environment variables: `VITE_API_URL`, `VITE_RECAPTCHA_SITE_KEY`.
+- See [`deployment/vercel/README.md`](deployment/vercel/README.md).
+
+### 2. Backend on Render
+Deploy using Render Blueprint (`render.yaml`).
+- Auto-provisions PostgreSQL 16, Redis 7, and Docker Web Service with health probes.
+- See [`deployment/render/README.md`](deployment/render/README.md).
+
+### 3. Future Oracle Cloud Migration
+When ready for zero-cost dedicated infrastructure:
+- Follow the turn-key runbook in [`deployment/cloud/oracle/migration-guide.md`](deployment/cloud/oracle/migration-guide.md).
+
+---
+
+## 🧪 Testing & Verification
+
+```bash
+# Run Backend Tests
+cd backend && mvn test
+
+# Run Frontend Tests
+cd ../frontend && npm run test
+
+# Verify Frontend Production Build
+npm run build
+```
+
+---
+
+## 📚 Technical Documentation
+
+- 📘 [Product Requirements Document (PRD)](docs/prd.md)
+- 🏛 [System Architecture & Data Flows](docs/architecture.md)
+- 🧠 [Project Memory & Technical Debt](docs/memory.md)
+- 📋 [Architecture Decision Records (ADRs)](docs/decisions.md)
+- 🤖 [AI Agent Workflows & Playbooks](docs/agents.md)
+- 🎨 [Design Tokens & Design System](design/tokens.md)
+- 📏 [Engineering Standards (rules.md)](rules.md)
+- 🧪 [Testing Strategy (testing.md)](testing.md)
+- 🔒 [Security Policy (SECURITY.md)](SECURITY.md)
+
+---
+
+## 📄 License
+Proprietary & Confidential. All rights reserved. © 2026 FST Pay Engineering.
