@@ -8,6 +8,8 @@ vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   BarChart: () => <div data-testid="bar-chart" />,
   LineChart: () => <div data-testid="line-chart" />,
+  AreaChart: () => <div data-testid="area-chart" />,
+  Area: () => null,
   Bar: () => null,
   Line: () => null,
   XAxis: () => null,
@@ -34,6 +36,9 @@ vi.mock('../../../api/endpoints', () => ({
     deleteGoal: vi.fn(),
     allocateFunds: vi.fn(),
     withdrawFunds: vi.fn(),
+    getRoundUp: vi.fn().mockResolvedValue({ data: { data: null } }),
+    setRoundUp: vi.fn(),
+    disableRoundUp: vi.fn(),
   },
   walletApi: {
     getWallet: vi.fn(),

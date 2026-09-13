@@ -42,6 +42,7 @@ public class TransactionService {
     private final WalletDailySummaryOperations summaryService;
     private final ParentalControlPolicy parentalControlPolicy;
     private final FxRateService fxRateService;
+    private final com.fstpay.goal.service.WalletGoalService walletGoalService;
 
     public Page<Transaction> getTransactions(String email, String category, String type, int page, int size) {
         User user = userRepository.findByEmail(email)
@@ -157,7 +158,20 @@ public class TransactionService {
         // Track spend daily aggregate
         summaryService.trackSpend(savedWallet, chargeAmount);
 
+        // Execute automated spare change round-up if configured
+        com.fstpay.goal.service.WalletGoalService.RoundUpExecutionResult roundUp = walletGoalService.processRoundUp(user, chargeAmount, savedWallet);
+
         log.info("Simulated spend of {} {} from user {} completed successfully", wallet.getCurrency(), chargeAmount, email);
+        if (roundUp != null) {
+            return SpendSimulationResult.completed(
+                    savedTxn,
+                    String.format("Spend of %s %.2f completed. Spare change of %s %.2f saved to %s!",
+                            wallet.getCurrency(), chargeAmount, wallet.getCurrency(), roundUp.getRoundUpAmount(), roundUp.getGoalName()),
+                    roundUp.getRoundUpAmount(),
+                    roundUp.getGoalId(),
+                    roundUp.getGoalName()
+            );
+        }
         return SpendSimulationResult.completed(savedTxn, "Transaction simulated successfully");
     }
 

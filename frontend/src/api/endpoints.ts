@@ -99,6 +99,9 @@ export const goalsApi = {
   deleteGoal: (id: string) => api.delete(`/goals/${id}`),
   allocateFunds: (id: string, amount: number) => api.post(`/goals/${id}/allocate`, { amount }),
   withdrawFunds: (id: string, amount: number) => api.post(`/goals/${id}/withdraw`, { amount }),
+  getRoundUp: () => api.get('/goals/roundup'),
+  disableRoundUp: () => api.delete('/goals/roundup'),
+  setRoundUp: (id: string, nearest: number = 10) => api.put(`/goals/${id}/roundup`, null, { params: { nearest } }),
 };
 
 // ── Rewards ──

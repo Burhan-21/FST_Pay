@@ -15,4 +15,6 @@ public interface WalletGoalRepository extends JpaRepository<WalletGoal, UUID> {
     Optional<WalletGoal> findByIdAndUser(UUID id, User user);
     boolean existsByUserAndNameIgnoreCaseAndStatus(User user, String name, String status);
     long countByUserAndStatus(User user, String status);
+    Optional<WalletGoal> findByUserAndRoundUpEnabledTrueAndStatus(User user, String status);
+    List<WalletGoal> findByUserAndRoundUpEnabledTrue(User user);
 }

@@ -120,16 +120,33 @@ class AiCoachServiceTest {
     }
 
     @Test
-    void getForecast_Generates30DaysData() {
+    void getForecast_GeneratesMonteCarloProjections() {
         when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
         when(walletRepository.findByUser(user)).thenReturn(Optional.of(wallet));
         when(analyticsService.getAnalytics("test@example.com", 30)).thenReturn(analyticsResponse);
+        when(walletGoalRepository.findByUser(user)).thenReturn(new ArrayList<>());
 
         ForecastResponse result = aiCoachService.getForecast("test@example.com");
 
         assertNotNull(result);
         assertEquals(30, result.getPoints().size());
-        assertEquals("Linear Trend Spend Projection", result.getModelUsed());
+        assertEquals("Monte Carlo Stochastic Simulation (M=200)", result.getModelUsed());
+        assertNotNull(result.getCurrentBalance());
+        assertEquals(new BigDecimal("1000.00"), result.getCurrentBalance());
+        assertNotNull(result.getDailyBurnMean());
+        assertNotNull(result.getDailyBurnStdDev());
+        assertNotNull(result.getRunoutProbability());
+
+        // Check percentiles for day 1
+        ForecastResponse.ForecastPoint day1 = result.getPoints().get(0);
+        assertNotNull(day1.getMedianBalance());
+        assertNotNull(day1.getOptimisticBalance());
+        assertNotNull(day1.getPessimisticBalance());
+        assertNotNull(day1.getPredictedCumulativeSpend());
+
+        // Optimistic balance should be >= median >= pessimistic
+        assertTrue(day1.getOptimisticBalance().compareTo(day1.getMedianBalance()) >= 0);
+        assertTrue(day1.getMedianBalance().compareTo(day1.getPessimisticBalance()) >= 0);
     }
 
     @Test

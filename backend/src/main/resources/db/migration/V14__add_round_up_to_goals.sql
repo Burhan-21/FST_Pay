@@ -1,0 +1,3 @@
+ALTER TABLE wallet_goals ADD COLUMN IF NOT EXISTS round_up_enabled BOOLEAN DEFAULT FALSE;
+ALTER TABLE wallet_goals ADD COLUMN IF NOT EXISTS round_up_nearest INT DEFAULT 10;
+ALTER TABLE wallet_goals ADD COLUMN IF NOT EXISTS round_up_accumulated DECIMAL(15,2) DEFAULT 0.00;

@@ -74,6 +74,18 @@ public class WalletGoal {
     @Column(name = "cancelled_at")
     private Instant cancelledAt;
 
+    @Column(name = "round_up_enabled")
+    @Builder.Default
+    private Boolean roundUpEnabled = false;
+
+    @Column(name = "round_up_nearest")
+    @Builder.Default
+    private Integer roundUpNearest = 10;
+
+    @Column(name = "round_up_accumulated", precision = 15, scale = 2)
+    @Builder.Default
+    private BigDecimal roundUpAccumulated = BigDecimal.ZERO;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;

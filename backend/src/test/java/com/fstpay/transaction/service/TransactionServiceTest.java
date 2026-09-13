@@ -50,6 +50,8 @@ class TransactionServiceTest {
     private ParentalControlPolicy parentalControlPolicy;
     @Mock
     private com.fstpay.fx.service.FxRateService fxRateService;
+    @Mock
+    private com.fstpay.goal.service.WalletGoalService walletGoalService;
 
     private TransactionService transactionService;
 
@@ -66,7 +68,8 @@ class TransactionServiceTest {
                 ruleEngine,
                 dailySummaryService,
                 parentalControlPolicy,
-                fxRateService
+                fxRateService,
+                walletGoalService
         );
 
         testUser = User.builder()
@@ -259,5 +262,45 @@ class TransactionServiceTest {
         BadRequestException ex = assertThrows(BadRequestException.class,
                 () -> transactionService.simulateSpend("teen@example.com", request));
         assertTrue(ex.getMessage().contains("Insufficient wallet balance"));
+    }
+
+    @Test
+    void simulateSpend_SuccessfulSpendWithRoundUp_ReturnsRoundUpDetails() {
+        when(userRepository.findByEmail("teen@example.com")).thenReturn(Optional.of(testUser));
+        when(walletRepository.findByUser(testUser)).thenReturn(Optional.of(testWallet));
+        when(walletRepository.save(any(Wallet.class))).thenAnswer(i -> i.getArgument(0));
+        when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> {
+            Transaction t = i.getArgument(0);
+            t.setId(UUID.randomUUID());
+            return t;
+        });
+        when(ruleEngine.process(any(), any(), any())).thenReturn(
+                RuleEvaluationResult.builder()
+                        .status(RuleStatus.APPROVED)
+                        .message("All checks passed")
+                        .build()
+        );
+        when(parentalControlPolicy.evaluate(any(), any(), any(), any(), any(), any()))
+                .thenReturn(ParentalPolicyResult.allowed("All checks passed"));
+
+        UUID goalId = UUID.randomUUID();
+        when(walletGoalService.processRoundUp(eq(testUser), eq(new BigDecimal("42.00")), any(Wallet.class)))
+                .thenReturn(new com.fstpay.goal.service.WalletGoalService.RoundUpExecutionResult(
+                        new BigDecimal("8.00"), goalId, "PlayStation 5"
+                ));
+
+        SimulateSpendRequest request = new SimulateSpendRequest();
+        request.setAmount(new BigDecimal("42.00"));
+        request.setCategory("FOOD");
+        request.setMerchant("Subway");
+
+        SpendSimulationResult result = transactionService.simulateSpend("teen@example.com", request);
+
+        assertTrue(result.isCompleted());
+        assertNotNull(result.getRoundUpAmount());
+        assertEquals(new BigDecimal("8.00"), result.getRoundUpAmount());
+        assertEquals(goalId, result.getRoundUpGoalId());
+        assertEquals("PlayStation 5", result.getRoundUpGoalName());
+        assertTrue(result.getMessage().contains("Spare change of INR 8.00 saved to PlayStation 5"));
     }
 }

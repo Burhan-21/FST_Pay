@@ -4,6 +4,7 @@ import com.fstpay.common.dto.ApiResponse;
 import com.fstpay.goal.dto.GoalCreateRequest;
 import com.fstpay.goal.dto.GoalFundRequest;
 import com.fstpay.goal.dto.GoalResponse;
+import com.fstpay.goal.dto.RoundUpRuleResponse;
 import com.fstpay.goal.dto.UpdateGoalRequest;
 import com.fstpay.goal.entity.WalletGoal;
 import com.fstpay.goal.service.WalletGoalService;
@@ -46,6 +47,22 @@ public class WalletGoalController {
                 .map(GoalResponse::fromEntity)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(ApiResponse.success(responses));
+    }
+
+    @GetMapping("/roundup")
+    @Operation(summary = "Get active round-up rule", description = "Retrieves the currently active spare change round-up rule and accumulated savings.")
+    public ResponseEntity<ApiResponse<RoundUpRuleResponse>> getRoundUp(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        RoundUpRuleResponse response = walletGoalService.getRoundUpRule(userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @DeleteMapping("/roundup")
+    @Operation(summary = "Disable round-up rule", description = "Disables automatic spare change round-up savings rules across all goals.")
+    public ResponseEntity<ApiResponse<Void>> disableRoundUp(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        walletGoalService.disableRoundUp(userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponse.success(null));
     }
 
     @GetMapping("/{id}")
@@ -94,5 +111,15 @@ public class WalletGoalController {
             @Valid @RequestBody GoalFundRequest request) {
         WalletGoal goal = walletGoalService.withdrawFunds(userDetails.getUsername(), id, request);
         return ResponseEntity.ok(ApiResponse.success(GoalResponse.fromEntity(goal)));
+    }
+
+    @PutMapping("/{id}/roundup")
+    @Operation(summary = "Set savings goal as round-up target", description = "Designates this goal as the destination for automated spare change round-ups from debit spends.")
+    public ResponseEntity<ApiResponse<RoundUpRuleResponse>> setRoundUp(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "10") Integer nearest) {
+        RoundUpRuleResponse response = walletGoalService.setRoundUpTarget(userDetails.getUsername(), id, nearest);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

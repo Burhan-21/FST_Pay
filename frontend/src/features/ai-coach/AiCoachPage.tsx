@@ -18,10 +18,12 @@ import {
   BellRing,
   AlertTriangle,
   CheckCircle2,
-  RefreshCw
+  RefreshCw,
+  Zap,
+  TrendingDown
 } from 'lucide-react';
 import { aiApi, goalsApi, walletApi } from '../../api/endpoints';
-import type { WalletGoal, HealthScoreData, ForecastData, BudgetPlanData, AiBudgetAnomaly } from '../../types';
+import type { WalletGoal, HealthScoreData, ForecastData, BudgetPlanData, AiBudgetAnomaly, RoundUpRule } from '../../types';
 import {
   BarChart,
   Bar,
@@ -31,8 +33,9 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  LineChart,
-  Line
+  Line,
+  AreaChart,
+  Area
 } from 'recharts';
 import PageTransition from '../../components/ui/PageTransition';
 import Modal from '../../components/ui/Modal';
@@ -107,9 +110,16 @@ export default function AiCoachPage() {
   // Modal states
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   const [isFundModalOpen, setIsFundModalOpen] = useState(false);
+  const [isRoundUpModalOpen, setIsRoundUpModalOpen] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<WalletGoal | null>(null);
   const [fundAction, setFundAction] = useState<'allocate' | 'withdraw'>('allocate');
   const [fundAmount, setFundAmount] = useState('');
+
+  // Round-Up Rule States
+  const [roundUpRule, setRoundUpRule] = useState<RoundUpRule | null>(null);
+  const [roundUpGoalId, setRoundUpGoalId] = useState('');
+  const [roundUpNearest, setRoundUpNearest] = useState<number>(10);
+  const [isSavingRoundUp, setIsSavingRoundUp] = useState(false);
 
   // Custom alert/confirm state to replace browser native APIs
   const [alertConfig, setAlertConfig] = useState<{ title: string; message: string } | null>(null);
@@ -130,14 +140,15 @@ export default function AiCoachPage() {
   const fetchAnalyticsAndGoals = async () => {
     try {
       setIsLoadingData(true);
-      const [healthRes, tipsRes, forecastRes, budgetRes, goalsRes, walletRes, alertsRes] = await Promise.all([
+      const [healthRes, tipsRes, forecastRes, budgetRes, goalsRes, walletRes, alertsRes, roundUpRes] = await Promise.all([
         aiApi.getHealthScore(),
         aiApi.getTips(),
         aiApi.getForecast(),
         aiApi.getBudgetPlan(),
         goalsApi.getGoals(),
         walletApi.getWallet(),
-        aiApi.getAlerts().catch(() => ({ data: { data: [] } }))
+        aiApi.getAlerts().catch(() => ({ data: { data: [] } })),
+        goalsApi.getRoundUp().catch(() => ({ data: { data: null } }))
       ]);
 
       setHealthData(healthRes.data.data);
@@ -147,10 +158,46 @@ export default function AiCoachPage() {
       setGoals(goalsRes.data.data);
       setWalletBalance(walletRes.data.data?.balance || 0);
       setAlerts(alertsRes.data.data || []);
+      if (roundUpRes.data?.data) {
+        setRoundUpRule(roundUpRes.data.data);
+        if (roundUpRes.data.data.goalId) {
+          setRoundUpGoalId(roundUpRes.data.data.goalId);
+          setRoundUpNearest(roundUpRes.data.data.roundUpNearest || 10);
+        }
+      }
     } catch (err) {
       console.error('Failed to load analytical metrics:', err);
     } finally {
       setIsLoadingData(false);
+    }
+  };
+
+  const handleSaveRoundUp = async () => {
+    if (!roundUpGoalId) return;
+    try {
+      setIsSavingRoundUp(true);
+      const res = await goalsApi.setRoundUp(roundUpGoalId, roundUpNearest);
+      setRoundUpRule(res.data.data);
+      setIsRoundUpModalOpen(false);
+      await fetchAnalyticsAndGoals();
+    } catch (err) {
+      console.error('Failed to set round-up:', err);
+      setAlertConfig({
+        title: 'Round-Up Failed',
+        message: 'Could not enable round-up rule. Please ensure the goal is active.',
+      });
+    } finally {
+      setIsSavingRoundUp(false);
+    }
+  };
+
+  const handleDisableRoundUp = async () => {
+    try {
+      await goalsApi.disableRoundUp();
+      setRoundUpRule({ enabled: false, accumulatedAmount: 0 });
+      await fetchAnalyticsAndGoals();
+    } catch (err) {
+      console.error('Failed to disable round-up:', err);
     }
   };
 
@@ -645,6 +692,46 @@ export default function AiCoachPage() {
                   </Button>
                 </div>
 
+                {/* Round-Up Micro-Savings Banner */}
+                <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-gradient-to-r from-purple-900/40 via-indigo-900/30 to-surface-800/40 border border-purple-500/25" data-testid="round-up-banner">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-300">
+                      <Zap className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="text-sm font-bold text-white">Auto Spare Change Round-Ups</h4>
+                        {roundUpRule?.enabled ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                            Active (Nearest ₹{roundUpRule.roundUpNearest})
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-surface-700/50 text-surface-400">
+                            Disabled
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-surface-400 mt-0.5">
+                        {roundUpRule?.enabled
+                          ? `Rounding card spends up to nearest ₹${roundUpRule.roundUpNearest} into "${roundUpRule.goalName}". Total saved: ₹${(roundUpRule.accumulatedAmount || 0).toFixed(2)}`
+                          : 'Automatically round up card purchases and sweep spare change into your targeted goal.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {roundUpRule?.enabled && (
+                      <Button variant="ghost" size="sm" onClick={handleDisableRoundUp} className="text-xs text-danger-400 hover:text-danger-300">
+                        Disable
+                      </Button>
+                    )}
+                    <Button variant="secondary" size="sm" onClick={() => setIsRoundUpModalOpen(true)} className="text-xs flex items-center gap-1.5 shadow-sm">
+                      <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                      {roundUpRule?.enabled ? 'Change Rule' : 'Configure Round-Up'}
+                    </Button>
+                  </div>
+                </div>
+
                 {goals.length === 0 ? (
                   <GlassCard padding="none" className="text-center p-12">
                     <Target className="w-12 h-12 text-surface-600 mx-auto mb-3" />
@@ -676,12 +763,19 @@ export default function AiCoachPage() {
                                 <span className="text-2xl" role="img" aria-label="Goal Icon">{goal.icon || '🎯'}</span>
                                 <div>
                                   <h4 className="font-display font-bold text-white text-sm truncate max-w-[140px]">{goal.name}</h4>
-                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                                    goal.priority === 'HIGH' ? 'bg-danger-500/10 text-danger-400' :
-                                    goal.priority === 'LOW' ? 'bg-surface-600/30 text-surface-400' : 'bg-warning-500/10 text-warning-400'
-                                  }`}>
-                                    {goal.priority}
-                                  </span>
+                                  <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                                      goal.priority === 'HIGH' ? 'bg-danger-500/10 text-danger-400' :
+                                      goal.priority === 'LOW' ? 'bg-surface-600/30 text-surface-400' : 'bg-warning-500/10 text-warning-400'
+                                    }`}>
+                                      {goal.priority}
+                                    </span>
+                                    {goal.roundUpEnabled && (
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30" data-testid="goal-round-up-badge">
+                                        <Zap className="w-2.5 h-2.5 text-purple-400" /> Round-Up (₹{goal.roundUpNearest || 10})
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                               <div className="flex items-center gap-1.5">
@@ -779,6 +873,63 @@ export default function AiCoachPage() {
             {/* TAB 4: BUDGET & FORECAST */}
             {activeTab === 'budget' && (
               <div className="space-y-6">
+                {/* Cashflow Health & Risk KPI Cards */}
+                {forecastData && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4" data-testid="cashflow-kpis">
+                    <GlassCard padding="md">
+                      <div className="flex items-center gap-2 text-surface-400 text-xs mb-1">
+                        <TrendingDown className="w-4 h-4 text-purple-400" />
+                        <span>Daily Burn Rate</span>
+                      </div>
+                      <div className="text-lg font-bold text-white">
+                        ₹{(forecastData.dailyBurnMean || 0).toFixed(2)}
+                      </div>
+                      <p className="text-[11px] text-surface-400 mt-0.5">
+                        Volatility: ±₹{(forecastData.dailyBurnStdDev || 0).toFixed(2)}/day
+                      </p>
+                    </GlassCard>
+
+                    <GlassCard padding="md">
+                      <div className="flex items-center gap-2 text-surface-400 text-xs mb-1">
+                        <AlertTriangle className={`w-4 h-4 ${(forecastData.runoutProbability || 0) > 0.3 ? 'text-rose-400' : 'text-emerald-400'}`} />
+                        <span>30-Day Runout Risk</span>
+                      </div>
+                      <div className={`text-lg font-bold ${(forecastData.runoutProbability || 0) > 0.3 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                        {((forecastData.runoutProbability || 0) * 100).toFixed(1)}%
+                      </div>
+                      <p className="text-[11px] text-surface-400 mt-0.5">
+                        {(forecastData.runoutProbability || 0) > 0.3 ? 'High depletion risk' : 'Safe reserve margin'}
+                      </p>
+                    </GlassCard>
+
+                    <GlassCard padding="md">
+                      <div className="flex items-center gap-2 text-surface-400 text-xs mb-1">
+                        <Calendar className="w-4 h-4 text-blue-400" />
+                        <span>Projected Runway</span>
+                      </div>
+                      <div className="text-lg font-bold text-white">
+                        {forecastData.estimatedRunoutDays != null ? `${forecastData.estimatedRunoutDays} Days` : '> 30 Days'}
+                      </div>
+                      <p className="text-[11px] text-surface-400 mt-0.5">
+                        Balance: ₹{(forecastData.currentBalance ?? walletBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </p>
+                    </GlassCard>
+
+                    <GlassCard padding="md">
+                      <div className="flex items-center gap-2 text-surface-400 text-xs mb-1">
+                        <Zap className="w-4 h-4 text-amber-400" />
+                        <span>Forecast Engine</span>
+                      </div>
+                      <div className="text-xs font-bold text-purple-300 mt-1 uppercase tracking-wide">
+                        Monte Carlo (M=200)
+                      </div>
+                      <p className="text-[11px] text-surface-400 mt-1">
+                        10th, 50th & 90th percentile bands
+                      </p>
+                    </GlassCard>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {budgetData && (
                     <GlassCard padding="lg">
@@ -824,34 +975,156 @@ export default function AiCoachPage() {
 
                   {forecastData && (
                     <GlassCard padding="lg">
-                      <h3 className="text-sm font-semibold text-white mb-2">30-Day Spending Forecast</h3>
-                      <p className="text-xs text-surface-400 mb-6">Deterministic cumulative projections based on daily transactional burn rates</p>
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h3 className="text-sm font-semibold text-white">30-Day Predictive Cashflow Simulation</h3>
+                          <p className="text-xs text-surface-400">Monte Carlo confidence bands across stochastic spend paths</p>
+                        </div>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                          {forecastData.modelUsed || 'MONTE_CARLO'}
+                        </span>
+                      </div>
                       <div className="h-[280px]">
                         <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={forecastData.points} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                          <AreaChart data={forecastData.points} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="colorOptimistic" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#10B981" stopOpacity={0.25} />
+                                <stop offset="95%" stopColor="#10B981" stopOpacity={0.0} />
+                              </linearGradient>
+                              <linearGradient id="colorMedian" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.35} />
+                                <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0.05} />
+                              </linearGradient>
+                              <linearGradient id="colorPessimistic" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#F43F5E" stopOpacity={0.25} />
+                                <stop offset="95%" stopColor="#F43F5E" stopOpacity={0.0} />
+                              </linearGradient>
+                            </defs>
                             <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
                             <XAxis dataKey="label" stroke="#94a3b8" fontSize={9} interval={4} />
                             <YAxis stroke="#94a3b8" fontSize={11} />
                             <Tooltip
                               contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px' }}
                               labelStyle={{ color: '#fff', fontWeight: 'bold' }}
+                              formatter={(value: any) => [`₹${Number(value || 0).toFixed(2)}`, '']}
                             />
                             <Legend wrapperStyle={{ fontSize: '11px' }} />
+                            <Area
+                              type="monotone"
+                              dataKey="optimisticBalance"
+                              name="Optimistic (90th %ile)"
+                              stroke="#10B981"
+                              fillOpacity={1}
+                              fill="url(#colorOptimistic)"
+                              strokeWidth={1.5}
+                            />
+                            <Area
+                              type="monotone"
+                              dataKey="medianBalance"
+                              name="Median Path (50th %ile)"
+                              stroke="#8B5CF6"
+                              fillOpacity={1}
+                              fill="url(#colorMedian)"
+                              strokeWidth={2.5}
+                            />
+                            <Area
+                              type="monotone"
+                              dataKey="pessimisticBalance"
+                              name="Pessimistic (10th %ile)"
+                              stroke="#F43F5E"
+                              fillOpacity={1}
+                              fill="url(#colorPessimistic)"
+                              strokeWidth={1.5}
+                            />
                             <Line
                               type="monotone"
                               dataKey="predictedCumulativeSpend"
-                              name="Projected Spending"
-                              stroke="#7C3AED"
-                              strokeWidth={2}
-                              strokeDasharray="5 5"
+                              name="Projected Spend"
+                              stroke="#64748B"
+                              strokeWidth={1.5}
+                              strokeDasharray="4 4"
                               dot={false}
                             />
-                          </LineChart>
+                          </AreaChart>
                         </ResponsiveContainer>
                       </div>
                     </GlassCard>
                   )}
                 </div>
+
+                {/* Goal Feasibility Matrix */}
+                {forecastData?.goalFeasibilities && forecastData.goalFeasibilities.length > 0 && (
+                  <GlassCard padding="lg" data-testid="goal-feasibility-card">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                          <Target className="w-4 h-4 text-purple-400" />
+                          Savings Goal Feasibility Analysis
+                        </h3>
+                        <p className="text-xs text-surface-400 mt-0.5">
+                          Monte Carlo completion likelihood based on current savings rate and projected stochastic burn
+                        </p>
+                      </div>
+                      <span className="text-xs text-surface-400 font-mono">
+                        {forecastData.goalFeasibilities.length} Active {forecastData.goalFeasibilities.length === 1 ? 'Goal' : 'Goals'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {forecastData.goalFeasibilities.map((feasibility) => {
+                        const isHigh = feasibility.probabilityPercentage >= 70;
+                        const isMedium = feasibility.probabilityPercentage >= 40 && feasibility.probabilityPercentage < 70;
+                        return (
+                          <div
+                            key={feasibility.goalId}
+                            className="p-4 rounded-xl border border-surface-700/40 bg-surface-800/40 space-y-3"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <h4 className="text-sm font-bold text-white truncate max-w-[160px]">{feasibility.goalName}</h4>
+                                <span className="text-[11px] text-surface-400">Target: {feasibility.targetDate}</span>
+                              </div>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                  feasibility.status === 'ON_TRACK'
+                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                                    : feasibility.status === 'AT_RISK'
+                                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                                    : 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                                }`}
+                              >
+                                {feasibility.status === 'ON_TRACK' ? 'On Track' : feasibility.status === 'AT_RISK' ? 'At Risk' : 'Critical'}
+                              </span>
+                            </div>
+
+                            <div>
+                              <div className="flex justify-between text-xs mb-1">
+                                <span className="text-surface-400">Probability</span>
+                                <span className={`font-bold ${isHigh ? 'text-emerald-400' : isMedium ? 'text-amber-400' : 'text-rose-400'}`}>
+                                  {feasibility.probabilityPercentage.toFixed(0)}%
+                                </span>
+                              </div>
+                              <div className="w-full bg-surface-700/40 rounded-full h-2 overflow-hidden">
+                                <div
+                                  className={`h-2 rounded-full transition-all ${
+                                    isHigh ? 'bg-emerald-500' : isMedium ? 'bg-amber-500' : 'bg-rose-500'
+                                  }`}
+                                  style={{ width: `${Math.min(100, Math.max(5, feasibility.probabilityPercentage))}%` }}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex justify-between items-center text-[11px] text-surface-400 pt-1 border-t border-surface-700/30">
+                              <span>Saved: ₹{feasibility.currentAmount.toFixed(2)}</span>
+                              <span>Target: ₹{feasibility.targetAmount.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </GlassCard>
+                )}
               </div>
             )}
 
@@ -1049,6 +1322,80 @@ export default function AiCoachPage() {
               </div>
             </>
           )}
+        </Modal>
+
+        {/* ROUND-UP CONFIGURATION MODAL */}
+        <Modal
+          isOpen={isRoundUpModalOpen}
+          onClose={() => setIsRoundUpModalOpen(false)}
+          title="Configure Auto Round-Up"
+        >
+          <div className="space-y-4" data-testid="round-up-modal">
+            <p className="text-xs text-surface-300">
+              Spare change from every card payment will be automatically rounded up and swept into your selected savings goal.
+            </p>
+
+            <div>
+              <label htmlFor="roundup-goal-select" className="block text-xs font-semibold text-surface-300 mb-1.5">Target Savings Goal</label>
+              <select
+                id="roundup-goal-select"
+                aria-label="Target Savings Goal"
+                value={roundUpGoalId}
+                onChange={(e) => setRoundUpGoalId(e.target.value)}
+                className="w-full bg-surface-800 border border-surface-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
+              >
+                <option value="">Select an Active Goal</option>
+                {goals.filter(g => g.status === 'ACTIVE').map(goal => (
+                  <option key={goal.id} value={goal.id}>
+                    {goal.icon} {goal.name} (Current: ₹{goal.currentAmount.toFixed(2)} / ₹{goal.targetAmount.toFixed(2)})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-surface-300 mb-1.5">Round-Up Threshold</label>
+              <div className="grid grid-cols-3 gap-2">
+                {[10, 50, 100].map((step) => (
+                  <button
+                    key={step}
+                    type="button"
+                    onClick={() => setRoundUpNearest(step)}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all ${
+                      roundUpNearest === step
+                        ? 'bg-purple-600/30 border-purple-500 text-purple-200 shadow-sm'
+                        : 'bg-surface-800/40 border-surface-700/50 text-surface-400 hover:text-white'
+                    }`}
+                  >
+                    Nearest ₹{step}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-surface-400 mt-1.5">
+                Example: A spend of ₹85 rounds to {roundUpNearest === 10 ? '₹90 (+₹5 spare change)' : roundUpNearest === 50 ? '₹100 (+₹15 spare change)' : '₹100 (+₹15 spare change)'}.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsRoundUpModalOpen(false)}
+                className="border border-surface-700"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleSaveRoundUp}
+                disabled={!roundUpGoalId || isSavingRoundUp}
+                className="bg-purple-600 hover:bg-purple-500"
+              >
+                {isSavingRoundUp ? 'Saving...' : 'Activate Round-Up'}
+              </Button>
+            </div>
+          </div>
         </Modal>
 
         {/* CUSTOM ALERT MODAL */}

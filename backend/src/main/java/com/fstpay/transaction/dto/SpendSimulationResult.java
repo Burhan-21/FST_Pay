@@ -16,6 +16,9 @@ public class SpendSimulationResult {
     private final String message;
     private final Transaction transaction;
     private final ApprovalDto approval;
+    private final java.math.BigDecimal roundUpAmount;
+    private final java.util.UUID roundUpGoalId;
+    private final String roundUpGoalName;
 
     public boolean isCompleted() {
         return "COMPLETED".equalsIgnoreCase(status);
@@ -30,6 +33,17 @@ public class SpendSimulationResult {
                 .status("COMPLETED")
                 .message(message)
                 .transaction(transaction)
+                .build();
+    }
+
+    public static SpendSimulationResult completed(Transaction transaction, String message, java.math.BigDecimal roundUpAmount, java.util.UUID roundUpGoalId, String roundUpGoalName) {
+        return SpendSimulationResult.builder()
+                .status("COMPLETED")
+                .message(message)
+                .transaction(transaction)
+                .roundUpAmount(roundUpAmount)
+                .roundUpGoalId(roundUpGoalId)
+                .roundUpGoalName(roundUpGoalName)
                 .build();
     }
 

@@ -28,6 +28,9 @@ public class GoalResponse {
     private String status;
     private Instant completedAt;
     private Instant cancelledAt;
+    private Boolean roundUpEnabled;
+    private Integer roundUpNearest;
+    private BigDecimal roundUpAccumulated;
     private Instant createdAt;
     private Instant updatedAt;
 
@@ -48,6 +51,9 @@ public class GoalResponse {
                 .status(goal.getStatus())
                 .completedAt(goal.getCompletedAt())
                 .cancelledAt(goal.getCancelledAt())
+                .roundUpEnabled(goal.getRoundUpEnabled())
+                .roundUpNearest(goal.getRoundUpNearest())
+                .roundUpAccumulated(goal.getRoundUpAccumulated())
                 .createdAt(goal.getCreatedAt())
                 .updatedAt(goal.getUpdatedAt())
                 .build();

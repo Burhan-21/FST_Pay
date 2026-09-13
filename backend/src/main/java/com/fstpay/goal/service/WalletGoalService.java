@@ -6,6 +6,7 @@ import com.fstpay.common.exception.BadRequestException;
 import com.fstpay.common.exception.ResourceNotFoundException;
 import com.fstpay.goal.dto.GoalCreateRequest;
 import com.fstpay.goal.dto.GoalFundRequest;
+import com.fstpay.goal.dto.RoundUpRuleResponse;
 import com.fstpay.goal.dto.UpdateGoalRequest;
 import com.fstpay.goal.entity.WalletGoal;
 import com.fstpay.goal.repository.WalletGoalRepository;
@@ -15,6 +16,8 @@ import com.fstpay.user.entity.User;
 import com.fstpay.user.repository.UserRepository;
 import com.fstpay.wallet.entity.Wallet;
 import com.fstpay.wallet.repository.WalletRepository;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -300,6 +303,157 @@ public class WalletGoalService {
             goal.setCurrentAmount(BigDecimal.ZERO);
             goal.setWithdrawnAmount(goal.getWithdrawnAmount().add(refundAmount));
         }
+    }
+
+    @Transactional
+    public RoundUpRuleResponse setRoundUpTarget(String email, UUID goalId, Integer nearest) {
+        User user = getUserByEmail(email);
+        WalletGoal targetGoal = walletGoalRepository.findByIdAndUser(goalId, user)
+                .orElseThrow(() -> new ResourceNotFoundException("Savings goal not found"));
+
+        if (!"ACTIVE".equals(targetGoal.getStatus())) {
+            throw new BadRequestException("Round-up rule can only be enabled for active savings goals");
+        }
+
+        int step = (nearest != null && (nearest == 10 || nearest == 50 || nearest == 100)) ? nearest : 10;
+
+        // Disable round-up on all other goals for this user
+        List<WalletGoal> existingRoundUpGoals = walletGoalRepository.findByUserAndRoundUpEnabledTrue(user);
+        for (WalletGoal g : existingRoundUpGoals) {
+            if (!g.getId().equals(goalId)) {
+                g.setRoundUpEnabled(false);
+                walletGoalRepository.save(g);
+            }
+        }
+
+        targetGoal.setRoundUpEnabled(true);
+        targetGoal.setRoundUpNearest(step);
+        WalletGoal saved = walletGoalRepository.save(targetGoal);
+
+        log.info("Enabled round-up rule for user {} on goal {} to nearest {}", email, targetGoal.getName(), step);
+
+        return RoundUpRuleResponse.builder()
+                .enabled(true)
+                .goalId(saved.getId())
+                .goalName(saved.getName())
+                .roundUpNearest(saved.getRoundUpNearest())
+                .accumulatedAmount(saved.getRoundUpAccumulated() != null ? saved.getRoundUpAccumulated() : BigDecimal.ZERO)
+                .currentGoalAmount(saved.getCurrentAmount())
+                .targetGoalAmount(saved.getTargetAmount())
+                .build();
+    }
+
+    @Transactional
+    public void disableRoundUp(String email) {
+        User user = getUserByEmail(email);
+        List<WalletGoal> existing = walletGoalRepository.findByUserAndRoundUpEnabledTrue(user);
+        for (WalletGoal g : existing) {
+            g.setRoundUpEnabled(false);
+            walletGoalRepository.save(g);
+        }
+        log.info("Disabled all round-up rules for user {}", email);
+    }
+
+    public RoundUpRuleResponse getRoundUpRule(String email) {
+        User user = getUserByEmail(email);
+        return walletGoalRepository.findByUserAndRoundUpEnabledTrueAndStatus(user, "ACTIVE")
+                .map(goal -> RoundUpRuleResponse.builder()
+                        .enabled(true)
+                        .goalId(goal.getId())
+                        .goalName(goal.getName())
+                        .roundUpNearest(goal.getRoundUpNearest())
+                        .accumulatedAmount(goal.getRoundUpAccumulated() != null ? goal.getRoundUpAccumulated() : BigDecimal.ZERO)
+                        .currentGoalAmount(goal.getCurrentAmount())
+                        .targetGoalAmount(goal.getTargetAmount())
+                        .build())
+                .orElseGet(() -> RoundUpRuleResponse.builder()
+                        .enabled(false)
+                        .accumulatedAmount(BigDecimal.ZERO)
+                        .build());
+    }
+
+    @Transactional
+    public RoundUpExecutionResult processRoundUp(User user, BigDecimal spendAmount, Wallet wallet) {
+        if (spendAmount == null || spendAmount.compareTo(BigDecimal.ZERO) <= 0 || wallet == null) {
+            return null;
+        }
+
+        java.util.Optional<WalletGoal> optGoal = walletGoalRepository.findByUserAndRoundUpEnabledTrueAndStatus(user, "ACTIVE");
+        if (optGoal.isEmpty()) {
+            return null;
+        }
+
+        WalletGoal goal = optGoal.get();
+        int stepInt = goal.getRoundUpNearest() != null ? goal.getRoundUpNearest() : 10;
+        BigDecimal step = BigDecimal.valueOf(stepInt);
+
+        BigDecimal remainder = spendAmount.remainder(step);
+        if (remainder.compareTo(BigDecimal.ZERO) == 0) {
+            return null; // Exact multiple, spare change is 0
+        }
+
+        BigDecimal spareChange = step.subtract(remainder).setScale(2, RoundingMode.HALF_UP);
+
+        // Check if wallet has sufficient balance remaining for the spare change
+        if (wallet.getBalance().compareTo(spareChange) < 0) {
+            log.warn("Round-up skipped for user {}: insufficient wallet balance for spare change {}", user.getEmail(), spareChange);
+            return null;
+        }
+
+        // Deduct spare change from wallet
+        wallet.setBalance(wallet.getBalance().subtract(spareChange));
+        walletRepository.save(wallet);
+
+        // Record round-up micro-savings transaction
+        Transaction roundUpTxn = Transaction.builder()
+                .wallet(wallet)
+                .type("DEBIT")
+                .category("SAVINGS")
+                .amount(spareChange)
+                .balanceAfter(wallet.getBalance())
+                .description("Auto Round-Up to " + goal.getName())
+                .merchant("Round-Up: " + goal.getName())
+                .referenceId("RNDUP-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
+                .status("COMPLETED")
+                .build();
+        transactionRepository.save(roundUpTxn);
+
+        // Update goal balances
+        goal.setCurrentAmount(goal.getCurrentAmount().add(spareChange));
+        goal.setAllocatedAmount(goal.getAllocatedAmount().add(spareChange));
+        BigDecimal accumulated = goal.getRoundUpAccumulated() != null ? goal.getRoundUpAccumulated() : BigDecimal.ZERO;
+        goal.setRoundUpAccumulated(accumulated.add(spareChange));
+
+        boolean justCompleted = false;
+        if (goal.getCurrentAmount().compareTo(goal.getTargetAmount()) >= 0) {
+            goal.setStatus("COMPLETED");
+            goal.setCompletedAt(Instant.now());
+            goal.setRoundUpEnabled(false); // Disable round-up once achieved
+            justCompleted = true;
+        }
+
+        WalletGoal savedGoal = walletGoalRepository.save(goal);
+        log.info("Auto round-up processed for user {}: saved {} into goal {}", user.getEmail(), spareChange, goal.getName());
+
+        if (justCompleted) {
+            eventPublisher.publish(GoalCompletedEvent.create(
+                    savedGoal.getUser(),
+                    savedGoal.getId(),
+                    savedGoal.getName(),
+                    savedGoal.getTargetAmount(),
+                    goalCompletedPoints
+            ));
+        }
+
+        return new RoundUpExecutionResult(spareChange, goal.getId(), goal.getName());
+    }
+
+    @Getter
+    @AllArgsConstructor
+    public static class RoundUpExecutionResult {
+        private final BigDecimal roundUpAmount;
+        private final UUID goalId;
+        private final String goalName;
     }
 
     private User getUserByEmail(String email) {

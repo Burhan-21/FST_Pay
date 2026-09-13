@@ -253,31 +253,131 @@ public class AiCoachService {
     public ForecastResponse getForecast(String email) {
         User user = getUserByEmail(email);
         Wallet wallet = walletRepository.findByUser(user).orElse(null);
+        BigDecimal currentBalance = (wallet != null && wallet.getBalance() != null)
+                ? wallet.getBalance()
+                : BigDecimal.ZERO;
 
         // Compute average daily spend over last 30 days
         AnalyticsResponse analytics = analyticsService.getAnalytics(email, 30);
-        BigDecimal totalSpend = analytics.getTotalDebit();
         BigDecimal dailyAvg = analytics.getDailyAverageSpend();
 
-        if (dailyAvg.compareTo(BigDecimal.ZERO) <= 0) {
-            dailyAvg = new BigDecimal("100.00"); // default projection
+        if (dailyAvg == null || dailyAvg.compareTo(BigDecimal.ZERO) <= 0) {
+            dailyAvg = new BigDecimal("100.00"); // default baseline projection
+        }
+
+        // Volatility standard deviation (heuristic ~40% of daily mean, min 15.00)
+        BigDecimal stdDev = dailyAvg.multiply(new BigDecimal("0.40")).max(new BigDecimal("15.00")).setScale(2, RoundingMode.HALF_UP);
+
+        int M = 200; // Monte Carlo iterations
+        int D = 30;  // 30 days projection horizon
+        double mu = dailyAvg.doubleValue();
+        double sigma = stdDev.doubleValue();
+        double startBalance = currentBalance.doubleValue();
+
+        // Seed based on user email hash for stable, consistent charts across reloads
+        Random rng = new Random((long) email.hashCode() ^ 0x5DEECE66DL);
+
+        double[][] trajectories = new double[M][D];
+        for (int m = 0; m < M; m++) {
+            double b = startBalance;
+            for (int d = 0; d < D; d++) {
+                double spend = Math.max(0.0, mu + rng.nextGaussian() * sigma);
+                b = Math.max(0.0, b - spend);
+                trajectories[m][d] = b;
+            }
         }
 
         List<ForecastResponse.ForecastPoint> points = new ArrayList<>();
-        BigDecimal cumulative = BigDecimal.ZERO;
+        BigDecimal cumulativeSpend = BigDecimal.ZERO;
         LocalDate now = LocalDate.now();
+        Integer runoutDay = null;
 
-        for (int i = 1; i <= 30; i++) {
-            cumulative = cumulative.add(dailyAvg).setScale(2, RoundingMode.HALF_UP);
+        for (int d = 0; d < D; d++) {
+            double[] dayBalances = new double[M];
+            for (int m = 0; m < M; m++) {
+                dayBalances[m] = trajectories[m][d];
+            }
+            Arrays.sort(dayBalances);
+
+            double pessimistic = dayBalances[(int) (M * 0.10)];
+            double median = dayBalances[(int) (M * 0.50)];
+            double optimistic = dayBalances[(int) (M * 0.90)];
+
+            if (runoutDay == null && median <= 0.01) {
+                runoutDay = d + 1;
+            }
+
+            cumulativeSpend = cumulativeSpend.add(dailyAvg).setScale(2, RoundingMode.HALF_UP);
+
             points.add(ForecastResponse.ForecastPoint.builder()
-                    .label(now.plusDays(i).getMonth().toString().substring(0,3) + " " + now.plusDays(i).getDayOfMonth())
-                    .predictedCumulativeSpend(cumulative)
+                    .label(now.plusDays(d + 1).getMonth().toString().substring(0, 3) + " " + now.plusDays(d + 1).getDayOfMonth())
+                    .predictedCumulativeSpend(cumulativeSpend)
+                    .medianBalance(BigDecimal.valueOf(median).setScale(2, RoundingMode.HALF_UP))
+                    .optimisticBalance(BigDecimal.valueOf(optimistic).setScale(2, RoundingMode.HALF_UP))
+                    .pessimisticBalance(BigDecimal.valueOf(pessimistic).setScale(2, RoundingMode.HALF_UP))
+                    .build());
+        }
+
+        // Runout Probability (percentage of trajectories that deplete balance to 0 within 30 days)
+        int runoutCount = 0;
+        for (int m = 0; m < M; m++) {
+            if (trajectories[m][D - 1] <= 0.01) {
+                runoutCount++;
+            }
+        }
+        double runoutProb = Math.round(((double) runoutCount / M) * 1000.0) / 10.0;
+
+        // Goal Feasibilities
+        List<WalletGoal> activeGoals = walletGoalRepository.findByUser(user).stream()
+                .filter(g -> "ACTIVE".equals(g.getStatus()))
+                .collect(Collectors.toList());
+
+        List<ForecastResponse.GoalFeasibility> feasibilities = new ArrayList<>();
+        for (WalletGoal goal : activeGoals) {
+            BigDecimal target = goal.getTargetAmount() != null ? goal.getTargetAmount() : BigDecimal.ZERO;
+            BigDecimal current = goal.getCurrentAmount() != null ? goal.getCurrentAmount() : BigDecimal.ZERO;
+            BigDecimal needed = target.subtract(current).max(BigDecimal.ZERO);
+
+            double prob;
+            if (needed.compareTo(BigDecimal.ZERO) == 0) {
+                prob = 100.0;
+            } else {
+                long daysToTarget = ChronoUnit.DAYS.between(now, goal.getTargetDate());
+                if (daysToTarget <= 0) daysToTarget = 1;
+
+                int coveredCount = 0;
+                int evalDay = Math.min((int) daysToTarget, D) - 1;
+                for (int m = 0; m < M; m++) {
+                    double finalBal = trajectories[m][evalDay];
+                    if (finalBal >= needed.doubleValue()) {
+                        coveredCount++;
+                    }
+                }
+                prob = Math.round(((double) coveredCount / M) * 1000.0) / 10.0;
+            }
+
+            String status = prob >= 70.0 ? "ON_TRACK" : (prob >= 40.0 ? "AT_RISK" : "CRITICAL");
+
+            feasibilities.add(ForecastResponse.GoalFeasibility.builder()
+                    .goalId(goal.getId())
+                    .goalName(goal.getName())
+                    .targetAmount(target)
+                    .currentAmount(current)
+                    .targetDate(goal.getTargetDate())
+                    .probabilityPercentage(prob)
+                    .status(status)
                     .build());
         }
 
         return ForecastResponse.builder()
                 .points(points)
-                .modelUsed("Linear Trend Spend Projection")
+                .modelUsed("Monte Carlo Stochastic Simulation (M=200)")
+                .currentBalance(currentBalance)
+                .dailyBurnMean(dailyAvg)
+                .dailyBurnStdDev(stdDev)
+                .estimatedRunoutDays(runoutDay)
+                .runoutProbability(runoutProb)
+                .goalFeasibilities(feasibilities)
                 .build();
     }
 

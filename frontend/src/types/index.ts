@@ -218,10 +218,23 @@ export interface WalletGoal {
   icon: string;
   color?: string;
   status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+  roundUpEnabled?: boolean;
+  roundUpNearest?: number;
+  roundUpAccumulated?: number;
   completedAt?: string;
   cancelledAt?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface RoundUpRule {
+  enabled: boolean;
+  goalId?: string;
+  goalName?: string;
+  roundUpNearest?: number;
+  accumulatedAmount: number;
+  currentGoalAmount?: number;
+  targetGoalAmount?: number;
 }
 
 export interface HealthScoreData {
@@ -238,12 +251,33 @@ export interface HealthScoreData {
   };
 }
 
+export interface ForecastPoint {
+  label: string;
+  predictedCumulativeSpend: number;
+  medianBalance?: number;
+  optimisticBalance?: number;
+  pessimisticBalance?: number;
+}
+
+export interface GoalFeasibility {
+  goalId: string;
+  goalName: string;
+  targetAmount: number;
+  currentAmount: number;
+  targetDate: string;
+  probabilityPercentage: number;
+  status: 'ON_TRACK' | 'AT_RISK' | 'CRITICAL';
+}
+
 export interface ForecastData {
-  points: Array<{
-    label: string;
-    predictedCumulativeSpend: number;
-  }>;
+  points: ForecastPoint[];
   modelUsed: string;
+  currentBalance?: number;
+  dailyBurnMean?: number;
+  dailyBurnStdDev?: number;
+  estimatedRunoutDays?: number | null;
+  runoutProbability?: number;
+  goalFeasibilities?: GoalFeasibility[];
 }
 
 export interface BudgetPlanData {
