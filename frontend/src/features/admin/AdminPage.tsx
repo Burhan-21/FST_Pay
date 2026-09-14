@@ -20,14 +20,19 @@ import {
   Sparkles,
   BarChart3,
   Repeat,
+  RotateCcw,
+  Trash2,
+  Layers,
+  Radio,
 } from 'lucide-react';
 import api from '../../api/axios';
+import { adminWebhooksApi } from '../../api/endpoints';
 import PageTransition from '../../components/ui/PageTransition';
 import GlassCard from '../../components/ui/GlassCard';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import StatCard from '../../components/ui/StatCard';
-import type { ObservabilityMetrics } from '../../types';
+import type { ObservabilityMetrics, WebhookDlqEntry, CircuitBreakerStatus } from '../../types';
 
 interface AdminStats {
   totalUsers: number;
@@ -66,8 +71,17 @@ export default function AdminPage() {
   const [isRefreshingObs, setIsRefreshingObs] = useState(false);
   const [autoRefreshObs, setAutoRefreshObs] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'users' | 'transactions' | 'observability'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'transactions' | 'observability' | 'dlq'>('users');
   const [actioningUserId, setActioningUserId] = useState<string | null>(null);
+
+  // Webhooks DLQ & Circuit Breaker state
+  const [circuitBreaker, setCircuitBreaker] = useState<CircuitBreakerStatus | null>(null);
+  const [dlqEntries, setDlqEntries] = useState<WebhookDlqEntry[]>([]);
+  const [dlqFilter, setDlqFilter] = useState<string>('ALL');
+  const [isDlqLoading, setIsDlqLoading] = useState(false);
+  const [dlqActionId, setDlqActionId] = useState<string | null>(null);
+  const [isReplayingAll, setIsReplayingAll] = useState(false);
+  const [isResettingCb, setIsResettingCb] = useState(false);
 
   const fetchAdminData = async () => {
     try {
@@ -121,6 +135,79 @@ export default function AdminPage() {
       console.error('Error toggling active status:', error);
     } finally {
       setActioningUserId(null);
+    }
+  };
+
+  const fetchDlqData = async () => {
+    try {
+      setIsDlqLoading(true);
+      const [cbRes, dlqRes] = await Promise.all([
+        adminWebhooksApi.getCircuitBreaker(),
+        adminWebhooksApi.getDlq({
+          status: dlqFilter === 'ALL' ? undefined : dlqFilter,
+          size: 50,
+        }),
+      ]);
+      setCircuitBreaker(cbRes.data.data);
+      setDlqEntries(dlqRes.data.data.content || []);
+    } catch (error) {
+      console.error('Error fetching DLQ and Circuit Breaker data:', error);
+    } finally {
+      setIsDlqLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'dlq') {
+      fetchDlqData();
+    }
+  }, [activeTab, dlqFilter]);
+
+  const handleReplay = async (id: string) => {
+    try {
+      setDlqActionId(id);
+      await adminWebhooksApi.replay(id);
+      await fetchDlqData();
+    } catch (error) {
+      console.error('Error replaying webhook:', error);
+    } finally {
+      setDlqActionId(null);
+    }
+  };
+
+  const handleReplayAll = async () => {
+    try {
+      setIsReplayingAll(true);
+      await adminWebhooksApi.replayAll();
+      await fetchDlqData();
+    } catch (error) {
+      console.error('Error replaying all dead letters:', error);
+    } finally {
+      setIsReplayingAll(false);
+    }
+  };
+
+  const handleDiscard = async (id: string) => {
+    try {
+      setDlqActionId(id);
+      await adminWebhooksApi.discard(id);
+      await fetchDlqData();
+    } catch (error) {
+      console.error('Error discarding DLQ record:', error);
+    } finally {
+      setDlqActionId(null);
+    }
+  };
+
+  const handleResetCircuitBreaker = async () => {
+    try {
+      setIsResettingCb(true);
+      await adminWebhooksApi.resetCircuitBreaker();
+      await fetchDlqData();
+    } catch (error) {
+      console.error('Error resetting circuit breaker:', error);
+    } finally {
+      setIsResettingCb(false);
     }
   };
 
@@ -219,6 +306,20 @@ export default function AdminPage() {
               <Activity className="w-4 h-4 text-emerald-400" />
               Live Observability
             </button>
+            <button
+              onClick={() => { setActiveTab('dlq'); setSearchQuery(''); }}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-1.5 ${
+                activeTab === 'dlq' 
+                  ? 'bg-primary-600/20 text-primary-400 border border-primary-500/30' 
+                  : 'text-surface-400 hover:text-white hover:bg-surface-800'
+              }`}
+            >
+              <Layers className="w-4 h-4 text-rose-400" />
+              Webhooks & DLQ
+              {circuitBreaker?.state === 'OPEN' && (
+                <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping ml-1" />
+              )}
+            </button>
           </div>
 
           {activeTab === 'observability' ? (
@@ -241,6 +342,19 @@ export default function AdminPage() {
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingObs ? 'animate-spin' : ''}`} />
                 Refresh
+              </Button>
+            </div>
+          ) : activeTab === 'dlq' ? (
+            <div className="flex items-center gap-3">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={fetchDlqData}
+                disabled={isDlqLoading}
+                className="flex items-center gap-1.5 text-xs py-1.5 px-3"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isDlqLoading ? 'animate-spin' : ''}`} />
+                Refresh DLQ
               </Button>
             </div>
           ) : (
@@ -410,7 +524,7 @@ export default function AdminPage() {
                 </tbody>
               </table>
             </div>
-          ) : (
+          ) : activeTab === 'observability' ? (
             <div className="p-6 space-y-6">
               {/* Observability Endpoint / Header Banner */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl bg-surface-900/60 border border-surface-700/60">
@@ -710,6 +824,248 @@ export default function AdminPage() {
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          ) : (
+            <div className="p-6 space-y-6">
+              {/* 1. Resilience4j Circuit Breaker Telemetry */}
+              <div className="p-5 rounded-xl bg-surface-900/60 border border-surface-700/60 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <Radio className="w-5 h-5 text-rose-400" />
+                    <div>
+                      <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                        Resilience4j Settlement Circuit Breaker
+                        <Badge
+                          variant={
+                            circuitBreaker?.state === 'CLOSED'
+                              ? 'primary'
+                              : circuitBreaker?.state === 'OPEN'
+                              ? 'danger'
+                              : 'warning'
+                          }
+                        >
+                          {circuitBreaker?.state ?? 'UNKNOWN'}
+                        </Badge>
+                      </h3>
+                      <p className="text-xs text-surface-400 mt-0.5">
+                        Instance: <code className="text-primary-300 font-mono">merchantSettlementCircuitBreaker</code> &bull; Failure Threshold: 50% &bull; Wait in Open: 10s
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={handleResetCircuitBreaker}
+                    disabled={isResettingCb}
+                    className="flex items-center gap-1.5 text-xs py-1.5 px-3 self-start sm:self-auto"
+                  >
+                    <RotateCcw className={`w-3.5 h-3.5 ${isResettingCb ? 'animate-spin' : ''}`} />
+                    Reset Circuit
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                  <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                    <div className="text-xs text-surface-400">Failure Rate</div>
+                    <div className={`text-base font-bold mt-1 ${
+                      (circuitBreaker?.failureRate ?? 0) >= 50 ? 'text-rose-400' : 'text-emerald-400'
+                    }`}>
+                      {(circuitBreaker?.failureRate ?? 0).toFixed(1)}%
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                    <div className="text-xs text-surface-400">Buffered Calls</div>
+                    <div className="text-base font-bold text-white mt-1">
+                      {circuitBreaker?.numberOfBufferedCalls ?? 0}
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                    <div className="text-xs text-surface-400">Successful Calls</div>
+                    <div className="text-base font-bold text-emerald-400 mt-1">
+                      {circuitBreaker?.numberOfSuccessfulCalls ?? 0}
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                    <div className="text-xs text-surface-400">Failed Calls</div>
+                    <div className="text-base font-bold text-rose-400 mt-1">
+                      {circuitBreaker?.numberOfFailedCalls ?? 0}
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-surface-800/60 border border-surface-700/30">
+                    <div className="text-xs text-surface-400">Tripped / Blocked</div>
+                    <div className="text-base font-bold text-amber-400 mt-1">
+                      {circuitBreaker?.numberOfNotPermittedCalls ?? 0}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. DLQ Metrics & Replay-All Control */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl bg-surface-900/40 border border-surface-700/50">
+                <div className="flex items-center gap-3">
+                  <Layers className="w-5 h-5 text-accent-400" />
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Dead-Letter Queue Operations</h3>
+                    <p className="text-xs text-surface-400">
+                      Exponential backoff: 15s &rarr; 45s &rarr; 2m &rarr; 10m &rarr; 30m. Retries pause automatically when circuit is OPEN.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={handleReplayAll}
+                    disabled={isReplayingAll || dlqEntries.filter(e => e.status === 'DEAD_LETTER').length === 0}
+                    className="flex items-center gap-1.5 text-xs py-1.5 px-3"
+                  >
+                    <RotateCcw className={`w-3.5 h-3.5 ${isReplayingAll ? 'animate-spin' : ''}`} />
+                    Replay All Dead Letters ({dlqEntries.filter(e => e.status === 'DEAD_LETTER').length})
+                  </Button>
+                </div>
+              </div>
+
+              {/* 3. DLQ Filter Pills */}
+              <div className="flex flex-wrap items-center gap-2">
+                {(['ALL', 'PENDING_RETRY', 'DEAD_LETTER', 'RESOLVED', 'DISCARDED'] as const).map((filterVal) => {
+                  const count = filterVal === 'ALL'
+                    ? dlqEntries.length
+                    : dlqEntries.filter(e => e.status === filterVal).length;
+                  return (
+                    <button
+                      key={filterVal}
+                      onClick={() => setDlqFilter(filterVal)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        dlqFilter === filterVal
+                          ? 'bg-primary-600/30 text-primary-300 border border-primary-500/40'
+                          : 'bg-surface-800/60 text-surface-400 hover:text-white hover:bg-surface-800 border border-surface-700/30'
+                      }`}
+                    >
+                      {filterVal.replace('_', ' ')} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* 4. DLQ Records Table */}
+              <div className="overflow-x-auto rounded-xl border border-surface-700/50">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-surface-700/50 bg-surface-900/70 text-surface-400 text-xs font-semibold uppercase tracking-wider">
+                      <th className="px-5 py-3">Status</th>
+                      <th className="px-5 py-3">Reference / Event</th>
+                      <th className="px-5 py-3">Merchant / Amount</th>
+                      <th className="px-5 py-3">Attempts</th>
+                      <th className="px-5 py-3">Next / Last Try</th>
+                      <th className="px-5 py-3">Error Snippet</th>
+                      <th className="px-5 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-surface-800 text-sm text-surface-300">
+                    {isDlqLoading ? (
+                      <tr>
+                        <td colSpan={7} className="text-center py-10 text-surface-400">
+                          <Loader2 className="w-6 h-6 text-primary-500 animate-spin mx-auto mb-2" />
+                          Loading Dead-Letter Queue records...
+                        </td>
+                      </tr>
+                    ) : dlqEntries.length > 0 ? (
+                      dlqEntries.map((entry) => (
+                        <tr key={entry.id} className="hover:bg-surface-900/30 transition-colors">
+                          <td className="px-5 py-3.5">
+                            <Badge
+                              variant={
+                                entry.status === 'RESOLVED'
+                                  ? 'primary'
+                                  : entry.status === 'DEAD_LETTER'
+                                  ? 'danger'
+                                  : entry.status === 'PENDING_RETRY' || entry.status === 'RETRYING'
+                                  ? 'warning'
+                                  : 'neutral'
+                              }
+                            >
+                              {entry.status}
+                            </Badge>
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <div className="font-mono text-xs text-white font-medium">{entry.referenceId}</div>
+                            <div className="text-[10px] text-surface-500 mt-0.5">{entry.eventType}</div>
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <div className="text-xs font-medium text-white">{entry.merchantId}</div>
+                            <div className="text-xs text-surface-400">₹{entry.settlementAmount.toFixed(2)} {entry.currency}</div>
+                          </td>
+                          <td className="px-5 py-3.5 font-mono text-xs">
+                            <span className={entry.retryCount >= entry.maxRetries ? 'text-rose-400 font-bold' : 'text-surface-300'}>
+                              {entry.retryCount}
+                            </span>
+                            <span className="text-surface-500"> / {entry.maxRetries}</span>
+                          </td>
+                          <td className="px-5 py-3.5 text-xs">
+                            {entry.status === 'PENDING_RETRY' && entry.nextRetryAt ? (
+                              <div className="text-amber-300">
+                                Next: {new Date(entry.nextRetryAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                              </div>
+                            ) : entry.resolvedAt ? (
+                              <div className="text-emerald-400">
+                                Resolved: {new Date(entry.resolvedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            ) : entry.lastAttemptAt ? (
+                              <div className="text-surface-400">
+                                Last: {new Date(entry.lastAttemptAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                              </div>
+                            ) : (
+                              <span className="text-surface-500">-</span>
+                            )}
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <span
+                              className="font-mono text-[11px] text-rose-300/90 max-w-[180px] truncate block"
+                              title={entry.lastError || ''}
+                            >
+                              {entry.lastError || '-'}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3.5 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {(entry.status === 'DEAD_LETTER' || entry.status === 'PENDING_RETRY') && (
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={() => handleReplay(entry.id)}
+                                  disabled={dlqActionId === entry.id}
+                                  className="text-xs py-1 px-2 flex items-center gap-1"
+                                >
+                                  <RotateCcw className={`w-3 h-3 ${dlqActionId === entry.id ? 'animate-spin' : ''}`} />
+                                  Replay
+                                </Button>
+                              )}
+                              {entry.status !== 'RESOLVED' && entry.status !== 'DISCARDED' && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleDiscard(entry.id)}
+                                  disabled={dlqActionId === entry.id}
+                                  className="text-xs py-1 px-2 text-surface-400 hover:text-rose-400 hover:bg-rose-500/10"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={7} className="text-center py-8 text-surface-500">
+                          No webhook DLQ records found for the selected filter.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}

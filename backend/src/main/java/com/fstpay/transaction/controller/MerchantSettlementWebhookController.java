@@ -4,6 +4,7 @@ import com.fstpay.common.dto.ApiResponse;
 import com.fstpay.transaction.dto.MerchantSettlementResponse;
 import com.fstpay.transaction.dto.MerchantSettlementWebhookRequest;
 import com.fstpay.transaction.service.MerchantSettlementService;
+import com.fstpay.transaction.service.WebhookDlqService;
 import com.fstpay.transaction.service.WebhookSignatureValidator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,6 +24,9 @@ public class MerchantSettlementWebhookController {
 
     private final MerchantSettlementService settlementService;
     private final WebhookSignatureValidator signatureValidator;
+    private final WebhookDlqService dlqService;
+    @org.springframework.beans.factory.annotation.Qualifier("merchantSettlementCircuitBreaker")
+    private final io.github.resilience4j.circuitbreaker.CircuitBreaker circuitBreaker;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private io.micrometer.core.instrument.MeterRegistry meterRegistry = new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
@@ -30,7 +34,7 @@ public class MerchantSettlementWebhookController {
     @PostMapping("/merchant-settlement")
     @Operation(
             summary = "Process merchant settlement callback",
-            description = "Receives asynchronous settlement confirmation from payment processors. Enforces HMAC-SHA256 signature verification."
+            description = "Receives asynchronous settlement confirmation from payment processors. Enforces HMAC-SHA256 signature verification and Resilience4j circuit breaking with DLQ fallback."
     )
     public ResponseEntity<ApiResponse<MerchantSettlementResponse>> handleMerchantSettlement(
             @RequestHeader(value = "X-Webhook-Signature", required = false) String signature,
@@ -61,7 +65,34 @@ public class MerchantSettlementWebhookController {
             } catch (Exception ignored) {}
         }
 
-        MerchantSettlementResponse response = settlementService.processSettlement(request);
-        return ResponseEntity.ok(ApiResponse.success(response.getMessage(), response));
+        try {
+            MerchantSettlementResponse response = circuitBreaker.executeSupplier(() ->
+                    settlementService.processSettlement(request)
+            );
+            return ResponseEntity.ok(ApiResponse.success(response.getMessage(), response));
+        } catch (io.github.resilience4j.circuitbreaker.CallNotPermittedException e) {
+            log.warn("Circuit breaker OPEN for merchant settlement. Queuing webhook {} into DLQ", request.getReferenceId());
+            dlqService.queueFailedWebhook(request, "Circuit breaker is OPEN: " + e.getMessage(), true);
+            MerchantSettlementResponse queuedResponse = MerchantSettlementResponse.builder()
+                    .status("QUEUED_RETRY")
+                    .referenceId(request.getReferenceId())
+                    .message("Circuit breaker open: Settlement accepted and queued for resilient processing")
+                    .processedAt(java.time.Instant.now())
+                    .build();
+            return ResponseEntity.status(HttpStatus.ACCEPTED)
+                    .body(ApiResponse.success("Circuit breaker open: Settlement accepted and queued for resilient retry", queuedResponse));
+        } catch (Exception ex) {
+            log.error("Settlement processing failed for webhook {}. Queuing into DLQ for retry. Reason: {}",
+                    request.getReferenceId(), ex.getMessage());
+            dlqService.queueFailedWebhook(request, ex.getMessage(), false);
+            MerchantSettlementResponse queuedResponse = MerchantSettlementResponse.builder()
+                    .status("QUEUED_RETRY")
+                    .referenceId(request.getReferenceId())
+                    .message("Settlement accepted and queued for resilient retry: " + ex.getMessage())
+                    .processedAt(java.time.Instant.now())
+                    .build();
+            return ResponseEntity.status(HttpStatus.ACCEPTED)
+                    .body(ApiResponse.success("Settlement accepted and queued for resilient retry", queuedResponse));
+        }
     }
 }

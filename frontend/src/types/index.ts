@@ -638,3 +638,36 @@ export interface UpdateAllowanceRequest {
 }
 
 export type SseEventPayload = SseSettlementUpdatePayload | SseWalletUpdatePayload | SseAiAlertPayload | { type: string; [key: string]: unknown };
+
+export type WebhookDlqStatus = 'PENDING_RETRY' | 'RETRYING' | 'DEAD_LETTER' | 'RESOLVED' | 'DISCARDED';
+
+export interface WebhookDlqEntry {
+  id: string;
+  eventType: string;
+  referenceId: string;
+  merchantId: string;
+  settlementAmount: number;
+  currency: string;
+  payload: string;
+  retryCount: number;
+  maxRetries: number;
+  status: WebhookDlqStatus;
+  lastError?: string;
+  nextRetryAt?: string;
+  lastAttemptAt?: string;
+  resolvedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CircuitBreakerStatus {
+  name: string;
+  state: 'CLOSED' | 'OPEN' | 'HALF_OPEN';
+  failureRate: number;
+  slowCallRate: number;
+  numberOfBufferedCalls: number;
+  numberOfFailedCalls: number;
+  numberOfSuccessfulCalls: number;
+  numberOfSlowCalls: number;
+  numberOfNotPermittedCalls: number;
+}

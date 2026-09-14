@@ -241,3 +241,19 @@ export const adminApi = {
   getTransactions: (params?: { page?: number; size?: number }) => api.get('/admin/transactions', { params }),
   getObservability: () => api.get('/admin/observability'),
 };
+
+// ── Admin Webhooks & DLQ ──
+export const adminWebhooksApi = {
+  getDlq: (params?: { status?: string; page?: number; size?: number }) =>
+    api.get('/admin/webhooks/dlq', { params }),
+  replay: (id: string) =>
+    api.post(`/admin/webhooks/dlq/${id}/replay`),
+  replayAll: () =>
+    api.post('/admin/webhooks/dlq/replay-all'),
+  discard: (id: string) =>
+    api.post(`/admin/webhooks/dlq/${id}/discard`),
+  getCircuitBreaker: () =>
+    api.get('/admin/webhooks/circuit-breaker'),
+  resetCircuitBreaker: () =>
+    api.post('/admin/webhooks/circuit-breaker/reset'),
+};
