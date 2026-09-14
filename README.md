@@ -1,7 +1,7 @@
 # FST Pay — AI-Powered Digital Wallet & Smart Virtual Card Platform
 
-[![Backend CI Pipeline](https://github.com/Burhan-21/FST_Pay/actions/workflows/backend.yml/badge.svg)](https://github.com/Burhan-21/FST_Pay/actions/workflows/backend.yml)
-[![Frontend CI Pipeline](https://github.com/Burhan-21/FST_Pay/actions/workflows/frontend.yml/badge.svg)](https://github.com/Burhan-21/FST_Pay/actions/workflows/frontend.yml)
+[![Backend CI Pipeline](https://github.com/NexusForge21/FST_Pay/actions/workflows/backend.yml/badge.svg)](https://github.com/NexusForge21/FST_Pay/actions/workflows/backend.yml)
+[![Frontend CI Pipeline](https://github.com/NexusForge21/FST_Pay/actions/workflows/frontend.yml/badge.svg)](https://github.com/NexusForge21/FST_Pay/actions/workflows/frontend.yml)
 [![License: Proprietary](https://img.shields.io/badge/License-Proprietary-blue.svg)](#)
 [![Java: 17+](https://img.shields.io/badge/Java-17%2B-orange.svg)](https://adoptium.net/)
 [![Spring Boot: 3.3.6](https://img.shields.io/badge/Spring%20Boot-3.3.6-brightgreen.svg)](https://spring.io/projects/spring-boot)

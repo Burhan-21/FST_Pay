@@ -59,6 +59,8 @@ class AuthServiceTest {
     private com.fstpay.auth.totp.TotpService totpService;
     @Mock
     private com.fstpay.auth.totp.repository.UserBackupCodeRepository userBackupCodeRepository;
+    @Mock
+    private com.fstpay.parent.webauthn.service.WebAuthnService webAuthnService;
 
     private PasswordEncoder passwordEncoder;
     private AuthService authService;
@@ -70,7 +72,7 @@ class AuthServiceTest {
                 userRepository, walletRepository, refreshTokenRepository,
                 passwordResetTokenRepository, passwordEncoder, jwtProvider,
                 otpService, emailService, recaptchaService, auditService, entityManager,
-                totpService, userBackupCodeRepository
+                totpService, userBackupCodeRepository, webAuthnService
         );
         lenient().when(recaptchaService.verifyToken(any())).thenReturn(true);
         lenient().when(otpService.generateOtp(anyString())).thenReturn("123456");

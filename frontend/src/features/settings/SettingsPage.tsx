@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../hooks/useAuth';
-import { User, Lock, Shield, Bell, Palette, Loader2, Check, AlertCircle, QrCode, Copy, Download, RefreshCw, KeyRound, ShieldCheck } from 'lucide-react';
-import { userApi, parentalApi, totpApi } from '../../api/endpoints';
-import type { ParentInvitation, TransactionApproval, TotpSetupResponse, TotpStatusResponse } from '../../types';
+import { User, Lock, Shield, Bell, Palette, Loader2, Check, AlertCircle, QrCode, Copy, Download, RefreshCw, KeyRound, ShieldCheck, Fingerprint, Trash2 } from 'lucide-react';
+import { userApi, parentalApi, totpApi, userWebauthnApi } from '../../api/endpoints';
+import type { ParentInvitation, TransactionApproval, TotpSetupResponse, TotpStatusResponse, WebAuthnCredential } from '../../types';
+import { createPasskeyCredential, isWebAuthnSupported } from '../../utils/webauthn';
 import PageTransition from '../../components/ui/PageTransition';
 import Modal from '../../components/ui/Modal';
 import Button from '../../components/ui/Button';
@@ -35,6 +36,13 @@ export default function SettingsPage() {
   const [regenerateError, setRegenerateError] = useState('');
   const [regeneratedCodes, setRegeneratedCodes] = useState<string[] | null>(null);
   const [regenerateLoading, setRegenerateLoading] = useState(false);
+
+  // WebAuthn Passkey States
+  const [passkeys, setPasskeys] = useState<WebAuthnCredential[]>([]);
+  const [passkeysLoading, setPasskeysLoading] = useState(false);
+  const [passkeyRegistering, setPasskeyRegistering] = useState(false);
+  const [passkeyDeletingId, setPasskeyDeletingId] = useState<string | null>(null);
+  const [passkeyError, setPasskeyError] = useState('');
 
   // Profile Form States
   const [fullName, setFullName] = useState(user?.fullName || '');
@@ -113,6 +121,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (activeTab === 'security') {
       fetchTotpStatus();
+      fetchPasskeys();
     }
   }, [activeTab]);
 
@@ -219,6 +228,78 @@ export default function SettingsPage() {
     link.download = 'fstpay-backup-codes.txt';
     link.click();
     URL.revokeObjectURL(url);
+  };
+
+  const fetchPasskeys = async () => {
+    setPasskeysLoading(true);
+    try {
+      const res = await userWebauthnApi.getCredentials();
+      if (res.data?.data) {
+        setPasskeys(res.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to load WebAuthn passkeys:', err);
+    } finally {
+      setPasskeysLoading(false);
+    }
+  };
+
+  const handleRegisterPasskey = async () => {
+    if (!isWebAuthnSupported()) {
+      setPasskeyError('WebAuthn / Passkeys are not supported on this browser or platform.');
+      return;
+    }
+    setPasskeyRegistering(true);
+    setPasskeyError('');
+    try {
+      const optionsRes = await userWebauthnApi.getRegisterOptions();
+      if (!optionsRes.data?.data) {
+        throw new Error('Failed to retrieve passkey registration options.');
+      }
+      const payload = await createPasskeyCredential(optionsRes.data.data, 'Platform Biometrics');
+      await userWebauthnApi.verifyRegistration(payload);
+      setAlertConfig({
+        title: 'Passkey Enrolled',
+        message: 'Your biometric Passkey (Face ID / Touch ID / Windows Hello) has been registered successfully. You can now use it to sign in with 1 click!',
+      });
+      fetchPasskeys();
+      refreshProfile();
+    } catch (err: unknown) {
+      const msg = axios.isAxiosError<{ message?: string }>(err)
+        ? err.response?.data?.message || 'Failed to register passkey.'
+        : err instanceof Error
+        ? err.message
+        : 'Failed to register passkey.';
+      setPasskeyError(msg);
+    } finally {
+      setPasskeyRegistering(false);
+    }
+  };
+
+  const handleDeletePasskey = (id: string) => {
+    setConfirmConfig({
+      title: 'Remove Passkey?',
+      message: 'Are you sure you want to remove this biometric passkey? You will no longer be able to use it to sign in.',
+      onConfirm: async () => {
+        setPasskeyDeletingId(id);
+        try {
+          await userWebauthnApi.deleteCredential(id);
+          setPasskeys((prev) => prev.filter((p) => p.id !== id));
+          setAlertConfig({
+            title: 'Passkey Removed',
+            message: 'The biometric passkey has been removed from your account.',
+          });
+          refreshProfile();
+        } catch (err: unknown) {
+          const msg = axios.isAxiosError<{ message?: string }>(err)
+            ? err.response?.data?.message || 'Failed to remove passkey.'
+            : 'Failed to remove passkey.';
+          setErrorMsg(msg);
+        } finally {
+          setPasskeyDeletingId(null);
+        }
+      },
+    });
   };
 
   const handleSendInvite = async (e: React.FormEvent) => {
@@ -524,6 +605,83 @@ export default function SettingsPage() {
                         )}
                       </div>
                     )}
+                  </div>
+
+                  {/* Biometric Passkeys (Face ID / Touch ID / Windows Hello) Card */}
+                  <div className="p-5 rounded-xl bg-surface-800/30 border border-surface-700/30 space-y-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-accent-500/10 border border-accent-500/20 text-accent-400 flex items-center justify-center shrink-0 mt-0.5">
+                          <Fingerprint className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold text-white">Biometric Passkeys</p>
+                            {passkeys.length > 0 ? (
+                              <span className="badge-accent">{passkeys.length} Registered</span>
+                            ) : (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-surface-700/50 text-surface-400 border border-surface-600/30">
+                                Not Configured
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-surface-400 mt-1 max-w-lg">
+                            Sign in instantly with Face ID, Touch ID, or Windows Hello without typing passwords or waiting for OTP codes.
+                          </p>
+                        </div>
+                      </div>
+
+                      <Button
+                        onClick={handleRegisterPasskey}
+                        disabled={passkeyRegistering}
+                        variant="secondary"
+                        size="sm"
+                        className="flex items-center gap-2 shrink-0"
+                      >
+                        {passkeyRegistering ? <Loader2 className="w-4 h-4 animate-spin" /> : <Fingerprint className="w-4 h-4 text-accent-400" />}
+                        Add Passkey
+                      </Button>
+                    </div>
+
+                    {passkeyError && (
+                      <div className="p-3 rounded-lg bg-danger-500/10 border border-danger-500/30 text-xs text-danger-400 flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                        <span>{passkeyError}</span>
+                      </div>
+                    )}
+
+                    {/* Passkeys List */}
+                    {passkeysLoading ? (
+                      <div className="py-4 flex items-center justify-center text-surface-400 text-xs gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" /> Loading passkeys...
+                      </div>
+                    ) : passkeys.length > 0 ? (
+                      <div className="divide-y divide-surface-700/30 pt-2 border-t border-surface-700/30">
+                        {passkeys.map((pk) => (
+                          <div key={pk.id} className="py-3 flex items-center justify-between first:pt-0 last:pb-0">
+                            <div className="flex items-center gap-3">
+                              <Fingerprint className="w-4 h-4 text-surface-400" />
+                              <div>
+                                <p className="text-xs font-medium text-white">{pk.deviceName || 'Biometric Authenticator'}</p>
+                                <p className="text-[11px] text-surface-400">
+                                  Added {new Date(pk.createdAt).toLocaleDateString()} {pk.lastUsedAt ? `• Last used ${new Date(pk.lastUsedAt).toLocaleDateString()}` : ''}
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              onClick={() => handleDeletePasskey(pk.id)}
+                              disabled={passkeyDeletingId === pk.id}
+                              variant="ghost"
+                              size="sm"
+                              className="text-danger-400 hover:text-danger-300 hover:bg-danger-500/10 p-1.5 h-auto"
+                              title="Delete passkey"
+                            >
+                              {passkeyDeletingId === pk.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
 
                   {/* Email OTP Fallback Card */}

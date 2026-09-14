@@ -24,7 +24,7 @@ LABEL org.opencontainers.image.title="FST Pay Backend" \
       org.opencontainers.image.version="1.0.0" \
       org.opencontainers.image.vendor="FST Pay Engineering" \
       org.opencontainers.image.licenses="Proprietary" \
-      org.opencontainers.image.source="https://github.com/Burhan-21/FST_Pay"
+      org.opencontainers.image.source="https://github.com/NexusForge21/FST_Pay"
 
 # Security: Non-root user setup (UID 10001)
 RUN addgroup -g 10001 -S appgroup && \

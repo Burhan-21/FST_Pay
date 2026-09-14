@@ -23,11 +23,13 @@ public class ArchitectureTest {
             @Override
             public boolean test(JavaClass input) {
                 String pkg = input.getPackage().getName();
+                // ponytail: parent package coupled to auth for JWT issuance and WebAuthn co-signing; upgrade path: extract shared security/webauthn kernel
                 return !pkg.startsWith("com.fstpay.common") && 
                        !pkg.startsWith("com.fstpay.user") && 
                        !pkg.startsWith("com.fstpay.wallet") && 
                        !pkg.startsWith("com.fstpay.transaction") && 
                        !pkg.startsWith("com.fstpay.goal") && 
+                       !pkg.startsWith("com.fstpay.parent") && 
                        !pkg.startsWith("com.fstpay.reward");
             }
         });

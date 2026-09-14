@@ -18,7 +18,7 @@ LABEL org.opencontainers.image.title="FST Pay Frontend" \
       org.opencontainers.image.version="1.0.0" \
       org.opencontainers.image.vendor="FST Pay Engineering" \
       org.opencontainers.image.licenses="Proprietary" \
-      org.opencontainers.image.source="https://github.com/Burhan-21/FST_Pay"
+      org.opencontainers.image.source="https://github.com/NexusForge21/FST_Pay"
 
 # Copy compiled static assets & Nginx config
 COPY --from=builder /app/dist /usr/share/nginx/html

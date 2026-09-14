@@ -671,3 +671,12 @@ export interface CircuitBreakerStatus {
   numberOfSlowCalls: number;
   numberOfNotPermittedCalls: number;
 }
+
+export interface WebAuthnLoginRequest {
+  credentialId: string;
+  clientDataJSON: string;
+  authenticatorData: string;
+  signature: string;
+  userHandle?: string;
+}
+

@@ -2,6 +2,7 @@ package com.fstpay.parent.webauthn.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fstpay.auth.dto.WebAuthnLoginRequest;
 import com.fstpay.common.exception.BadRequestException;
 import com.fstpay.common.exception.ResourceNotFoundException;
 import com.fstpay.parent.webauthn.dto.*;
@@ -232,6 +233,124 @@ public class WebAuthnService {
                 } catch (Exception ignored) {}
             }
             throw e;
+        }
+    }
+
+    /**
+     * Generates a WebAuthn authentication challenge for passwordless or email-guided passkey login.
+     */
+    public WebAuthnAuthenticationOptions generateLoginChallenge(String email) {
+        String challenge = generateSecureChallenge();
+        saveChallenge("login:" + challenge, challenge);
+
+        List<WebAuthnAuthenticationOptions.AllowCredential> allowCredentials = Collections.emptyList();
+        if (email != null && !email.isBlank()) {
+            Optional<User> userOpt = userRepository.findByEmail(email.toLowerCase().trim());
+            if (userOpt.isPresent()) {
+                List<UserWebAuthnCredential> creds = credentialRepository.findByUserIdOrderByCreatedAtDesc(userOpt.get().getId());
+                allowCredentials = creds.stream()
+                        .map(c -> WebAuthnAuthenticationOptions.AllowCredential.builder()
+                                .id(c.getCredentialId())
+                                .type("public-key")
+                                .build())
+                        .collect(Collectors.toList());
+            }
+        }
+
+        return WebAuthnAuthenticationOptions.builder()
+                .challenge(challenge)
+                .timeout(60000L)
+                .rpId(rpId)
+                .allowCredentials(allowCredentials)
+                .userVerification("preferred")
+                .build();
+    }
+
+    /**
+     * Cryptographically validates a WebAuthn login assertion and returns the authenticated User.
+     */
+    @Transactional
+    public User verifyLoginAssertion(WebAuthnLoginRequest request) {
+        if (request.getCredentialId() == null || request.getCredentialId().isBlank()) {
+            throw new BadRequestException("Credential ID is required for Passkey authentication.");
+        }
+
+        UserWebAuthnCredential credential = credentialRepository.findByCredentialId(request.getCredentialId())
+                .orElseThrow(() -> {
+                    if (meterRegistry != null) {
+                        try {
+                            meterRegistry.counter("fstpay.webauthn.login.verifications.total", "status", "failure").increment();
+                        } catch (Exception ignored) {}
+                    }
+                    return new BadRequestException("Passkey credential not recognized.");
+                });
+
+        // Extract challenge from clientDataJSON
+        String clientChallenge = extractChallengeFromClientDataJSON(request.getClientDataJSON());
+        if (clientChallenge == null || clientChallenge.isBlank()) {
+            if (meterRegistry != null) {
+                try {
+                    meterRegistry.counter("fstpay.webauthn.login.verifications.total", "status", "failure").increment();
+                } catch (Exception ignored) {}
+            }
+            throw new BadRequestException("Missing challenge in authentication response.");
+        }
+
+        String storedChallenge = getChallenge("login:" + clientChallenge);
+        if (storedChallenge == null) {
+            if (meterRegistry != null) {
+                try {
+                    meterRegistry.counter("fstpay.webauthn.login.verifications.total", "status", "failure").increment();
+                } catch (Exception ignored) {}
+            }
+            throw new BadRequestException("Biometric login challenge expired or invalid.");
+        }
+
+        // Verify cryptographic signature
+        boolean isValid = verifySignature(credential, request.getClientDataJSON(), request.getAuthenticatorData(), request.getSignature());
+        if (!isValid) {
+            log.warn("Biometric login assertion signature verification failed for user {}", credential.getUser().getEmail());
+            if (meterRegistry != null) {
+                try {
+                    meterRegistry.counter("fstpay.webauthn.login.verifications.total", "status", "failure").increment();
+                } catch (Exception ignored) {}
+            }
+            throw new BadRequestException("Biometric cryptographic signature verification failed.");
+        }
+
+        // Update credential sign count & last used timestamp
+        credential.setSignCount(credential.getSignCount() + 1);
+        credential.setLastUsedAt(Instant.now());
+        credentialRepository.save(credential);
+
+        clearChallenge("login:" + clientChallenge);
+        log.info("Biometric login assertion successfully verified for user: {}", credential.getUser().getEmail());
+
+        if (meterRegistry != null) {
+            try {
+                meterRegistry.counter("fstpay.webauthn.login.verifications.total", "status", "success").increment();
+            } catch (Exception ignored) {}
+        }
+
+        return credential.getUser();
+    }
+
+    private String extractChallengeFromClientDataJSON(String clientDataJSON) {
+        if (clientDataJSON == null || clientDataJSON.isBlank()) {
+            return null;
+        }
+        try {
+            byte[] decodedBytes;
+            try {
+                decodedBytes = Base64.getUrlDecoder().decode(clientDataJSON);
+            } catch (Exception e) {
+                decodedBytes = clientDataJSON.getBytes(StandardCharsets.UTF_8);
+            }
+            JsonNode root = objectMapper.readTree(decodedBytes);
+            return root.path("challenge").asText(null);
+        } catch (Exception e) {
+            log.warn("Failed to extract challenge from clientDataJSON: {}", e.getMessage());
+            return null;
         }
     }
 

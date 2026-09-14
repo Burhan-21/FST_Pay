@@ -2,10 +2,10 @@
 # Defines review guidelines for FST Pay core repository paths.
 
 # Global Owners
-*       @Burhan-21
+*       @NexusForge21
 
 # Platform Infrastructure and Configuration
-/backend/src/main/java/com/fstpay/common/   @Burhan-21/platform-team
-/backend/src/main/java/com/fstpay/config/   @Burhan-21/platform-team
-/docker-compose.yml                          @Burhan-21/platform-team
-/.github/workflows/                          @Burhan-21/platform-team
+/backend/src/main/java/com/fstpay/common/   @NexusForge21/platform-team
+/backend/src/main/java/com/fstpay/config/   @NexusForge21/platform-team
+/docker-compose.yml                          @NexusForge21/platform-team
+/.github/workflows/                          @NexusForge21/platform-team

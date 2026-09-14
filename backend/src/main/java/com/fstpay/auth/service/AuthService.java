@@ -18,6 +18,7 @@ import com.fstpay.user.repository.UserRepository;
 import com.fstpay.wallet.entity.Wallet;
 import com.fstpay.wallet.repository.WalletRepository;
 import com.fstpay.notification.service.EmailService;
+import com.fstpay.parent.webauthn.service.WebAuthnService;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -51,6 +52,7 @@ public class AuthService {
     private final EntityManager entityManager;
     private final TotpService totpService;
     private final UserBackupCodeRepository userBackupCodeRepository;
+    private final WebAuthnService webAuthnService;
 
     @Value("${app.auth.max-login-attempts:5}")
     private int maxLoginAttempts;
@@ -238,6 +240,36 @@ public class AuthService {
 
         auditService.logAuthEvent(email, "TOTP_VERIFIED", "User authenticated via TOTP");
         log.info("TOTP authentication succeeded for user: {}", email);
+
+        return generateAuthTokenResponse(user);
+    }
+
+    @Transactional
+    public TokenResponse loginWithWebAuthn(WebAuthnLoginRequest request) {
+        User user = webAuthnService.verifyLoginAssertion(request);
+
+        // Pessimistic lock on user to ensure consistent state
+        entityManager.lock(user, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+
+        // Check if user account is locked
+        if (user.getLoginAttempts() != null && user.getLoginAttempts() >= maxLoginAttempts) {
+            if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(Instant.now())) {
+                long minutesRemaining = ChronoUnit.MINUTES.between(Instant.now(), user.getLockedUntil());
+                auditService.logAuthEvent(user.getEmail(), "WEBAUTHN_LOGIN_BLOCKED", "Account locked for " + minutesRemaining + " more minutes");
+                throw new BadRequestException("Account locked due to too many failed login attempts. Try again in " + minutesRemaining + " minutes.");
+            }
+            user.setLoginAttempts(0);
+            user.setLockedUntil(null);
+            userRepository.save(user);
+        }
+
+        // Reset failed login attempts on success
+        user.setLoginAttempts(0);
+        user.setLockedUntil(null);
+        userRepository.save(user);
+
+        auditService.logAuthEvent(user.getEmail(), "WEBAUTHN_LOGIN_SUCCESS", "Passwordless Passkey authentication successful");
+        log.info("Passwordless WebAuthn Passkey login successful for user: {}", user.getEmail());
 
         return generateAuthTokenResponse(user);
     }

@@ -18,7 +18,7 @@ The repository contains `render.yaml` which automatically provisions:
 ### Step 1: Connect Git Repository
 1. Go to your [Render Dashboard](https://dashboard.render.com).
 2. Click **New +** → **Blueprint**.
-3. Select your repository `Burhan-21/FST_Pay`.
+3. Select your repository `NexusForge21/FST_Pay`.
 4. Render will scan the repository and detect `render.yaml`.
 
 ### Step 2: Configure Secrets

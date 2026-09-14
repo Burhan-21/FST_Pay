@@ -9,6 +9,7 @@ export interface AuthContextType {
   verifyOtp: (email: string, otp: string) => Promise<void>;
   verifyTotp: (email: string, code: string) => Promise<void>;
   verifyBackupCode: (email: string, backupCode: string) => Promise<void>;
+  loginWithPasskey: (data: { credentialId: string; clientDataJSON: string; authenticatorData: string; signature: string; userHandle?: string }) => Promise<void>;
   register: (fullName: string, email: string, password: string, dateOfBirth?: string, recaptchaToken?: string) => Promise<{ requiresOtp: boolean }>;
   logout: () => void;
   refreshProfile: () => Promise<void>;

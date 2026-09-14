@@ -18,7 +18,7 @@ This guide outlines the production deployment of the **FST Pay** React 19 single
 
 ### Via Vercel Dashboard
 1. Go to [vercel.com](https://vercel.com) and click **Add New...** → **Project**.
-2. Connect your Git repository (`Burhan-21/FST_Pay`).
+2. Connect your Git repository (`NexusForge21/FST_Pay`).
 3. Set **Root Directory** to `frontend`.
 4. Vercel will auto-detect **Vite**:
    - **Build Command**: `npm run build`

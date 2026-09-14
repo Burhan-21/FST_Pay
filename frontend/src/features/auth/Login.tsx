@@ -3,13 +3,13 @@ import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
-import { Eye, EyeOff, ArrowRight, Mail, Lock, Loader2, Sparkles, Shield, TrendingUp, KeyRound, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Mail, Lock, Loader2, Sparkles, Shield, TrendingUp, KeyRound, ShieldCheck, Fingerprint } from 'lucide-react';
 import { authApi } from '../../api/endpoints';
 import ReCAPTCHA from 'react-google-recaptcha';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login, verifyOtp, verifyTotp, verifyBackupCode, user } = useAuth();
+  const { login, verifyOtp, verifyTotp, verifyBackupCode, loginWithPasskey, user } = useAuth();
   const { theme } = useTheme();
 
   useEffect(() => {
@@ -33,6 +33,91 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isPasskeyLoading, setIsPasskeyLoading] = useState(false);
+
+  const bufferFromBase64 = (base64: string): ArrayBuffer => {
+    const clean = base64.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = clean.padEnd(clean.length + (4 - (clean.length % 4)) % 4, '=');
+    const binary = window.atob(padded);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes.buffer;
+  };
+
+  const base64UrlFromBuffer = (buffer: ArrayBuffer): string => {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  };
+
+  const handlePasskeyLogin = async () => {
+    setError('');
+    if (!window.PublicKeyCredential) {
+      setError('WebAuthn Passkeys are not supported on this browser or platform.');
+      return;
+    }
+
+    setIsPasskeyLoading(true);
+    try {
+      const optionsRes = await authApi.getWebAuthnLoginOptions(email ? email.trim() : undefined);
+      const options = optionsRes.data.data;
+
+      const challengeBuffer = bufferFromBase64(options.challenge);
+      const allowCredentials = options.allowCredentials && options.allowCredentials.length > 0
+        ? options.allowCredentials.map((cred: { id: string; type: string }) => ({
+            id: bufferFromBase64(cred.id),
+            type: cred.type as PublicKeyCredentialType,
+          }))
+        : undefined;
+
+      const credential = (await navigator.credentials.get({
+        publicKey: {
+          challenge: challengeBuffer,
+          rpId: options.rpId || window.location.hostname,
+          userVerification: 'preferred',
+          allowCredentials,
+          timeout: 60000,
+        },
+      })) as PublicKeyCredential | null;
+
+      if (!credential) {
+        throw new Error('Biometric passkey prompt was cancelled or failed.');
+      }
+
+      const response = credential.response as AuthenticatorAssertionResponse;
+      const clientDataJSON = base64UrlFromBuffer(response.clientDataJSON);
+      const authenticatorData = base64UrlFromBuffer(response.authenticatorData);
+      const signature = base64UrlFromBuffer(response.signature);
+      const userHandle = response.userHandle ? base64UrlFromBuffer(response.userHandle) : undefined;
+
+      await loginWithPasskey({
+        credentialId: credential.id,
+        clientDataJSON,
+        authenticatorData,
+        signature,
+        userHandle,
+      });
+    } catch (err: unknown) {
+      if (axios.isAxiosError<{ message?: string }>(err)) {
+        setError(err.response?.data?.message || 'Passkey authentication failed.');
+      } else if (err instanceof Error) {
+        if (err.name === 'NotAllowedError') {
+          setError('Biometric authentication was cancelled or timed out.');
+        } else {
+          setError(err.message || 'Passkey authentication failed.');
+        }
+      } else {
+        setError('Passkey authentication failed.');
+      }
+    } finally {
+      setIsPasskeyLoading(false);
+    }
+  };
 
   const [stats, setStats] = useState<{ totalUsers: number; totalBalances: number }>({
     totalUsers: 0, totalBalances: 0
@@ -291,6 +376,29 @@ export default function Login() {
                   <>
                     Sign In
                     <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+
+              <div className="relative flex items-center justify-center my-1 page-section">
+                <div className="border-t border-surface-700/60 w-full"></div>
+                <span className="bg-surface-900 px-3 text-xs text-surface-400 uppercase tracking-wider font-semibold">
+                  or
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handlePasskeyLogin}
+                disabled={isPasskeyLoading || isLoading}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-primary-500/30 bg-primary-600/10 hover:bg-primary-600/20 text-white font-medium text-sm transition-all shadow-sm group page-section"
+              >
+                {isPasskeyLoading ? (
+                  <Loader2 className="w-5 h-5 text-primary-400 animate-spin" />
+                ) : (
+                  <>
+                    <Fingerprint className="w-5 h-5 text-primary-400 group-hover:scale-110 transition-transform" />
+                    <span>Sign in with Passkey (Face ID / Touch ID)</span>
                   </>
                 )}
               </button>

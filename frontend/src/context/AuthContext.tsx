@@ -73,6 +73,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTokens(data.data);
   };
 
+  const loginWithPasskey = async (passkeyData: {
+    credentialId: string;
+    clientDataJSON: string;
+    authenticatorData: string;
+    signature: string;
+    userHandle?: string;
+  }) => {
+    const { data } = await authApi.verifyWebAuthnLogin(passkeyData);
+    setTokens(data.data);
+  };
+
   const register = async (fullName: string, email: string, password: string, dateOfBirth?: string, recaptchaToken?: string) => {
     const { data } = await authApi.register({ fullName, email, password, dateOfBirth, recaptchaToken });
     if (data.data && data.data.requiresOtp) {
@@ -109,6 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         verifyOtp,
         verifyTotp,
         verifyBackupCode,
+        loginWithPasskey,
         register,
         logout,
         refreshProfile,

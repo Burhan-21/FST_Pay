@@ -12,7 +12,7 @@
 | **Name** | FST Pay (Fast · Secure · Trusted) |
 | **Type** | Final Year Project + Startup MVP |
 | **Category** | AI-Powered Virtual Wallet & Virtual Prepaid Card Platform |
-| **Repo** | `github.com/Burhan-21/FST_Pay` |
+| **Repo** | `github.com/NexusForge21/FST_Pay` |
 | **Branch** | `master` |
 
 ### Vision

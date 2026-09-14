@@ -27,6 +27,17 @@ export const authApi = {
   logout: () => api.post('/auth/logout'),
 
   getStats: () => api.get('/auth/stats'),
+
+  getWebAuthnLoginOptions: (email?: string) =>
+    api.get('/auth/webauthn/options', { params: email ? { email } : {} }),
+
+  verifyWebAuthnLogin: (data: {
+    credentialId: string;
+    clientDataJSON: string;
+    authenticatorData: string;
+    signature: string;
+    userHandle?: string;
+  }) => api.post('/auth/webauthn/verify', data),
 };
 
 // ── Two-Factor Authentication (TOTP) ──
@@ -231,6 +242,26 @@ export const webauthnApi = {
     api.delete(`/parental/webauthn/credentials/${id}`),
   getApprovalChallenge: (approvalId: string) =>
     api.get(`/parental/webauthn/approvals/${approvalId}/challenge`),
+};
+
+// ── User WebAuthn / Passkeys ──
+export const userWebauthnApi = {
+  getRegisterOptions: () =>
+    api.get('/user/webauthn/register/options'),
+  verifyRegistration: (data: {
+    credentialId: string;
+    publicKey: string;
+    rawId?: string;
+    clientDataJSON?: string;
+    attestationObject?: string;
+    deviceName?: string;
+    algorithm?: string;
+  }) =>
+    api.post('/user/webauthn/register/verify', data),
+  getCredentials: () =>
+    api.get('/user/webauthn/credentials'),
+  deleteCredential: (id: string) =>
+    api.delete(`/user/webauthn/credentials/${id}`),
 };
 
 // ── Admin ──

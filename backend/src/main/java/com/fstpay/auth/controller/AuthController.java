@@ -3,6 +3,8 @@ package com.fstpay.auth.controller;
 import com.fstpay.auth.dto.*;
 import com.fstpay.auth.service.AuthService;
 import com.fstpay.common.dto.ApiResponse;
+import com.fstpay.parent.webauthn.dto.WebAuthnAuthenticationOptions;
+import com.fstpay.parent.webauthn.service.WebAuthnService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final WebAuthnService webAuthnService;
 
     @PostMapping("/register")
     @Operation(summary = "Register a new user", description = "Creates a new user account (Teen or Parent) and dispatches a verification OTP to their email.")
@@ -58,6 +61,22 @@ public class AuthController {
     public ResponseEntity<ApiResponse<TokenResponse>> fallbackEmailOtp(@RequestParam String email) {
         TokenResponse response = authService.sendTotpFallbackEmailOtp(email);
         return ResponseEntity.ok(ApiResponse.success("Verification code sent to your email address", response));
+    }
+
+    @GetMapping("/webauthn/options")
+    @Operation(summary = "Generate WebAuthn login challenge", description = "Generates a public WebAuthn PublicKeyCredentialRequestOptions challenge for passwordless or email-guided passkey login.")
+    public ResponseEntity<ApiResponse<WebAuthnAuthenticationOptions>> getWebAuthnLoginOptions(
+            @RequestParam(required = false) String email) {
+        WebAuthnAuthenticationOptions options = webAuthnService.generateLoginChallenge(email);
+        return ResponseEntity.ok(ApiResponse.success(options));
+    }
+
+    @PostMapping("/webauthn/verify")
+    @Operation(summary = "Authenticate with WebAuthn passkey", description = "Validates client biometric cryptographic assertion and returns access/refresh JWT tokens on success.")
+    public ResponseEntity<ApiResponse<TokenResponse>> verifyWebAuthnLogin(
+            @Valid @RequestBody com.fstpay.auth.dto.WebAuthnLoginRequest request) {
+        TokenResponse response = authService.loginWithWebAuthn(request);
+        return ResponseEntity.ok(ApiResponse.success("Biometric authentication successful", response));
     }
 
     @PostMapping("/refresh")

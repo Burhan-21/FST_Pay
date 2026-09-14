@@ -23,7 +23,7 @@ runcmd:
 
   # Clone the repository
   - cd /home/ubuntu
-  - git clone https://github.com/Burhan-21/FST_Pay.git /home/ubuntu/FST_Pay
+  - git clone https://github.com/NexusForge21/FST_Pay.git /home/ubuntu/FST_Pay
   - chown -R ubuntu:ubuntu /home/ubuntu/FST_Pay
 
   # Create directory for SSL certs
