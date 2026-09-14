@@ -203,7 +203,7 @@ export default function WalletPage() {
       {/* Top-Up Modal */}
       {showTopUp && (
         <div className="modal-overlay" onClick={() => setShowTopUp(false)}>
-          <div className="modal-panel space-y-5 w-full max-w-md" onClick={e => e.stopPropagation()}>
+          <div className="modal-panel bg-white dark:bg-surface-900 border border-slate-200/80 dark:border-surface-700/60 text-slate-900 dark:text-white shadow-2xl space-y-5 w-full max-w-md" onClick={e => e.stopPropagation()}>
             {/* Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -215,14 +215,14 @@ export default function WalletPage() {
                 </h3>
               </div>
               {topUpStep !== 'success' && (
-                <button onClick={() => setShowTopUp(false)} className="w-8 h-8 rounded-xl bg-surface-700/50 flex items-center justify-center text-surface-400 hover:text-white hover:bg-surface-600/50 transition-all">
+                <button onClick={() => setShowTopUp(false)} className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-surface-700/50 dark:hover:bg-surface-600/50 dark:text-surface-400 dark:hover:text-white transition-all">
                   ✕
                 </button>
               )}
             </div>
 
             {errorMsg && (
-              <div className="p-3 rounded-xl bg-danger-500/10 border border-danger-500/20 text-danger-400 text-xs flex items-center gap-2">
+              <div className="p-3 rounded-xl bg-danger-500/10 border border-danger-500/20 text-danger-500 dark:text-danger-400 text-xs flex items-center gap-2">
                 <AlertCircle className="w-4.5 h-4.5 flex-shrink-0" />
                 <span>{errorMsg}</span>
               </div>
@@ -232,9 +232,9 @@ export default function WalletPage() {
             {topUpStep === 'input' && (
               <div className="space-y-4">
                 <div>
-                  <label className="input-label">Amount (₹)</label>
+                  <label className="input-label text-slate-700 dark:text-surface-300 font-medium">Amount (₹)</label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-surface-400 font-semibold text-lg">₹</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-surface-400 font-semibold text-lg">₹</span>
                     <input
                       type="number"
                       value={topUpAmount}
@@ -252,8 +252,8 @@ export default function WalletPage() {
                         onClick={() => setTopUpAmount(String(amt))}
                         className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border transition-all haptic-tap ${
                           topUpAmount === String(amt)
-                            ? 'bg-primary-500/20 border-primary-500/50 text-primary-300'
-                            : 'bg-surface-800/30 border-surface-600/30 text-surface-300 hover:border-surface-500'
+                            ? 'bg-primary-50 border-primary-500 text-primary-700 dark:bg-primary-500/20 dark:border-primary-500/50 dark:text-primary-300 font-semibold shadow-sm'
+                            : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200 dark:bg-surface-800/30 dark:border-surface-600/30 dark:text-surface-300 dark:hover:border-surface-500'
                         }`}
                       >
                         ₹{amt.toLocaleString()}
@@ -263,7 +263,7 @@ export default function WalletPage() {
                 </div>
 
                 <div>
-                  <label className="input-label">Payment Method</label>
+                  <label className="input-label text-slate-700 dark:text-surface-300 font-medium">Payment Method</label>
                   <div className="space-y-2">
                     {topUpMethods.map((method) => (
                       <button
@@ -271,18 +271,18 @@ export default function WalletPage() {
                         onClick={() => setSelectedMethod(method.id)}
                         className={`w-full flex items-center gap-3 p-3.5 rounded-xl border transition-all haptic-tap ${
                           selectedMethod === method.id
-                            ? 'bg-primary-500/10 border-primary-500/30'
-                            : 'bg-surface-800/20 border-surface-700/50 hover:border-surface-600'
+                            ? 'bg-primary-50 border-primary-500 dark:bg-primary-500/10 dark:border-primary-500/30'
+                            : 'bg-slate-50 border-slate-200 hover:bg-slate-100 dark:bg-surface-800/20 dark:border-surface-700/50 dark:hover:border-surface-600'
                         }`}
                       >
                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                          selectedMethod === method.id ? 'bg-primary-500/20' : 'bg-surface-700/50'
+                          selectedMethod === method.id ? 'bg-primary-100 dark:bg-primary-500/20' : 'bg-slate-100 dark:bg-surface-700/50'
                         }`}>
-                          <method.icon className={`w-5 h-5 ${selectedMethod === method.id ? 'text-primary-400' : 'text-surface-400'}`} />
+                          <method.icon className={`w-5 h-5 ${selectedMethod === method.id ? 'text-primary-600 dark:text-primary-400' : 'text-slate-500 dark:text-surface-400'}`} />
                         </div>
                         <div className="text-left">
-                          <p className="text-sm font-semibold text-white">{method.label}</p>
-                          <p className="text-xs text-surface-500">{method.desc}</p>
+                          <p className="text-sm font-semibold text-slate-900 dark:text-white">{method.label}</p>
+                          <p className="text-xs text-slate-500 dark:text-surface-400">{method.desc}</p>
                         </div>
                       </button>
                     ))}
@@ -305,8 +305,8 @@ export default function WalletPage() {
                 {/* UPI QR Display */}
                 {selectedMethod === 'upi' && (
                   <div className="flex flex-col items-center text-center space-y-4 py-2">
-                    <p className="text-sm text-surface-300">Scan this QR Code using any UPI App (GPay, PhonePe, Paytm)</p>
-                    <div className="p-3 bg-white rounded-2xl shadow-lg border border-surface-200">
+                    <p className="text-sm text-slate-700 dark:text-surface-300">Scan this QR Code using any UPI App (GPay, PhonePe, Paytm)</p>
+                    <div className="p-3 bg-white rounded-2xl shadow-lg border border-slate-200 dark:border-surface-200">
                       <img
                         src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
                           `upi://pay?pa=fstpay@icici&pn=FST%20Pay&am=${topUpAmount}&cu=INR`
@@ -315,7 +315,7 @@ export default function WalletPage() {
                         className="w-44 h-44"
                       />
                     </div>
-                    <p className="text-xs text-surface-400 font-mono bg-surface-800 px-3 py-1.5 rounded-lg border border-surface-700">
+                    <p className="text-xs text-slate-700 dark:text-surface-300 font-mono bg-slate-100 dark:bg-surface-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-surface-700">
                       Amount: ₹{parseFloat(topUpAmount).toFixed(2)}
                     </p>
                   </div>
@@ -328,7 +328,7 @@ export default function WalletPage() {
                       <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full translate-x-12 -translate-y-12" />
                       <div className="flex justify-between items-start">
                         <div>
-                          <p className="text-[10px] text-primary-200 uppercase tracking-widest">Mock Prepaid Debit</p>
+                          <p className="text-[10px] text-primary-200 uppercase tracking-widest">Prepaid Debit</p>
                           <p className="text-lg font-bold font-display mt-0.5">FST Pay Load Card</p>
                         </div>
                         <CreditCard className="w-8 h-8 text-primary-300/80" />
@@ -339,7 +339,7 @@ export default function WalletPage() {
                       <div className="flex justify-between items-end text-xs font-mono">
                         <div>
                           <p className="text-[8px] text-primary-300 uppercase">Card Holder</p>
-                          <p className="font-semibold uppercase tracking-wider">Test User</p>
+                          <p className="font-semibold uppercase tracking-wider">Account Holder</p>
                         </div>
                         <div className="text-right">
                           <p className="text-[8px] text-primary-300 uppercase">Expires</p>
@@ -349,7 +349,7 @@ export default function WalletPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="input-label">Card Number</label>
+                      <label className="input-label text-slate-700 dark:text-surface-300 font-medium">Card Number</label>
                       <input
                         type="text"
                         value={cardNo}
@@ -371,7 +371,7 @@ export default function WalletPage() {
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="input-label">Expiry Date</label>
+                        <label className="input-label text-slate-700 dark:text-surface-300 font-medium">Expiry Date</label>
                         <input
                           type="text"
                           value={cardExpiry}
@@ -382,7 +382,7 @@ export default function WalletPage() {
                         />
                       </div>
                       <div>
-                        <label className="input-label">CVV</label>
+                        <label className="input-label text-slate-700 dark:text-surface-300 font-medium">CVV</label>
                         <input
                           type="password"
                           value={cardCvv}
@@ -399,7 +399,7 @@ export default function WalletPage() {
                 {/* Net Banking Bank List */}
                 {selectedMethod === 'bank' && (
                   <div className="space-y-3">
-                    <label className="input-label font-medium text-sm">Select Your Netbanking Bank</label>
+                    <label className="input-label font-medium text-sm text-slate-700 dark:text-surface-300">Select Your Netbanking Bank</label>
                     <div className="grid grid-cols-2 gap-2">
                       {[
                         { id: 'sbi', name: 'State Bank of India' },
@@ -413,12 +413,12 @@ export default function WalletPage() {
                           onClick={() => setSelectedBank(bank.id)}
                           className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all ${
                             selectedBank === bank.id
-                              ? 'bg-primary-500/10 border-primary-500/40 text-white'
-                              : 'bg-surface-800/30 border-surface-700/50 text-surface-400 hover:border-surface-600'
+                              ? 'bg-primary-50 border-primary-500 text-primary-700 shadow-sm dark:bg-primary-500/10 dark:border-primary-500/40 dark:text-white'
+                              : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 dark:bg-surface-800/30 dark:border-surface-700/50 dark:text-surface-400 dark:hover:border-surface-600'
                           }`}
                         >
-                          <Building2 className="w-6 h-6 mb-1 text-primary-400" />
-                          <span className="text-xs font-semibold">{bank.name}</span>
+                          <Building2 className={`w-6 h-6 mb-1 ${selectedBank === bank.id ? 'text-primary-600 dark:text-primary-400' : 'text-slate-500 dark:text-primary-400'}`} />
+                          <span className="text-xs font-semibold text-slate-900 dark:text-white">{bank.name}</span>
                         </button>
                       ))}
                     </div>
@@ -454,8 +454,8 @@ export default function WalletPage() {
                   <Check className="w-8 h-8 text-accent-400 stroke-[3]" />
                 </div>
                 <div className="space-y-1">
-                  <h4 className="text-xl font-bold text-white font-primary">Money Added Successfully!</h4>
-                  <p className="text-sm text-surface-400">
+                  <h4 className="text-xl font-bold text-slate-900 dark:text-white font-primary">Money Added Successfully!</h4>
+                  <p className="text-sm text-slate-600 dark:text-surface-400">
                     ₹{parseFloat(topUpAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })} has been credited to your FST Pay Wallet.
                   </p>
                 </div>
@@ -467,10 +467,10 @@ export default function WalletPage() {
       )}
 
       {/* Wallet History */}
-      <div className="glass-card p-6 page-section">
+      <div className="bg-white dark:bg-surface-900 rounded-2xl border border-slate-200/80 dark:border-surface-700/60 p-6 shadow-sm page-section">
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-lg font-primary font-bold text-slate-900 dark:text-white tracking-wide">Wallet History</h3>
-          <span className="text-xs text-slate-500 dark:text-surface-500">{history.length} transactions</span>
+          <span className="text-xs text-slate-500 dark:text-surface-400">{history.length} transactions</span>
         </div>
         <div className="space-y-1">
           {history.length === 0 ? (
@@ -496,7 +496,7 @@ export default function WalletPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">{txn.description || txn.merchant || 'Transaction'}</p>
-                  <p className="text-xs text-slate-500 dark:text-surface-500">
+                  <p className="text-xs text-slate-500 dark:text-surface-400">
                     {new Date(txn.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
@@ -504,7 +504,7 @@ export default function WalletPage() {
                   <p className={`text-sm font-bold font-primary ${txn.type === 'CREDIT' ? 'text-accent-600 dark:text-accent-400' : 'text-slate-900 dark:text-white'}`}>
                     {txn.type === 'CREDIT' ? '+' : '-'}{formatCurrency(txn.amount)}
                   </p>
-                  <p className="text-[10px] text-surface-600">Bal: {formatCurrency(txn.balanceAfter)}</p>
+                  <p className="text-[10px] text-slate-500 dark:text-surface-400">Bal: {formatCurrency(txn.balanceAfter)}</p>
                 </div>
               </div>
             ))

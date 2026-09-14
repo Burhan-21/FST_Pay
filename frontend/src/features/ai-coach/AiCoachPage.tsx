@@ -40,7 +40,6 @@ import {
 import PageTransition from '../../components/ui/PageTransition';
 import Modal from '../../components/ui/Modal';
 import Button from '../../components/ui/Button';
-import GlassCard from '../../components/ui/GlassCard';
 
 interface Message {
   id: string;
@@ -379,7 +378,7 @@ export default function AiCoachPage() {
             <p className="text-slate-500 dark:text-surface-400 text-sm">Smart diagnostics, budgeting, and savings coach</p>
           </div>
 
-          <div className="flex flex-wrap bg-surface-800/80 p-1 rounded-xl border border-surface-700/30 backdrop-blur gap-1">
+          <div className="flex flex-wrap bg-slate-100 dark:bg-surface-800/80 p-1 rounded-xl border border-slate-200/80 dark:border-surface-700/30 backdrop-blur gap-1">
             {[
               { id: 'chat', label: 'Money Coach' },
               { id: 'alerts', label: 'Proactive Alerts', count: alerts.length },
@@ -394,7 +393,7 @@ export default function AiCoachPage() {
                 className={`relative px-3.5 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all flex items-center gap-1.5 ${
                   activeTab === tab.id 
                     ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/25' 
-                    : 'text-surface-400 hover:text-white'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 dark:text-surface-400 dark:hover:text-white'
                 }`}
               >
                 <span>{tab.label}</span>
@@ -424,7 +423,7 @@ export default function AiCoachPage() {
                       <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center ${msg.role === 'assistant' ? 'bg-purple-500/20' : 'bg-primary-500/20'}`}>
                         {msg.role === 'assistant' ? <Bot className="w-4 h-4 text-purple-400" /> : <User className="w-4 h-4 text-primary-400" />}
                       </div>
-                      <div className={`max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed ${msg.role === 'assistant' ? 'glass-card text-surface-200' : 'bg-primary-600 text-white rounded-tr-sm'}`}>
+                      <div className={`max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed ${msg.role === 'assistant' ? 'bg-white dark:bg-surface-800/90 border border-slate-200/80 dark:border-surface-700/60 text-slate-800 dark:text-surface-200 shadow-sm' : 'bg-primary-600 text-white rounded-tr-sm'}`}>
                         {msg.content.split('\n').map((line, i) => (
                           <p key={i} className={i > 0 ? 'mt-1' : ''}>
                             {line.startsWith('•') || line.startsWith('-') ? (
@@ -442,9 +441,9 @@ export default function AiCoachPage() {
                       <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
                         <Bot className="w-4 h-4 text-purple-400" />
                       </div>
-                      <div className="glass-card p-4 rounded-2xl">
-                        <div className="flex items-center gap-2 text-surface-400 text-sm">
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                      <div className="bg-white dark:bg-surface-800/90 border border-slate-200/80 dark:border-surface-700/60 p-4 rounded-2xl shadow-sm">
+                        <div className="flex items-center gap-2 text-slate-600 dark:text-surface-400 text-sm">
+                          <Loader2 className="w-4 h-4 animate-spin text-purple-500" />
                           Thinking...
                         </div>
                       </div>
@@ -454,7 +453,7 @@ export default function AiCoachPage() {
                 </div>
 
                 {/* Chat Input */}
-                <div className="mt-4 glass-card p-3 flex items-center gap-3 page-section">
+                <div className="mt-4 bg-white dark:bg-surface-800/90 border border-slate-200/80 dark:border-surface-700/60 rounded-2xl shadow-sm p-3 flex items-center gap-3 page-section">
                   <input
                     type="text"
                     value={input}
@@ -462,7 +461,7 @@ export default function AiCoachPage() {
                     onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
                     placeholder="Ask about budgeting, saving, investing..."
                     aria-label="Ask AI financial assistant"
-                    className="flex-1 bg-transparent text-white placeholder-surface-500 text-sm focus:outline-none px-2"
+                    className="flex-1 bg-transparent text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-surface-500 text-sm focus:outline-none px-2 caret-purple-600"
                   />
                   <button
                     onClick={sendMessage}
@@ -479,14 +478,14 @@ export default function AiCoachPage() {
             {/* TAB: PROACTIVE ALERTS */}
             {activeTab === 'alerts' && (
               <div className="space-y-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-card p-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-surface-800/90 border border-slate-200/80 dark:border-surface-700/60 rounded-2xl p-5 shadow-sm">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400">
+                    <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-600 dark:text-purple-400">
                       <BellRing className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="text-white font-semibold text-base">Proactive Anomaly Monitor</h3>
-                      <p className="text-xs text-surface-400">Automated weekly diagnostic scans with instant anomaly detection</p>
+                      <h3 className="text-slate-900 dark:text-white font-semibold text-base">Proactive Anomaly Monitor</h3>
+                      <p className="text-xs text-slate-500 dark:text-surface-400">Automated weekly diagnostic scans with instant anomaly detection</p>
                     </div>
                   </div>
 
@@ -503,79 +502,79 @@ export default function AiCoachPage() {
                 </div>
 
                 {alerts.length === 0 ? (
-                  <GlassCard padding="none" className="text-center p-12">
-                    <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mx-auto mb-3">
+                  <div className="bg-white dark:bg-surface-800/90 border border-slate-200/80 dark:border-surface-700/60 rounded-2xl shadow-sm text-center p-12">
+                    <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 dark:text-emerald-400 mx-auto mb-3">
                       <CheckCircle2 className="w-8 h-8" />
                     </div>
-                    <h3 className="text-white font-semibold text-lg">All Clear! No Budget Anomalies</h3>
-                    <p className="text-surface-400 text-sm mt-1 max-w-md mx-auto">
+                    <h3 className="text-slate-900 dark:text-white font-semibold text-lg">All Clear! No Budget Anomalies</h3>
+                    <p className="text-slate-600 dark:text-surface-400 text-sm mt-1 max-w-md mx-auto">
                       Your recent spending is well-aligned with your baseline. Category thresholds, goals, and burn rates are completely healthy.
                     </p>
-                    <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold">
+                    <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
                       <ShieldCheck className="w-3.5 h-3.5" /> Next automated scan scheduled for Monday 08:00 AM
                     </div>
-                  </GlassCard>
+                  </div>
                 ) : (
                   <div className="space-y-4">
                     {alerts.map((alert, idx) => {
                       const isAlert = alert.severity === 'ALERT';
                       const isWarning = alert.severity === 'WARNING';
                       const borderClass = isAlert
-                        ? 'border-rose-500/40 bg-rose-950/10'
+                        ? 'border-rose-500/40 bg-rose-50/30 dark:bg-rose-950/10'
                         : isWarning
-                        ? 'border-amber-500/40 bg-amber-950/10'
-                        : 'border-purple-500/40 bg-purple-950/10';
+                        ? 'border-amber-500/40 bg-amber-50/30 dark:bg-amber-950/10'
+                        : 'border-purple-500/40 bg-purple-50/30 dark:bg-purple-950/10';
 
                       const badgeClass = isAlert
-                        ? 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                        ? 'bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/30'
                         : isWarning
-                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                        : 'bg-purple-500/20 text-purple-300 border-purple-500/30';
+                        ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30'
+                        : 'bg-purple-500/20 text-purple-700 dark:text-purple-300 border-purple-500/30';
 
                       return (
                         <div
                           key={idx}
-                          className={`glass-card p-5 border ${borderClass} transition-all relative overflow-hidden`}
+                          className={`bg-white dark:bg-surface-800/90 rounded-2xl shadow-sm p-5 border ${borderClass} transition-all relative overflow-hidden`}
                         >
                           <div className="flex items-start justify-between gap-3 mb-2">
                             <div className="flex items-center gap-2">
                               {isAlert ? (
-                                <AlertCircle className="w-5 h-5 text-rose-400 flex-shrink-0" />
+                                <AlertCircle className="w-5 h-5 text-rose-500 dark:text-rose-400 flex-shrink-0" />
                               ) : (
-                                <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0" />
+                                <AlertTriangle className="w-5 h-5 text-amber-500 dark:text-amber-400 flex-shrink-0" />
                               )}
-                              <h4 className="font-display font-bold text-white text-base">{alert.title}</h4>
+                              <h4 className="font-display font-bold text-slate-900 dark:text-white text-base">{alert.title}</h4>
                             </div>
                             <div className="flex items-center gap-2">
                               <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase ${badgeClass}`}>
                                 {alert.severity}
                               </span>
-                              <span className="text-[10px] text-surface-500 font-mono">
+                              <span className="text-[10px] text-slate-500 dark:text-surface-500 font-mono">
                                 {alert.detectedAt ? new Date(alert.detectedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                               </span>
                             </div>
                           </div>
 
-                          <p className="text-sm text-surface-300 mt-1 mb-3">{alert.message}</p>
+                          <p className="text-sm text-slate-700 dark:text-surface-300 mt-1 mb-3">{alert.message}</p>
 
                           {alert.currentAmount !== undefined && alert.baselineAmount !== undefined && (
-                            <div className="grid grid-cols-2 gap-3 mb-3 p-3 rounded-xl bg-surface-900/60 border border-surface-700/30">
+                            <div className="grid grid-cols-2 gap-3 mb-3 p-3 rounded-xl bg-slate-50 dark:bg-surface-900/60 border border-slate-200 dark:border-surface-700/30">
                               <div>
-                                <span className="text-[10px] text-surface-400 uppercase tracking-wider block">Current Value</span>
-                                <span className="text-sm font-bold text-white">₹{Number(alert.currentAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                <span className="text-[10px] text-slate-500 dark:text-surface-400 uppercase tracking-wider block">Current Value</span>
+                                <span className="text-sm font-bold text-slate-900 dark:text-white">₹{Number(alert.currentAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                               </div>
                               <div>
-                                <span className="text-[10px] text-surface-400 uppercase tracking-wider block">Expected Baseline</span>
-                                <span className="text-sm font-bold text-surface-300">₹{Number(alert.baselineAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                <span className="text-[10px] text-slate-500 dark:text-surface-400 uppercase tracking-wider block">Expected Baseline</span>
+                                <span className="text-sm font-bold text-slate-700 dark:text-surface-300">₹{Number(alert.baselineAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                               </div>
                             </div>
                           )}
 
                           {alert.actionableAdvice && (
-                            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-200 text-xs">
-                              <Sparkles className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
+                            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-purple-50 dark:bg-purple-500/10 border border-purple-200/80 dark:border-purple-500/20 text-purple-800 dark:text-purple-200 text-xs">
+                              <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-0.5" />
                               <div>
-                                <span className="font-semibold text-purple-300 block mb-0.5">Coach Recommendation</span>
+                                <span className="font-semibold text-purple-900 dark:text-purple-300 block mb-0.5">Coach Recommendation</span>
                                 <span>{alert.actionableAdvice}</span>
                               </div>
                             </div>
@@ -593,11 +592,11 @@ export default function AiCoachPage() {
               <div className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   {/* Radial gauge card */}
-                  <GlassCard padding="lg" className="flex flex-col items-center text-center justify-center min-h-[300px]">
-                    <h3 className="text-sm font-semibold text-surface-400 mb-6">Financial Health Index</h3>
+                  <div className="bg-white dark:bg-surface-800/90 border border-slate-200/80 dark:border-surface-700/60 rounded-2xl shadow-sm p-6 flex flex-col items-center text-center justify-center min-h-[300px]">
+                    <h3 className="text-sm font-semibold text-slate-700 dark:text-surface-300 mb-6">Financial Health Index</h3>
                     <div className="relative w-40 h-40">
                       <svg className="w-full h-full transform -rotate-90" viewBox="0 0 140 140">
-                        <circle cx="70" cy="70" r="60" className="stroke-surface-700" strokeWidth="10" fill="transparent" />
+                        <circle cx="70" cy="70" r="60" className="stroke-slate-200 dark:stroke-surface-700" strokeWidth="10" fill="transparent" />
                         <circle
                           cx="70"
                           cy="70"
@@ -611,18 +610,18 @@ export default function AiCoachPage() {
                         />
                       </svg>
                       <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-4xl font-display font-extrabold text-white">{healthData.score}</span>
+                        <span className="text-4xl font-display font-extrabold text-slate-900 dark:text-white">{healthData.score}</span>
                         <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full mt-1 ${getScoreBg(healthData.score)}`}>
                           {healthData.rating}
                         </span>
                       </div>
                     </div>
-                    <p className="text-xs text-surface-300 mt-6 max-w-xs">{healthData.description}</p>
-                  </GlassCard>
+                    <p className="text-xs text-slate-600 dark:text-surface-300 mt-6 max-w-xs">{healthData.description}</p>
+                  </div>
 
                   {/* Score breakdown bar scales */}
-                  <GlassCard padding="lg" className="lg:col-span-2 space-y-4">
-                    <h3 className="text-sm font-semibold text-white mb-4">Diagnostic Score Breakdown</h3>
+                  <div className="bg-white dark:bg-surface-800/90 border border-slate-200/80 dark:border-surface-700/60 rounded-2xl shadow-sm p-6 lg:col-span-2 space-y-4">
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-4">Diagnostic Score Breakdown</h3>
                     {[
                       { label: 'Savings Rate (Pocket Money ratio)', key: 'savingsRate', max: 30, desc: 'How much pocket money you saved vs spent' },
                       { label: 'Expense-to-Income Ratio', key: 'expenseRatio', max: 25, desc: 'Keeping expenses below 50% of credit inflow' },
@@ -637,34 +636,34 @@ export default function AiCoachPage() {
                         <div key={item.key} className="space-y-1">
                           <div className="flex justify-between items-center text-xs">
                             <div>
-                              <span className="text-white font-medium">{item.label}</span>
-                              <p className="text-[10px] text-surface-500">{item.desc}</p>
+                              <span className="text-slate-900 dark:text-white font-medium">{item.label}</span>
+                              <p className="text-[10px] text-slate-500 dark:text-surface-400">{item.desc}</p>
                             </div>
-                            <span className="text-surface-300 font-bold">{value} / {item.max} pts</span>
+                            <span className="text-slate-700 dark:text-surface-300 font-bold">{value} / {item.max} pts</span>
                           </div>
-                          <div className="w-full bg-surface-700/30 rounded-full h-2 overflow-hidden">
+                          <div className="w-full bg-slate-200 dark:bg-surface-700/30 rounded-full h-2 overflow-hidden">
                             <div className="bg-purple-500 h-2 rounded-full transition-all" style={{ width: `${pct}%` }} />
                           </div>
                         </div>
                       );
                     })}
-                  </GlassCard>
+                  </div>
                 </div>
 
                 {/* Personalized Tips list */}
-                <GlassCard padding="lg">
-                  <h3 className="text-sm font-semibold text-white mb-4">Personalized Advice from your Coach</h3>
+                <div className="bg-white dark:bg-surface-800/90 border border-slate-200/80 dark:border-surface-700/60 rounded-2xl shadow-sm p-6">
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-4">Personalized Advice from your Coach</h3>
                   <div className="space-y-3">
                     {tips.map((tip, idx) => (
-                      <div key={idx} className="flex gap-3 p-4 rounded-xl border border-surface-700/20 bg-surface-800/40">
-                        <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400 flex-shrink-0">
+                      <div key={idx} className="flex gap-3 p-4 rounded-xl border border-slate-200/80 dark:border-surface-700/20 bg-slate-50 dark:bg-surface-800/40">
+                        <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-600 dark:text-purple-400 flex-shrink-0">
                           <Sparkles className="w-4 h-4" />
                         </div>
-                        <p className="text-sm text-surface-200 self-center">{tip}</p>
+                        <p className="text-sm text-slate-700 dark:text-surface-200 self-center">{tip}</p>
                       </div>
                     ))}
                   </div>
-                </GlassCard>
+                </div>
               </div>
             )}
 
@@ -672,13 +671,13 @@ export default function AiCoachPage() {
             {activeTab === 'goals' && (
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
-                  <div className="glass-card px-4 py-2 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-primary-500/10 flex items-center justify-center text-primary-400">
+                  <div className="bg-white dark:bg-surface-800/90 border border-slate-200/80 dark:border-surface-700/60 rounded-xl px-4 py-2 flex items-center gap-3 shadow-sm">
+                    <div className="w-8 h-8 rounded-lg bg-primary-500/10 flex items-center justify-center text-primary-600 dark:text-primary-400">
                       <Target className="w-4 h-4" />
                     </div>
                     <div>
-                      <span className="text-[10px] text-surface-400 block uppercase">Wallet Balance</span>
-                      <span className="text-sm font-bold text-white">₹{walletBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      <span className="text-[10px] text-slate-500 dark:text-surface-400 block uppercase">Wallet Balance</span>
+                      <span className="text-sm font-bold text-slate-900 dark:text-white">₹{walletBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
                   </div>
 
@@ -693,25 +692,25 @@ export default function AiCoachPage() {
                 </div>
 
                 {/* Round-Up Micro-Savings Banner */}
-                <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-gradient-to-r from-purple-900/40 via-indigo-900/30 to-surface-800/40 border border-purple-500/25" data-testid="round-up-banner">
+                <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-gradient-to-r from-purple-50 via-indigo-50 to-slate-50 dark:from-purple-900/40 dark:via-indigo-900/30 dark:to-surface-800/40 border border-purple-200/80 dark:border-purple-500/25 shadow-sm" data-testid="round-up-banner">
                   <div className="flex items-center gap-3.5">
-                    <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-300">
+                    <div className="w-10 h-10 rounded-xl bg-purple-500/15 flex items-center justify-center text-purple-600 dark:text-purple-300">
                       <Zap className="w-5 h-5" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="text-sm font-bold text-white">Auto Spare Change Round-Ups</h4>
+                        <h4 className="text-sm font-bold text-slate-900 dark:text-white">Auto Spare Change Round-Ups</h4>
                         {roundUpRule?.enabled ? (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
                             Active (Nearest ₹{roundUpRule.roundUpNearest})
                           </span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-surface-700/50 text-surface-400">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200/80 dark:bg-surface-700/50 text-slate-600 dark:text-surface-400">
                             Disabled
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-surface-400 mt-0.5">
+                      <p className="text-xs text-slate-600 dark:text-surface-400 mt-0.5">
                         {roundUpRule?.enabled
                           ? `Rounding card spends up to nearest ₹${roundUpRule.roundUpNearest} into "${roundUpRule.goalName}". Total saved: ₹${(roundUpRule.accumulatedAmount || 0).toFixed(2)}`
                           : 'Automatically round up card purchases and sweep spare change into your targeted goal.'}
@@ -721,22 +720,22 @@ export default function AiCoachPage() {
 
                   <div className="flex items-center gap-2">
                     {roundUpRule?.enabled && (
-                      <Button variant="ghost" size="sm" onClick={handleDisableRoundUp} className="text-xs text-danger-400 hover:text-danger-300">
+                      <Button variant="ghost" size="sm" onClick={handleDisableRoundUp} className="text-xs text-danger-500 hover:text-danger-600 dark:text-danger-400 dark:hover:text-danger-300">
                         Disable
                       </Button>
                     )}
                     <Button variant="secondary" size="sm" onClick={() => setIsRoundUpModalOpen(true)} className="text-xs flex items-center gap-1.5 shadow-sm">
-                      <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                      <Sparkles className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
                       {roundUpRule?.enabled ? 'Change Rule' : 'Configure Round-Up'}
                     </Button>
                   </div>
                 </div>
 
                 {goals.length === 0 ? (
-                  <GlassCard padding="none" className="text-center p-12">
-                    <Target className="w-12 h-12 text-surface-600 mx-auto mb-3" />
-                    <h3 className="text-white font-semibold text-lg">No active savings goals</h3>
-                    <p className="text-surface-400 text-sm mt-1 max-w-sm mx-auto">
+                  <div className="bg-white dark:bg-surface-800/90 border border-slate-200/80 dark:border-surface-700/60 rounded-2xl shadow-sm text-center p-12">
+                    <Target className="w-12 h-12 text-slate-400 dark:text-surface-600 mx-auto mb-3" />
+                    <h3 className="text-slate-900 dark:text-white font-semibold text-lg">No active savings goals</h3>
+                    <p className="text-slate-600 dark:text-surface-400 text-sm mt-1 max-w-sm mx-auto">
                       Create a savings goal (like laptop, college fund, or gaming gear) and dedicate funds from your wallet to achieve it!
                     </p>
                     <Button
@@ -746,7 +745,7 @@ export default function AiCoachPage() {
                     >
                       Start Saving Now
                     </Button>
-                  </GlassCard>
+                  </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {goals.map((goal) => {
@@ -754,7 +753,7 @@ export default function AiCoachPage() {
                       return (
                         <div
                           key={goal.id}
-                          className="glass-card relative overflow-hidden p-5 flex flex-col justify-between min-h-[220px]"
+                          className="bg-white dark:bg-surface-800/90 border border-slate-200/80 dark:border-surface-700/60 rounded-2xl shadow-sm relative overflow-hidden p-5 flex flex-col justify-between min-h-[220px]"
                           style={{ borderLeft: `4px solid ${goal.color || '#2070FF'}` }}
                         >
                           <div>
@@ -762,17 +761,17 @@ export default function AiCoachPage() {
                               <div className="flex gap-2">
                                 <span className="text-2xl" role="img" aria-label="Goal Icon">{goal.icon || '🎯'}</span>
                                 <div>
-                                  <h4 className="font-display font-bold text-white text-sm truncate max-w-[140px]">{goal.name}</h4>
+                                  <h4 className="font-display font-bold text-slate-900 dark:text-white text-sm truncate max-w-[140px]">{goal.name}</h4>
                                   <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                                      goal.priority === 'HIGH' ? 'bg-danger-500/10 text-danger-400' :
-                                      goal.priority === 'LOW' ? 'bg-surface-600/30 text-surface-400' : 'bg-warning-500/10 text-warning-400'
+                                      goal.priority === 'HIGH' ? 'bg-danger-500/10 text-danger-500 dark:text-danger-400' :
+                                      goal.priority === 'LOW' ? 'bg-slate-100 text-slate-600 dark:bg-surface-600/30 dark:text-surface-400' : 'bg-warning-500/10 text-warning-600 dark:text-warning-400'
                                     }`}>
                                       {goal.priority}
                                     </span>
                                     {goal.roundUpEnabled && (
-                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30" data-testid="goal-round-up-badge">
-                                        <Zap className="w-2.5 h-2.5 text-purple-400" /> Round-Up (₹{goal.roundUpNearest || 10})
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30" data-testid="goal-round-up-badge">
+                                        <Zap className="w-2.5 h-2.5 text-purple-600 dark:text-purple-400" /> Round-Up (₹{goal.roundUpNearest || 10})
                                       </span>
                                     )}
                                   </div>
@@ -780,15 +779,15 @@ export default function AiCoachPage() {
                               </div>
                               <div className="flex items-center gap-1.5">
                                 <span className={`text-[10px] font-bold uppercase ${
-                                  goal.status === 'COMPLETED' ? 'text-emerald-400' :
-                                  goal.status === 'CANCELLED' ? 'text-danger-400' : 'text-primary-400'
+                                  goal.status === 'COMPLETED' ? 'text-emerald-500 dark:text-emerald-400' :
+                                  goal.status === 'CANCELLED' ? 'text-danger-500 dark:text-danger-400' : 'text-primary-600 dark:text-primary-400'
                                 }`}>
                                   {goal.status}
                                 </span>
                                 {goal.status === 'ACTIVE' && (
                                   <button
                                     onClick={() => handleDeleteGoal(goal.id)}
-                                    className="text-surface-500 hover:text-danger-400 p-1 transition-colors"
+                                    className="text-slate-400 hover:text-danger-500 dark:text-surface-500 dark:hover:text-danger-400 p-1 transition-colors"
                                     aria-label={`Cancel goal ${goal.name}`}
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
@@ -797,16 +796,16 @@ export default function AiCoachPage() {
                               </div>
                             </div>
                             {goal.description && (
-                              <p className="text-xs text-surface-400 line-clamp-2 mt-1 mb-2">{goal.description}</p>
+                              <p className="text-xs text-slate-600 dark:text-surface-400 line-clamp-2 mt-1 mb-2">{goal.description}</p>
                             )}
                           </div>
 
                           <div className="my-4">
                             <div className="flex justify-between text-xs mb-1">
-                              <span className="text-surface-400">Progress</span>
-                              <span className="text-white font-semibold">₹{goal.currentAmount} / ₹{goal.targetAmount}</span>
+                              <span className="text-slate-500 dark:text-surface-400">Progress</span>
+                              <span className="text-slate-900 dark:text-white font-semibold">₹{goal.currentAmount} / ₹{goal.targetAmount}</span>
                             </div>
-                            <div className="w-full bg-surface-700/30 rounded-full h-2 overflow-hidden">
+                            <div className="w-full bg-slate-200 dark:bg-surface-700/30 rounded-full h-2 overflow-hidden">
                               <div
                                 className="h-2 rounded-full transition-all"
                                 style={{
@@ -815,7 +814,7 @@ export default function AiCoachPage() {
                                 }}
                               />
                             </div>
-                            <div className="flex justify-between text-[10px] text-surface-500 mt-1">
+                            <div className="flex justify-between text-[10px] text-slate-500 dark:text-surface-500 mt-1">
                               <span>{progress.toFixed(0)}% saved</span>
                               <span className="flex items-center gap-1">
                                 <Calendar className="w-3 h-3" /> {new Date(goal.targetDate).toLocaleDateString()}
@@ -823,7 +822,7 @@ export default function AiCoachPage() {
                             </div>
 
                             {/* 4-Step Milestone Checkpoints */}
-                            <div className="grid grid-cols-4 gap-1.5 mt-2.5 pt-2 border-t border-surface-800/60" data-testid="goal-milestones">
+                            <div className="grid grid-cols-4 gap-1.5 mt-2.5 pt-2 border-t border-slate-200 dark:border-surface-800/60" data-testid="goal-milestones">
                               {[
                                 { pct: 25, label: '25%', reward: '+25 pts' },
                                 { pct: 50, label: '50%', reward: '+50 pts' },
@@ -836,8 +835,8 @@ export default function AiCoachPage() {
                                     key={m.pct}
                                     className={`text-center py-1 px-1 rounded-md border text-[10px] transition-all ${
                                       isReached
-                                        ? 'bg-amber-500/15 border-amber-500/30 text-amber-300 font-bold shadow-sm'
-                                        : 'bg-surface-800/30 border-surface-700/40 text-surface-500'
+                                        ? 'bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-300 font-bold shadow-sm'
+                                        : 'bg-slate-100 dark:bg-surface-800/30 border-slate-200 dark:border-surface-700/40 text-slate-600 dark:text-surface-500'
                                     }`}
                                     title={`Milestone ${m.label} (${m.reward}) - ${isReached ? 'Unlocked! 🎉' : 'Locked'}`}
                                   >
@@ -902,65 +901,65 @@ export default function AiCoachPage() {
                 {/* Cashflow Health & Risk KPI Cards */}
                 {forecastData && (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4" data-testid="cashflow-kpis">
-                    <GlassCard padding="md">
-                      <div className="flex items-center gap-2 text-surface-400 text-xs mb-1">
-                        <TrendingDown className="w-4 h-4 text-purple-400" />
+                    <div className="bg-white dark:bg-surface-800/90 border border-slate-200/80 dark:border-surface-700/60 rounded-2xl shadow-sm p-4">
+                      <div className="flex items-center gap-2 text-slate-500 dark:text-surface-400 text-xs mb-1">
+                        <TrendingDown className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                         <span>Daily Burn Rate</span>
                       </div>
-                      <div className="text-lg font-bold text-white">
+                      <div className="text-lg font-bold text-slate-900 dark:text-white">
                         ₹{(forecastData.dailyBurnMean || 0).toFixed(2)}
                       </div>
-                      <p className="text-[11px] text-surface-400 mt-0.5">
+                      <p className="text-[11px] text-slate-500 dark:text-surface-400 mt-0.5">
                         Volatility: ±₹{(forecastData.dailyBurnStdDev || 0).toFixed(2)}/day
                       </p>
-                    </GlassCard>
+                    </div>
 
-                    <GlassCard padding="md">
-                      <div className="flex items-center gap-2 text-surface-400 text-xs mb-1">
-                        <AlertTriangle className={`w-4 h-4 ${(forecastData.runoutProbability || 0) > 0.3 ? 'text-rose-400' : 'text-emerald-400'}`} />
+                    <div className="bg-white dark:bg-surface-800/90 border border-slate-200/80 dark:border-surface-700/60 rounded-2xl shadow-sm p-4">
+                      <div className="flex items-center gap-2 text-slate-500 dark:text-surface-400 text-xs mb-1">
+                        <AlertTriangle className={`w-4 h-4 ${(forecastData.runoutProbability || 0) > 0.3 ? 'text-rose-500' : 'text-emerald-500'}`} />
                         <span>30-Day Runout Risk</span>
                       </div>
-                      <div className={`text-lg font-bold ${(forecastData.runoutProbability || 0) > 0.3 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                      <div className={`text-lg font-bold ${(forecastData.runoutProbability || 0) > 0.3 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                         {((forecastData.runoutProbability || 0) * 100).toFixed(1)}%
                       </div>
-                      <p className="text-[11px] text-surface-400 mt-0.5">
+                      <p className="text-[11px] text-slate-500 dark:text-surface-400 mt-0.5">
                         {(forecastData.runoutProbability || 0) > 0.3 ? 'High depletion risk' : 'Safe reserve margin'}
                       </p>
-                    </GlassCard>
+                    </div>
 
-                    <GlassCard padding="md">
-                      <div className="flex items-center gap-2 text-surface-400 text-xs mb-1">
-                        <Calendar className="w-4 h-4 text-blue-400" />
+                    <div className="bg-white dark:bg-surface-800/90 border border-slate-200/80 dark:border-surface-700/60 rounded-2xl shadow-sm p-4">
+                      <div className="flex items-center gap-2 text-slate-500 dark:text-surface-400 text-xs mb-1">
+                        <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                         <span>Projected Runway</span>
                       </div>
-                      <div className="text-lg font-bold text-white">
+                      <div className="text-lg font-bold text-slate-900 dark:text-white">
                         {forecastData.estimatedRunoutDays != null ? `${forecastData.estimatedRunoutDays} Days` : '> 30 Days'}
                       </div>
-                      <p className="text-[11px] text-surface-400 mt-0.5">
+                      <p className="text-[11px] text-slate-500 dark:text-surface-400 mt-0.5">
                         Balance: ₹{(forecastData.currentBalance ?? walletBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </p>
-                    </GlassCard>
+                    </div>
 
-                    <GlassCard padding="md">
-                      <div className="flex items-center gap-2 text-surface-400 text-xs mb-1">
-                        <Zap className="w-4 h-4 text-amber-400" />
+                    <div className="bg-white dark:bg-surface-800/90 border border-slate-200/80 dark:border-surface-700/60 rounded-2xl shadow-sm p-4">
+                      <div className="flex items-center gap-2 text-slate-500 dark:text-surface-400 text-xs mb-1">
+                        <Zap className="w-4 h-4 text-amber-500 dark:text-amber-400" />
                         <span>Forecast Engine</span>
                       </div>
-                      <div className="text-xs font-bold text-purple-300 mt-1 uppercase tracking-wide">
+                      <div className="text-xs font-bold text-purple-700 dark:text-purple-300 mt-1 uppercase tracking-wide">
                         Monte Carlo (M=200)
                       </div>
-                      <p className="text-[11px] text-surface-400 mt-1">
+                      <p className="text-[11px] text-slate-500 dark:text-surface-400 mt-1">
                         10th, 50th & 90th percentile bands
                       </p>
-                    </GlassCard>
+                    </div>
                   </div>
                 )}
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {budgetData && (
-                    <GlassCard padding="lg">
-                      <h3 className="text-sm font-semibold text-white mb-2">50/30/20 Budget Allocator</h3>
-                      <p className="text-xs text-surface-400 mb-6">Compare recommended guideline partitions vs actual expenses (Needs, Wants, Savings)</p>
+                    <div className="bg-white dark:bg-surface-800/90 border border-slate-200/80 dark:border-surface-700/60 rounded-2xl shadow-sm p-6">
+                      <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-2">50/30/20 Budget Allocator</h3>
+                      <p className="text-xs text-slate-500 dark:text-surface-400 mb-6">Compare recommended guideline partitions vs actual expenses (Needs, Wants, Savings)</p>
                       <div className="h-[280px]">
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart
@@ -984,8 +983,8 @@ export default function AiCoachPage() {
                             margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
                           >
                             <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
-                            <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} />
-                            <YAxis stroke="#94a3b8" fontSize={11} />
+                            <XAxis dataKey="name" stroke="#64748b" fontSize={11} />
+                            <YAxis stroke="#64748b" fontSize={11} />
                             <Tooltip
                               contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px' }}
                               labelStyle={{ color: '#fff', fontWeight: 'bold' }}
@@ -996,17 +995,17 @@ export default function AiCoachPage() {
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
-                    </GlassCard>
+                    </div>
                   )}
 
                   {forecastData && (
-                    <GlassCard padding="lg">
+                    <div className="bg-white dark:bg-surface-800/90 border border-slate-200/80 dark:border-surface-700/60 rounded-2xl shadow-sm p-6">
                       <div className="flex justify-between items-start mb-2">
                         <div>
-                          <h3 className="text-sm font-semibold text-white">30-Day Predictive Cashflow Simulation</h3>
-                          <p className="text-xs text-surface-400">Monte Carlo confidence bands across stochastic spend paths</p>
+                          <h3 className="text-sm font-semibold text-slate-900 dark:text-white">30-Day Predictive Cashflow Simulation</h3>
+                          <p className="text-xs text-slate-500 dark:text-surface-400">Monte Carlo confidence bands across stochastic spend paths</p>
                         </div>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30">
                           {forecastData.modelUsed || 'MONTE_CARLO'}
                         </span>
                       </div>
@@ -1028,8 +1027,8 @@ export default function AiCoachPage() {
                               </linearGradient>
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
-                            <XAxis dataKey="label" stroke="#94a3b8" fontSize={9} interval={4} />
-                            <YAxis stroke="#94a3b8" fontSize={11} />
+                            <XAxis dataKey="label" stroke="#64748b" fontSize={9} interval={4} />
+                            <YAxis stroke="#64748b" fontSize={11} />
                             <Tooltip
                               contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px' }}
                               labelStyle={{ color: '#fff', fontWeight: 'bold' }}
@@ -1075,24 +1074,24 @@ export default function AiCoachPage() {
                           </AreaChart>
                         </ResponsiveContainer>
                       </div>
-                    </GlassCard>
+                    </div>
                   )}
                 </div>
 
                 {/* Goal Feasibility Matrix */}
                 {forecastData?.goalFeasibilities && forecastData.goalFeasibilities.length > 0 && (
-                  <GlassCard padding="lg" data-testid="goal-feasibility-card">
+                  <div className="bg-white dark:bg-surface-800/90 border border-slate-200/80 dark:border-surface-700/60 rounded-2xl shadow-sm p-6" data-testid="goal-feasibility-card">
                     <div className="flex items-center justify-between mb-4">
                       <div>
-                        <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                          <Target className="w-4 h-4 text-purple-400" />
+                        <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                          <Target className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                           Savings Goal Feasibility Analysis
                         </h3>
-                        <p className="text-xs text-surface-400 mt-0.5">
+                        <p className="text-xs text-slate-500 dark:text-surface-400 mt-0.5">
                           Monte Carlo completion likelihood based on current savings rate and projected stochastic burn
                         </p>
                       </div>
-                      <span className="text-xs text-surface-400 font-mono">
+                      <span className="text-xs text-slate-500 dark:text-surface-400 font-mono">
                         {forecastData.goalFeasibilities.length} Active {forecastData.goalFeasibilities.length === 1 ? 'Goal' : 'Goals'}
                       </span>
                     </div>
@@ -1104,20 +1103,20 @@ export default function AiCoachPage() {
                         return (
                           <div
                             key={feasibility.goalId}
-                            className="p-4 rounded-xl border border-surface-700/40 bg-surface-800/40 space-y-3"
+                            className="p-4 rounded-xl border border-slate-200/80 dark:border-surface-700/40 bg-slate-50 dark:bg-surface-800/40 space-y-3"
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div>
-                                <h4 className="text-sm font-bold text-white truncate max-w-[160px]">{feasibility.goalName}</h4>
-                                <span className="text-[11px] text-surface-400">Target: {feasibility.targetDate}</span>
+                                <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate max-w-[160px]">{feasibility.goalName}</h4>
+                                <span className="text-[11px] text-slate-500 dark:text-surface-400">Target: {feasibility.targetDate}</span>
                               </div>
                               <span
                                 className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
                                   feasibility.status === 'ON_TRACK'
-                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
                                     : feasibility.status === 'AT_RISK'
-                                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                                    : 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                                    : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30'
                                 }`}
                               >
                                 {feasibility.status === 'ON_TRACK' ? 'On Track' : feasibility.status === 'AT_RISK' ? 'At Risk' : 'Critical'}
@@ -1126,12 +1125,12 @@ export default function AiCoachPage() {
 
                             <div>
                               <div className="flex justify-between text-xs mb-1">
-                                <span className="text-surface-400">Probability</span>
-                                <span className={`font-bold ${isHigh ? 'text-emerald-400' : isMedium ? 'text-amber-400' : 'text-rose-400'}`}>
+                                <span className="text-slate-500 dark:text-surface-400">Probability</span>
+                                <span className={`font-bold ${isHigh ? 'text-emerald-600 dark:text-emerald-400' : isMedium ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}`}>
                                   {feasibility.probabilityPercentage.toFixed(0)}%
                                 </span>
                               </div>
-                              <div className="w-full bg-surface-700/40 rounded-full h-2 overflow-hidden">
+                              <div className="w-full bg-slate-200 dark:bg-surface-700/40 rounded-full h-2 overflow-hidden">
                                 <div
                                   className={`h-2 rounded-full transition-all ${
                                     isHigh ? 'bg-emerald-500' : isMedium ? 'bg-amber-500' : 'bg-rose-500'
@@ -1141,7 +1140,7 @@ export default function AiCoachPage() {
                               </div>
                             </div>
 
-                            <div className="flex justify-between items-center text-[11px] text-surface-400 pt-1 border-t border-surface-700/30">
+                            <div className="flex justify-between items-center text-[11px] text-slate-500 dark:text-surface-400 pt-1 border-t border-slate-200 dark:border-surface-700/30">
                               <span>Saved: ₹{feasibility.currentAmount.toFixed(2)}</span>
                               <span>Target: ₹{feasibility.targetAmount.toFixed(2)}</span>
                             </div>
@@ -1149,7 +1148,7 @@ export default function AiCoachPage() {
                         );
                       })}
                     </div>
-                  </GlassCard>
+                  </div>
                 )}
               </div>
             )}
@@ -1158,17 +1157,17 @@ export default function AiCoachPage() {
             {activeTab === 'learning' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {educationalLessons.map((lesson, idx) => (
-                  <GlassCard key={idx} padding="md" className="hover:border-purple-500/40 transition-all duration-300">
+                  <div key={idx} className="bg-white dark:bg-surface-800/90 border border-slate-200/80 dark:border-surface-700/60 rounded-2xl shadow-sm p-5 hover:border-purple-500/40 transition-all duration-300">
                     <div className="flex items-center gap-3 mb-3">
                       <span className="text-3xl" role="img" aria-hidden="true">{lesson.icon}</span>
-                      <h3 className="text-white font-display font-semibold text-base">{lesson.title}</h3>
+                      <h3 className="text-slate-900 dark:text-white font-display font-semibold text-base">{lesson.title}</h3>
                     </div>
-                    <p className="text-xs text-surface-400 leading-relaxed mb-4">{lesson.description}</p>
-                    <div className="flex items-center gap-2 p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
-                      <Info className="w-4 h-4 text-purple-400 flex-shrink-0" />
-                      <span className="text-[11px] text-purple-300 font-medium">{lesson.tip}</span>
+                    <p className="text-xs text-slate-600 dark:text-surface-400 leading-relaxed mb-4">{lesson.description}</p>
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-purple-50 dark:bg-purple-500/10 border border-purple-200/80 dark:border-purple-500/20">
+                      <Info className="w-4 h-4 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                      <span className="text-[11px] text-purple-900 dark:text-purple-300 font-medium">{lesson.tip}</span>
                     </div>
-                  </GlassCard>
+                  </div>
                 ))}
               </div>
             )}
@@ -1183,7 +1182,7 @@ export default function AiCoachPage() {
         >
           <form onSubmit={handleCreateGoal} className="space-y-4">
             <div>
-              <label htmlFor="newGoalName" className="block text-xs text-surface-400 mb-1">Goal Name *</label>
+              <label htmlFor="newGoalName" className="block text-xs font-medium text-slate-700 dark:text-surface-300 mb-1">Goal Name *</label>
               <input
                 id="newGoalName"
                 type="text"
@@ -1191,25 +1190,25 @@ export default function AiCoachPage() {
                 value={newGoalName}
                 onChange={(e) => setNewGoalName(e.target.value)}
                 placeholder="e.g. College Laptop, Summer Trip"
-                className="w-full bg-surface-900 border border-surface-700/60 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
+                className="input-field w-full text-sm"
               />
             </div>
 
             <div>
-              <label htmlFor="newGoalDesc" className="block text-xs text-surface-400 mb-1">Short Description</label>
+              <label htmlFor="newGoalDesc" className="block text-xs font-medium text-slate-700 dark:text-surface-300 mb-1">Short Description</label>
               <textarea
                 id="newGoalDesc"
                 value={newGoalDesc}
                 onChange={(e) => setNewGoalDesc(e.target.value)}
                 placeholder="What is this goal for?"
                 rows={2}
-                className="w-full bg-surface-900 border border-surface-700/60 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500 resize-none"
+                className="input-field w-full text-sm resize-none"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label htmlFor="newGoalTarget" className="block text-xs text-surface-400 mb-1">Target Amount (₹) *</label>
+                <label htmlFor="newGoalTarget" className="block text-xs font-medium text-slate-700 dark:text-surface-300 mb-1">Target Amount (₹) *</label>
                 <input
                   id="newGoalTarget"
                   type="number"
@@ -1218,11 +1217,11 @@ export default function AiCoachPage() {
                   value={newGoalTarget}
                   onChange={(e) => setNewGoalTarget(e.target.value)}
                   placeholder="10000"
-                  className="w-full bg-surface-900 border border-surface-700/60 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
+                  className="input-field w-full text-sm"
                 />
               </div>
               <div>
-                <label htmlFor="newGoalDate" className="block text-xs text-surface-400 mb-1">Target Date *</label>
+                <label htmlFor="newGoalDate" className="block text-xs font-medium text-slate-700 dark:text-surface-300 mb-1">Target Date *</label>
                 <input
                   id="newGoalDate"
                   type="date"
@@ -1230,19 +1229,19 @@ export default function AiCoachPage() {
                   value={newGoalDate}
                   onChange={(e) => setNewGoalDate(e.target.value)}
                   min={new Date().toISOString().split('T')[0]}
-                  className="w-full bg-surface-900 border border-surface-700/60 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
+                  className="input-field w-full text-sm"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label htmlFor="newGoalPriority" className="block text-xs text-surface-400 mb-1">Priority</label>
+                <label htmlFor="newGoalPriority" className="block text-xs font-medium text-slate-700 dark:text-surface-300 mb-1">Priority</label>
                 <select
                   id="newGoalPriority"
                   value={newGoalPriority}
                   onChange={(e) => setNewGoalPriority(e.target.value as 'LOW' | 'MEDIUM' | 'HIGH')}
-                  className="w-full bg-surface-900 border border-surface-700/60 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
+                  className="input-field w-full text-sm"
                 >
                   <option value="LOW">Low</option>
                   <option value="MEDIUM">Medium</option>
@@ -1250,14 +1249,14 @@ export default function AiCoachPage() {
                 </select>
               </div>
               <div>
-                <span className="block text-xs text-surface-400 mb-1">Choose Icon</span>
+                <span className="block text-xs font-medium text-slate-700 dark:text-surface-300 mb-1">Choose Icon</span>
                 <div className="flex gap-1.5 overflow-x-auto py-1">
                   {iconsList.map((ic) => (
                     <button
                       key={ic}
                       type="button"
                       onClick={() => setNewGoalIcon(ic)}
-                      className={`text-lg p-1 rounded transition-all focus:outline-none focus:ring-1 focus:ring-primary-500 ${newGoalIcon === ic ? 'bg-primary-500/20 scale-110' : 'hover:bg-surface-800'}`}
+                      className={`text-lg p-1 rounded transition-all focus:outline-none focus:ring-1 focus:ring-primary-500 ${newGoalIcon === ic ? 'bg-primary-500/20 scale-110' : 'hover:bg-slate-100 dark:hover:bg-surface-800'}`}
                     >
                       {ic}
                     </button>
@@ -1267,7 +1266,7 @@ export default function AiCoachPage() {
             </div>
 
             <div>
-              <span className="block text-xs text-surface-400 mb-1">Theme Color</span>
+              <span className="block text-xs font-medium text-slate-700 dark:text-surface-300 mb-1">Theme Color</span>
               <div className="flex gap-2">
                 {colorsList.map((col) => (
                   <button
@@ -1275,7 +1274,7 @@ export default function AiCoachPage() {
                     type="button"
                     onClick={() => setNewGoalColor(col)}
                     aria-label={`Select theme color ${col}`}
-                    className={`w-6 h-6 rounded-full transition-all border focus:outline-none focus:ring-2 focus:ring-white ${newGoalColor === col ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
+                    className={`w-6 h-6 rounded-full transition-all border focus:outline-none focus:ring-2 focus:ring-primary-500 ${newGoalColor === col ? 'border-primary-600 scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
                     style={{ backgroundColor: col }}
                   />
                 ))}
@@ -1300,30 +1299,30 @@ export default function AiCoachPage() {
         >
           {selectedGoal && (
             <>
-              <p className="text-xs text-surface-400 mb-4">
+              <p className="text-xs text-slate-600 dark:text-surface-400 mb-4">
                 {fundAction === 'allocate'
                   ? `Allocate funds from your wallet to '${selectedGoal.name}'`
                   : `Withdraw funds from '${selectedGoal.name}' back to your wallet`}
               </p>
 
-              <div className="bg-surface-900/60 p-3 rounded-xl border border-surface-800 mb-4 space-y-2">
-                <div className="flex justify-between text-xs text-surface-400">
+              <div className="bg-slate-50 dark:bg-surface-900/60 p-3 rounded-xl border border-slate-200 dark:border-surface-800 mb-4 space-y-2">
+                <div className="flex justify-between text-xs text-slate-600 dark:text-surface-400">
                   <span>Wallet Balance:</span>
-                  <span className="text-white font-bold">₹{walletBalance}</span>
+                  <span className="text-slate-900 dark:text-white font-bold">₹{walletBalance}</span>
                 </div>
-                <div className="flex justify-between text-xs text-surface-400">
+                <div className="flex justify-between text-xs text-slate-600 dark:text-surface-400">
                   <span>Currently Saved:</span>
-                  <span className="text-white font-bold">₹{selectedGoal.currentAmount}</span>
+                  <span className="text-slate-900 dark:text-white font-bold">₹{selectedGoal.currentAmount}</span>
                 </div>
-                <div className="flex justify-between text-xs text-surface-400">
+                <div className="flex justify-between text-xs text-slate-600 dark:text-surface-400">
                   <span>Target Balance:</span>
-                  <span className="text-white font-bold">₹{selectedGoal.targetAmount}</span>
+                  <span className="text-slate-900 dark:text-white font-bold">₹{selectedGoal.targetAmount}</span>
                 </div>
               </div>
 
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="fundAmount" className="block text-xs text-surface-400 mb-1">Enter Amount (₹)</label>
+                  <label htmlFor="fundAmount" className="block text-xs font-medium text-slate-700 dark:text-surface-300 mb-1">Enter Amount (₹)</label>
                   <input
                     id="fundAmount"
                     type="number"
@@ -1333,7 +1332,7 @@ export default function AiCoachPage() {
                     value={fundAmount}
                     onChange={(e) => setFundAmount(e.target.value)}
                     placeholder="0.00"
-                    className="w-full bg-surface-900 border border-surface-700/60 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
+                    className="input-field w-full text-sm"
                   />
                 </div>
 
@@ -1357,18 +1356,18 @@ export default function AiCoachPage() {
           title="Configure Auto Round-Up"
         >
           <div className="space-y-4" data-testid="round-up-modal">
-            <p className="text-xs text-surface-300">
+            <p className="text-xs text-slate-600 dark:text-surface-300">
               Spare change from every card payment will be automatically rounded up and swept into your selected savings goal.
             </p>
 
             <div>
-              <label htmlFor="roundup-goal-select" className="block text-xs font-semibold text-surface-300 mb-1.5">Target Savings Goal</label>
+              <label htmlFor="roundup-goal-select" className="block text-xs font-semibold text-slate-700 dark:text-surface-300 mb-1.5">Target Savings Goal</label>
               <select
                 id="roundup-goal-select"
                 aria-label="Target Savings Goal"
                 value={roundUpGoalId}
                 onChange={(e) => setRoundUpGoalId(e.target.value)}
-                className="w-full bg-surface-800 border border-surface-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
+                className="input-field w-full text-sm"
               >
                 <option value="">Select an Active Goal</option>
                 {goals.filter(g => g.status === 'ACTIVE').map(goal => (
@@ -1380,7 +1379,7 @@ export default function AiCoachPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-surface-300 mb-1.5">Round-Up Threshold</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-surface-300 mb-1.5">Round-Up Threshold</label>
               <div className="grid grid-cols-3 gap-2">
                 {[10, 50, 100].map((step) => (
                   <button
@@ -1389,15 +1388,15 @@ export default function AiCoachPage() {
                     onClick={() => setRoundUpNearest(step)}
                     className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all ${
                       roundUpNearest === step
-                        ? 'bg-purple-600/30 border-purple-500 text-purple-200 shadow-sm'
-                        : 'bg-surface-800/40 border-surface-700/50 text-surface-400 hover:text-white'
+                        ? 'bg-purple-50 border-purple-500 text-purple-700 dark:bg-purple-600/30 dark:border-purple-500 dark:text-purple-200 shadow-sm'
+                        : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200 dark:bg-surface-800/40 dark:border-surface-700/50 dark:text-surface-400 dark:hover:text-white'
                     }`}
                   >
                     Nearest ₹{step}
                   </button>
                 ))}
               </div>
-              <p className="text-[11px] text-surface-400 mt-1.5">
+              <p className="text-[11px] text-slate-500 dark:text-surface-400 mt-1.5">
                 Example: A spend of ₹85 rounds to {roundUpNearest === 10 ? '₹90 (+₹5 spare change)' : roundUpNearest === 50 ? '₹100 (+₹15 spare change)' : '₹100 (+₹15 spare change)'}.
               </p>
             </div>
@@ -1407,7 +1406,7 @@ export default function AiCoachPage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsRoundUpModalOpen(false)}
-                className="border border-surface-700"
+                className="border border-slate-200 dark:border-surface-700"
               >
                 Cancel
               </Button>
@@ -1432,8 +1431,8 @@ export default function AiCoachPage() {
         >
           <div className="space-y-4" aria-live="assertive">
             <div className="flex items-start gap-3 p-1">
-              <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
-              <p className="text-sm text-surface-200">{alertConfig?.message}</p>
+              <AlertCircle className="w-5 h-5 text-rose-500 dark:text-rose-400 shrink-0 mt-0.5" />
+              <p className="text-sm text-slate-800 dark:text-surface-200">{alertConfig?.message}</p>
             </div>
             <div className="flex justify-end pt-2">
               <Button onClick={() => setAlertConfig(null)} variant="primary" size="sm">
@@ -1450,9 +1449,9 @@ export default function AiCoachPage() {
           title={confirmConfig?.title}
         >
           <div className="space-y-4">
-            <p className="text-sm text-surface-200">{confirmConfig?.message}</p>
+            <p className="text-sm text-slate-800 dark:text-surface-200">{confirmConfig?.message}</p>
             <div className="flex justify-end gap-3 pt-2">
-              <Button onClick={() => setConfirmConfig(null)} variant="ghost" size="sm" className="border border-surface-700">
+              <Button onClick={() => setConfirmConfig(null)} variant="ghost" size="sm" className="border border-slate-200 dark:border-surface-700">
                 Cancel
               </Button>
               <Button onClick={confirmConfig?.onConfirm || (() => {})} variant="primary" size="sm" className="bg-rose-600 hover:bg-rose-500">

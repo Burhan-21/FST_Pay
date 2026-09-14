@@ -808,13 +808,25 @@
   }
 
   .modal-panel {
-    @apply glass rounded-3xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto;
+    @apply rounded-3xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl;
     animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .light .modal-panel,
   html:not(.dark):not(.amoled) .modal-panel {
-    @apply bg-white border-slate-200 text-slate-900;
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #0f172a !important;
+    box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25) !important;
+  }
+
+  .dark .modal-panel,
+  .amoled .modal-panel {
+    background: rgba(15, 23, 42, 0.95) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
   }
 
   /* ================================================================
