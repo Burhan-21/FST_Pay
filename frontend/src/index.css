@@ -548,7 +548,15 @@
 
   .light .btn-secondary,
   html:not(.dark):not(.amoled) .btn-secondary {
-    @apply bg-slate-100 text-slate-800 border-slate-200 hover:bg-slate-200 hover:text-slate-900;
+    background: #f1f5f9 !important;
+    color: #0f172a !important;
+    border: 1px solid #cbd5e1 !important;
+  }
+  .light .btn-secondary:hover,
+  html:not(.dark):not(.amoled) .btn-secondary:hover {
+    background: #e2e8f0 !important;
+    color: #020617 !important;
+    border-color: #94a3b8 !important;
   }
 
   .amoled .btn-secondary {
@@ -578,7 +586,12 @@
 
   .light .btn-ghost,
   html:not(.dark):not(.amoled) .btn-ghost {
-    @apply text-slate-600 hover:bg-slate-100 hover:text-slate-900;
+    color: #334155 !important;
+  }
+  .light .btn-ghost:hover,
+  html:not(.dark):not(.amoled) .btn-ghost:hover {
+    background: #f1f5f9 !important;
+    color: #0f172a !important;
   }
 
   .amoled .btn-ghost {
@@ -685,8 +698,10 @@
     @apply block text-sm font-medium text-surface-300 mb-1.5;
   }
 
-  .light .input-label {
-    @apply text-slate-600;
+  .light .input-label,
+  html:not(.dark):not(.amoled) .input-label {
+    color: #334155 !important;
+    font-weight: 600;
   }
 
   .select-field {
