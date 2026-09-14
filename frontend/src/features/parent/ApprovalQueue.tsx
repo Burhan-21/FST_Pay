@@ -235,9 +235,9 @@ export default function ApprovalQueue() {
           <div>
             <div className="flex items-center gap-2">
               <ShieldCheck className="w-6 h-6 text-primary-400" />
-              <h1 className="text-xl font-bold text-white tracking-tight">Parent Approval Center</h1>
+              <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Parent Approval Center</h1>
             </div>
-            <p className="text-xs text-surface-400 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-surface-400 mt-0.5">
               Review and authorize high-value spends, card state changes, and allowance approvals.
             </p>
           </div>

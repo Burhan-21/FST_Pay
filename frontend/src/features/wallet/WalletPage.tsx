@@ -210,7 +210,7 @@ export default function WalletPage() {
                 <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center shadow-lg">
                   <Plus className="w-5 h-5 text-white" />
                 </div>
-                <h3 className="text-xl font-primary font-bold text-white">
+                <h3 className="text-xl font-primary font-bold text-slate-900 dark:text-white">
                   {topUpStep === 'input' ? 'Add Money' : topUpStep === 'payment_detail' ? 'Authorize Payment' : 'Payment Success'}
                 </h3>
               </div>
@@ -469,8 +469,8 @@ export default function WalletPage() {
       {/* Wallet History */}
       <div className="glass-card p-6 page-section">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-primary font-bold text-white tracking-wide">Wallet History</h3>
-          <span className="text-xs text-surface-500">{history.length} transactions</span>
+          <h3 className="text-lg font-primary font-bold text-slate-900 dark:text-white tracking-wide">Wallet History</h3>
+          <span className="text-xs text-slate-500 dark:text-surface-500">{history.length} transactions</span>
         </div>
         <div className="space-y-1">
           {history.length === 0 ? (
@@ -484,24 +484,24 @@ export default function WalletPage() {
             history.map((txn) => (
               <div
                 key={txn.id}
-                className="flex items-center gap-4 p-3 rounded-xl hover:bg-surface-800/30 transition-all group"
+                className="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-surface-800/30 transition-all group"
               >
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                  txn.type === 'CREDIT' ? 'bg-accent-500/10' : 'bg-surface-700/50'
+                  txn.type === 'CREDIT' ? 'bg-accent-500/10' : 'bg-slate-100 dark:bg-surface-700/50'
                 }`}>
                   {txn.type === 'CREDIT'
-                    ? <ArrowDownRight className="w-5 h-5 text-accent-400" />
-                    : <ArrowUpRight className="w-5 h-5 text-danger-400" />
+                    ? <ArrowDownRight className="w-5 h-5 text-accent-600 dark:text-accent-400" />
+                    : <ArrowUpRight className="w-5 h-5 text-danger-500 dark:text-danger-400" />
                   }
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white truncate">{txn.description || txn.merchant || 'Transaction'}</p>
-                  <p className="text-xs text-surface-500">
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">{txn.description || txn.merchant || 'Transaction'}</p>
+                  <p className="text-xs text-slate-500 dark:text-surface-500">
                     {new Date(txn.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className={`text-sm font-bold font-primary ${txn.type === 'CREDIT' ? 'text-accent-400' : 'text-white'}`}>
+                  <p className={`text-sm font-bold font-primary ${txn.type === 'CREDIT' ? 'text-accent-600 dark:text-accent-400' : 'text-slate-900 dark:text-white'}`}>
                     {txn.type === 'CREDIT' ? '+' : '-'}{formatCurrency(txn.amount)}
                   </p>
                   <p className="text-[10px] text-surface-600">Bal: {formatCurrency(txn.balanceAfter)}</p>

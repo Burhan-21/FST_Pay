@@ -192,12 +192,14 @@
   }
 
   .light .glass,
+  html:not(.dark):not(.amoled) .glass,
   .glass-light {
-    background: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(24px) saturate(160%);
     -webkit-backdrop-filter: blur(24px) saturate(160%);
     border: 1px solid rgba(15, 23, 42, 0.08);
     box-shadow: 0 8px 32px 0 rgba(15, 23, 42, 0.06);
+    color: #0f172a;
   }
 
   .amoled .glass {
@@ -222,8 +224,9 @@
     box-shadow: 0 12px 40px 0 rgba(99, 102, 241, 0.2);
   }
 
-  .light .glass-card-hover:hover {
-    background: rgba(255, 255, 255, 0.85);
+  .light .glass-card-hover:hover,
+  html:not(.dark):not(.amoled) .glass-card-hover:hover {
+    background: rgba(255, 255, 255, 0.95);
     border-color: rgba(99, 102, 241, 0.2);
   }
 
@@ -543,8 +546,9 @@
     border-color: rgba(100, 116, 139, 0.5);
   }
 
-  .light .btn-secondary {
-    @apply bg-slate-200 text-slate-700 border-slate-300 hover:bg-slate-300;
+  .light .btn-secondary,
+  html:not(.dark):not(.amoled) .btn-secondary {
+    @apply bg-slate-100 text-slate-800 border-slate-200 hover:bg-slate-200 hover:text-slate-900;
   }
 
   .amoled .btn-secondary {
@@ -572,8 +576,9 @@
            hover:bg-surface-800 hover:text-white;
   }
 
-  .light .btn-ghost {
-    @apply text-slate-500 hover:bg-slate-200 hover:text-slate-800;
+  .light .btn-ghost,
+  html:not(.dark):not(.amoled) .btn-ghost {
+    @apply text-slate-600 hover:bg-slate-100 hover:text-slate-900;
   }
 
   .amoled .btn-ghost {
@@ -604,14 +609,68 @@
      ================================================================ */
   .input-field {
     @apply w-full px-4 py-3 bg-surface-800/60 border border-surface-600/40 rounded-xl
-           text-white placeholder-surface-400
+           text-white placeholder-surface-400 caret-primary-500
            focus:outline-none focus:border-primary-500/70 focus:ring-2 focus:ring-primary-500/15
            transition-all duration-300;
   }
 
-  .light .input-field {
+  .input-field input,
+  .input-field textarea {
+    @apply text-inherit placeholder:text-inherit caret-primary-500;
+  }
+
+  .light .input-field,
+  html:not(.dark):not(.amoled) .input-field {
     @apply bg-white text-slate-900 placeholder-slate-400 border-slate-300
            focus:border-primary-500/70 focus:ring-primary-500/15;
+    background-color: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+  }
+
+  /* Universal Form Controls & Text Visibility */
+  .light input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+  html:not(.dark):not(.amoled) input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+  .light textarea,
+  html:not(.dark):not(.amoled) textarea,
+  .light select,
+  html:not(.dark):not(.amoled) select {
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+  }
+
+  .light input::placeholder,
+  html:not(.dark):not(.amoled) input::placeholder,
+  .light textarea::placeholder,
+  html:not(.dark):not(.amoled) textarea::placeholder {
+    color: #64748b !important;
+    -webkit-text-fill-color: #64748b !important;
+    opacity: 1 !important;
+  }
+
+  .dark input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+  .amoled input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+  .dark textarea,
+  .amoled textarea,
+  .dark select,
+  .amoled select {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+  }
+
+  .dark input::placeholder,
+  .amoled input::placeholder,
+  .dark textarea::placeholder,
+  .amoled textarea::placeholder {
+    color: #94a3b8 !important;
+    -webkit-text-fill-color: #94a3b8 !important;
+    opacity: 1 !important;
+  }
+
+  /* Universal password visibility guarantees */
+  input[type="password"] {
+    letter-spacing: 0.1em;
   }
 
   .amoled .input-field {
@@ -690,15 +749,11 @@
   }
 
   .stat-card-value {
-    @apply text-2xl font-bold tracking-tight font-primary;
+    @apply text-2xl font-bold tracking-tight font-primary text-slate-900 dark:text-white;
   }
 
   .stat-card-label {
-    @apply text-sm text-surface-400;
-  }
-
-  .light .stat-card-label {
-    @apply text-slate-500;
+    @apply text-sm text-slate-500 dark:text-surface-400;
   }
 
   .stat-card-trend-up {
@@ -742,8 +797,9 @@
     animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  .light .modal-panel {
-    @apply bg-white/95 border-slate-200;
+  .light .modal-panel,
+  html:not(.dark):not(.amoled) .modal-panel {
+    @apply bg-white border-slate-200 text-slate-900;
   }
 
   /* ================================================================

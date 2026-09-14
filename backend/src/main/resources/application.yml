@@ -1,6 +1,8 @@
 spring:
   application:
     name: fstpay
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
 
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5434/fstpay}

@@ -1,4 +1,4 @@
-﻿import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
   Home,
   Send,
@@ -88,7 +88,7 @@ export default function Sidebar({ isOpen, onClose, onSendClick, onReceiveClick, 
               <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white leading-none">
                 FST Pay
               </h1>
-              <p className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase mt-0.5">
+              <p className="text-[10px] text-slate-500 dark:text-surface-400 font-semibold tracking-wider uppercase mt-0.5">
                 Fast · Secure · Trusted
               </p>
             </div>
@@ -143,7 +143,7 @@ export default function Sidebar({ isOpen, onClose, onSendClick, onReceiveClick, 
                 <p className="text-[11px] font-bold text-primary-600 leading-tight">
                   More Possibilities
                 </p>
-                <span className="inline-block mt-2 text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                <span className="inline-block mt-2 text-[9px] font-bold text-slate-500 dark:text-surface-400 uppercase tracking-wider">
                   FST Pay
                 </span>
               </div>
@@ -160,10 +160,10 @@ export default function Sidebar({ isOpen, onClose, onSendClick, onReceiveClick, 
                 {user?.fullName?.charAt(0).toUpperCase() || 'U'}
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-bold text-slate-800 dark:text-white truncate">
+                <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
                   {user?.fullName || 'User'}
                 </p>
-                <p className="text-[10px] text-slate-400 truncate">
+                <p className="text-[10px] text-slate-500 dark:text-surface-400 font-medium truncate">
                   {user?.email || ''}
                 </p>
               </div>

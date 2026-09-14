@@ -127,10 +127,10 @@ export default function AcceptInvitation() {
             <div className="w-14 h-14 rounded-2xl gradient-card flex items-center justify-center mx-auto mb-4 shadow-xl shadow-primary-500/20">
               <Sparkles className="w-6 h-6 text-white" />
             </div>
-            <h1 className="text-2xl md:text-3xl font-display font-bold text-white leading-tight">
+            <h1 className="text-2xl md:text-3xl font-display font-bold text-slate-900 dark:text-white leading-tight">
               Accept Parent Invitation
             </h1>
-            <p className="text-surface-400 text-sm mt-2">
+            <p className="text-slate-500 dark:text-surface-400 text-sm mt-2">
               Link your parent account with FST Pay
             </p>
           </div>

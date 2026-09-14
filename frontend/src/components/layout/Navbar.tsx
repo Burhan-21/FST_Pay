@@ -44,11 +44,11 @@ export default function Navbar({ onMenuClick, onSearchClick, isLiveConnected }: 
           {/* Desktop Search Bar (Mockup: "Search people, businesses, bills...") */}
           <button
             onClick={onSearchClick}
-            className="hidden lg:flex items-center gap-2.5 px-4 py-2.5 rounded-2xl w-full max-w-md bg-slate-50 dark:bg-surface-800/60 border border-slate-200/80 dark:border-surface-700/60 text-slate-400 hover:border-slate-300 transition-all text-xs font-medium"
+            className="hidden lg:flex items-center gap-2.5 px-4 py-2.5 rounded-2xl w-full max-w-md bg-slate-50 dark:bg-surface-800/60 border border-slate-200/80 dark:border-surface-700/60 text-slate-500 dark:text-surface-400 hover:border-slate-300 transition-all text-xs font-medium"
           >
-            <Search className="w-4 h-4 text-slate-400 shrink-0" />
-            <span className="flex-1 text-left text-slate-400">Search people, businesses, bills...</span>
-            <kbd className="text-[10px] font-mono px-2 py-0.5 rounded-lg bg-white dark:bg-surface-700 border border-slate-200 dark:border-surface-600 text-slate-400">
+            <Search className="w-4 h-4 text-slate-500 dark:text-surface-400 shrink-0" />
+            <span className="flex-1 text-left text-slate-500 dark:text-surface-400">Search people, businesses, bills...</span>
+            <kbd className="text-[10px] font-mono px-2 py-0.5 rounded-lg bg-white dark:bg-surface-700 border border-slate-200 dark:border-surface-600 text-slate-500 dark:text-surface-400">
               ⌘K
             </kbd>
           </button>
@@ -85,7 +85,7 @@ export default function Navbar({ onMenuClick, onSearchClick, isLiveConnected }: 
               <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
                 {firstName ? `Hi, ${firstName} 👋` : 'Welcome back 👋'}
               </p>
-              <p className="text-[10px] text-slate-400 font-medium leading-tight">
+              <p className="text-[10px] text-slate-500 dark:text-surface-400 font-medium leading-tight">
                 Good to see you!
               </p>
             </div>

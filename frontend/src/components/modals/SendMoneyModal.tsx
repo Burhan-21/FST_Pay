@@ -159,7 +159,7 @@ export default function SendMoneyModal({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search name, UPI ID or mobile"
-                  className="w-full pl-11 pr-20 py-3 text-sm font-medium bg-slate-50 dark:bg-surface-800/80 rounded-2xl border border-slate-200 dark:border-surface-700 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                  className="w-full pl-11 pr-20 py-3 text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-surface-400 bg-slate-50 dark:bg-surface-800/80 rounded-2xl border border-slate-200 dark:border-surface-700 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 caret-primary-600"
                 />
                 {searchQuery.trim() && (
                   <button
@@ -237,7 +237,7 @@ export default function SendMoneyModal({
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="e.g. rahul@oksbi or 9876543210@paytm"
-                      className="w-full pl-11 pr-4 py-3 text-sm font-medium bg-slate-50 dark:bg-surface-800 rounded-2xl border border-slate-200 dark:border-surface-700 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                      className="w-full pl-11 pr-4 py-3 text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-surface-400 bg-slate-50 dark:bg-surface-800 rounded-2xl border border-slate-200 dark:border-surface-700 focus:outline-none focus:ring-2 focus:ring-primary-500/20 caret-primary-600"
                     />
                   </div>
                   <button
@@ -362,7 +362,7 @@ export default function SendMoneyModal({
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   placeholder="Add a note (optional)"
-                  className="w-full px-4 py-2.5 text-xs bg-slate-50 dark:bg-surface-800 rounded-xl border border-slate-200 dark:border-surface-700 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  className="w-full px-4 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-surface-400 bg-slate-50 dark:bg-surface-800 rounded-xl border border-slate-200 dark:border-surface-700 focus:outline-none focus:ring-1 focus:ring-primary-500 caret-primary-600"
                 />
               </div>
 

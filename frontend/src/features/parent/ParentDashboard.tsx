@@ -297,10 +297,10 @@ export default function ParentDashboard() {
               <span className="text-2xl font-bold">{user?.fullName?.charAt(0).toUpperCase() || 'P'}</span>
             </div>
             <div>
-              <h1 className="text-2xl font-display font-bold text-white">
+              <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white">
                 Parental Dashboard
               </h1>
-              <p className="text-surface-400 text-sm mt-0.5">Protecting and empowering your family's future</p>
+              <p className="text-slate-500 dark:text-surface-400 text-sm mt-0.5">Protecting and empowering your family's future</p>
             </div>
           </div>
           <div className="flex items-center gap-3">

@@ -155,7 +155,7 @@ export default function ScanPayModal({ isOpen, onClose, onScanSuccess }: ScanPay
                 value={manualInput}
                 onChange={(e) => setManualInput(e.target.value)}
                 placeholder="e.g. merchant@upi or 9876543210"
-                className="w-full px-4 py-2.5 text-xs bg-slate-50 dark:bg-surface-800 rounded-xl border border-slate-200 dark:border-surface-700 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                className="w-full px-4 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-surface-400 bg-slate-50 dark:bg-surface-800 rounded-xl border border-slate-200 dark:border-surface-700 focus:outline-none focus:ring-2 focus:ring-primary-500/20 caret-primary-600"
               />
               <button
                 type="submit"

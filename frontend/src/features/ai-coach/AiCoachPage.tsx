@@ -373,10 +373,10 @@ export default function AiCoachPage() {
         {/* Tabs Header */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
           <div>
-            <h1 className="text-2xl font-display font-bold text-white flex items-center gap-2">
-              <Bot className="w-7 h-7 text-purple-400" /> AI Money Assistant
+            <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Bot className="w-7 h-7 text-purple-500 dark:text-purple-400" /> AI Money Assistant
             </h1>
-            <p className="text-surface-400 text-sm">Smart diagnostics, budgeting, and savings coach</p>
+            <p className="text-slate-500 dark:text-surface-400 text-sm">Smart diagnostics, budgeting, and savings coach</p>
           </div>
 
           <div className="flex flex-wrap bg-surface-800/80 p-1 rounded-xl border border-surface-700/30 backdrop-blur gap-1">

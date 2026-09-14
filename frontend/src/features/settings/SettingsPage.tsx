@@ -439,8 +439,8 @@ export default function SettingsPage() {
     <PageTransition>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-display font-bold text-white">Settings</h1>
-          <p className="text-surface-400 mt-1">Manage your account preferences</p>
+          <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white">Settings</h1>
+          <p className="text-slate-500 dark:text-surface-400 mt-1">Manage your account preferences</p>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6 page-section">
@@ -926,7 +926,7 @@ export default function SettingsPage() {
                           type="email"
                           value={parentEmailInput}
                           onChange={(e) => setParentEmailInput(e.target.value)}
-                          placeholder="parent@example.com"
+                          placeholder="Enter parent's email address"
                           required
                           className="input-field py-2 text-xs focus:ring-2 focus:ring-primary-500"
                         />

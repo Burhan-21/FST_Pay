@@ -230,8 +230,8 @@ export default function TransactionsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-display font-bold text-white">Transactions</h1>
-          <p className="text-surface-400 mt-1">Track all your spending and income</p>
+          <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white">Transactions</h1>
+          <p className="text-slate-500 dark:text-surface-400 mt-1">Track all your spending and income</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -284,12 +284,26 @@ export default function TransactionsPage() {
       <div className="glass-card p-4 space-y-4 page-section">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-500" />
-            <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search transactions..." className="input-field pl-10 py-2.5 text-sm" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-surface-500" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search transactions..."
+              className="w-full pl-10 pr-4 py-2.5 text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-surface-400 bg-slate-50 dark:bg-surface-800/80 rounded-xl border border-slate-200 dark:border-surface-700 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 caret-primary-600"
+            />
           </div>
           <div className="flex gap-2">
             {(['ALL', 'CREDIT', 'DEBIT'] as const).map((t) => (
-              <button key={t} onClick={() => setTypeFilter(t)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${typeFilter === t ? 'bg-primary-500/20 text-primary-300 border border-primary-500/30' : 'bg-surface-800/50 text-surface-400 border border-surface-700/50 hover:text-white'}`}>
+              <button
+                key={t}
+                onClick={() => setTypeFilter(t)}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                  typeFilter === t
+                    ? 'bg-primary-500 text-white font-bold shadow-sm shadow-primary-500/20'
+                    : 'bg-slate-100 hover:bg-slate-200 dark:bg-surface-800/60 dark:hover:bg-surface-700 text-slate-600 dark:text-surface-400 dark:hover:text-white border border-slate-200 dark:border-surface-700/50'
+                }`}
+              >
                 {t === 'ALL' ? 'All' : t === 'CREDIT' ? '↓ Income' : '↑ Expense'}
               </button>
             ))}
@@ -297,7 +311,15 @@ export default function TransactionsPage() {
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1">
           {categories.map((cat) => (
-            <button key={cat} onClick={() => setFilter(cat)} className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${filter === cat ? 'bg-primary-500/20 text-primary-300 border border-primary-500/30' : 'bg-surface-800/50 text-surface-400 border border-surface-700/50 hover:text-white'}`}>
+            <button
+              key={cat}
+              onClick={() => setFilter(cat)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                filter === cat
+                  ? 'bg-primary-500 text-white font-bold shadow-xs'
+                  : 'bg-slate-100 hover:bg-slate-200 dark:bg-surface-800/60 dark:hover:bg-surface-700 text-slate-600 dark:text-surface-400 dark:hover:text-white border border-slate-200 dark:border-surface-700/50'
+              }`}
+            >
               {cat !== 'ALL' && getCategoryEmoji(cat)} {cat}
             </button>
           ))}
@@ -329,28 +351,28 @@ export default function TransactionsPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-sm font-medium text-white truncate">{txn.merchant}</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">{txn.merchant}</p>
                   <SettlementBadge status={txn.status} />
                   {txn.originalCurrency && txn.originalCurrency !== 'INR' && (
                     <span
                       data-testid="foreign-currency-badge"
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-primary-500/15 text-primary-300 border border-primary-500/30"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-primary-500/15 text-primary-600 dark:text-primary-300 border border-primary-500/30"
                     >
-                      <Globe className="w-3 h-3 text-primary-400" />
+                      <Globe className="w-3 h-3 text-primary-500 dark:text-primary-400" />
                       {txn.originalAmount !== undefined ? txn.originalAmount.toFixed(2) : ''} {txn.originalCurrency}
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-surface-400">
+                <p className="text-xs text-slate-500 dark:text-surface-400">
                   {txn.description || 'Simulated transaction'} • {formatRelativeTime(txn.createdAt)}
                   {txn.fxRate && txn.originalCurrency && txn.originalCurrency !== 'INR' && (
-                    <span className="text-surface-500"> • 1 {txn.originalCurrency} = ₹{txn.fxRate.toFixed(2)}{txn.fxFee ? ` (Fee: ₹${txn.fxFee.toFixed(2)})` : ''}</span>
+                    <span className="text-slate-400 dark:text-surface-500"> • 1 {txn.originalCurrency} = ₹{txn.fxRate.toFixed(2)}{txn.fxFee ? ` (Fee: ₹${txn.fxFee.toFixed(2)})` : ''}</span>
                   )}
                 </p>
               </div>
               <div className="text-right flex items-center gap-3">
                 <div>
-                  <p className={`text-sm font-semibold ${txn.type === 'CREDIT' ? 'text-accent-400' : 'text-white'}`}>
+                  <p className={`text-sm font-bold ${txn.type === 'CREDIT' ? 'text-accent-600 dark:text-accent-400' : 'text-slate-900 dark:text-white'}`}>
                     {txn.type === 'CREDIT' ? '+' : '-'}{formatCurrency(txn.amount)}
                   </p>
                   <p className="text-xs text-surface-500">Bal: {formatCurrency(txn.balanceAfter)}</p>

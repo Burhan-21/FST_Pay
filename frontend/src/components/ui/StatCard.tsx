@@ -32,7 +32,7 @@ export default function StatCard({
   return (
     <div className={`stat-card ${className}`}>
       <div className="flex items-center justify-between">
-        <div className={`p-2 rounded-xl bg-surface-700/30 ${iconColor}`}>
+        <div className={`p-2 rounded-xl bg-slate-100 dark:bg-surface-700/30 ${iconColor}`}>
           <Icon className="w-5 h-5" />
         </div>
         {trend && (
@@ -43,8 +43,8 @@ export default function StatCard({
           </span>
         )}
       </div>
-      <div className="stat-card-value">{value}</div>
-      <div className="stat-card-label">{label}</div>
+      <div className="stat-card-value text-slate-900 dark:text-white font-extrabold">{value}</div>
+      <div className="stat-card-label text-slate-500 dark:text-surface-400 font-medium">{label}</div>
       {children}
     </div>
   );

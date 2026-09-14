@@ -29,8 +29,8 @@ export default function AnalyticsPage() {
     <PageTransition>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-display font-bold text-white">Analytics</h1>
-          <p className="text-surface-400 mt-1">Understand your spending patterns</p>
+          <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white">Analytics</h1>
+          <p className="text-slate-500 dark:text-surface-400 mt-1">Understand your spending patterns</p>
         </div>
 
         {/* Score + Summary Cards */}
@@ -41,7 +41,7 @@ export default function AnalyticsPage() {
             icon={Star}
             iconColor="text-purple-400"
           >
-            <div className="mt-2 text-xs font-bold text-purple-400 bg-purple-500/10 py-1 px-2.5 rounded-full w-max">
+            <div className="mt-2 text-xs font-bold text-purple-600 dark:text-purple-400 bg-purple-500/10 py-1 px-2.5 rounded-full w-max">
               Grade: {score.grade}
             </div>
           </StatCard>
@@ -67,7 +67,7 @@ export default function AnalyticsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 page-section">
           {/* Monthly Income vs Expenses */}
           <GlassCard padding="lg">
-            <h3 className="text-lg font-display font-semibold text-white mb-4">Income vs Expenses</h3>
+            <h3 className="text-lg font-display font-semibold text-slate-900 dark:text-white mb-4">Income vs Expenses</h3>
             <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={monthlyData} barGap={4}>
@@ -84,7 +84,7 @@ export default function AnalyticsPage() {
 
           {/* Spending by Category Pie */}
           <GlassCard padding="lg">
-            <h3 className="text-lg font-display font-semibold text-white mb-4">Spending by Category</h3>
+            <h3 className="text-lg font-display font-semibold text-slate-900 dark:text-white mb-4">Spending by Category</h3>
             <div className="flex flex-col sm:flex-row items-center gap-6">
               <div className="w-full sm:w-1/2 h-[220px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -101,8 +101,8 @@ export default function AnalyticsPage() {
                 {spendingData.map((cat) => (
                   <div key={cat.category} className="flex items-center gap-3 text-sm">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: getCategoryColor(cat.category) }} />
-                    <span className="text-surface-300 flex-1">{getCategoryEmoji(cat.category)} {cat.category}</span>
-                    <span className="text-white font-medium">{cat.percentage}%</span>
+                    <span className="text-slate-700 dark:text-surface-300 flex-1">{getCategoryEmoji(cat.category)} {cat.category}</span>
+                    <span className="text-slate-900 dark:text-white font-medium">{cat.percentage}%</span>
                   </div>
                 ))}
               </div>
@@ -112,7 +112,7 @@ export default function AnalyticsPage() {
 
         {/* Monthly Insights */}
         <GlassCard padding="lg" className="page-section">
-          <h3 className="text-lg font-display font-semibold text-white mb-4">This Month's Insights</h3>
+          <h3 className="text-lg font-display font-semibold text-slate-900 dark:text-white mb-4">This Month's Insights</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { label: 'Total Income', value: formatCurrency(9500), icon: TrendingUp, color: 'text-accent-400' },
@@ -120,12 +120,12 @@ export default function AnalyticsPage() {
               { label: 'Net Savings', value: formatCurrency(1180), icon: TrendingUp, color: 'text-primary-400' },
               { label: 'Avg. Daily Spend', value: formatCurrency(277), icon: TrendingDown, color: 'text-warning-400' },
             ].map((item) => (
-              <div key={item.label} className="p-4 rounded-xl bg-surface-900/40 border border-surface-700/30">
+              <div key={item.label} className="p-4 rounded-xl bg-slate-50 dark:bg-surface-900/40 border border-slate-200 dark:border-surface-700/30">
                 <div className="flex items-center gap-2 mb-2">
                   <item.icon className={`w-4 h-4 ${item.color}`} />
-                  <span className="text-xs text-surface-400">{item.label}</span>
+                  <span className="text-xs text-slate-500 dark:text-surface-400">{item.label}</span>
                 </div>
-                <p className="text-xl font-bold text-white">{item.value}</p>
+                <p className="text-xl font-bold text-slate-900 dark:text-white">{item.value}</p>
               </div>
             ))}
           </div>

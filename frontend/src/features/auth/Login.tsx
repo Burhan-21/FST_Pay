@@ -152,34 +152,65 @@ export default function Login() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!recaptchaToken) { setError('Please complete the reCAPTCHA verification'); return; }
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      setError('Please enter your email address');
+      return;
+    }
+    if (!password) {
+      setError('Please enter your password');
+      return;
+    }
+    const tokenToSend = recaptchaToken || (import.meta.env.DEV ? 'dev-local-token' : '');
+    if (!tokenToSend) {
+      setError('Please complete the reCAPTCHA verification');
+      return;
+    }
     setError('');
     setIsLoading(true);
     try {
-      const result = await login(email, password, recaptchaToken);
+      const result = await login(cleanEmail, password, tokenToSend);
       if (result.requiresTotp) {
         setStep('totp');
       } else if (result.requiresOtp) {
         setStep('otp');
       }
     } catch (err: unknown) {
-      if (axios.isAxiosError<{ message?: string }>(err)) {
-        setError(err.response?.data?.message || 'Invalid credentials. Please try again.');
+      if (axios.isAxiosError<{ message?: string; data?: Record<string, string> }>(err)) {
+        if (!err.response) {
+          setError('Cannot connect to backend server. Please ensure backend is running.');
+        } else {
+          const resData = err.response.data;
+          if (resData?.data && typeof resData.data === 'object' && Object.keys(resData.data).length > 0) {
+            const firstErr = Object.values(resData.data)[0];
+            setError(firstErr || resData.message || 'Invalid email or password.');
+          } else {
+            setError(resData?.message || 'Invalid email or password. Please try again.');
+          }
+        }
+      } else if (err instanceof Error) {
+        setError(err.message);
       } else {
-        setError('Invalid credentials. Please try again.');
+        setError('Login failed. Please try again.');
       }
     } finally { setIsLoading(false); }
   };
 
   const handleOtpVerify = async (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanOtp = otp.trim();
+    if (cleanOtp.length !== 6) {
+      setError('Please enter the 6-digit verification code.');
+      return;
+    }
     setError('');
     setIsLoading(true);
     try {
-      await verifyOtp(email, otp);
+      await verifyOtp(cleanEmail, cleanOtp);
     } catch (err: unknown) {
       if (axios.isAxiosError<{ message?: string }>(err)) {
-        setError(err.response?.data?.message || 'Invalid OTP. Please try again.');
+        setError(err.response?.data?.message || 'Invalid or expired OTP. Please try again.');
       } else {
         setError('Invalid OTP. Please try again.');
       }
@@ -233,10 +264,14 @@ export default function Login() {
   };
 
   return (
-    <div className={`min-h-screen flex ${theme === 'amoled' ? 'bg-black' : 'bg-surface-950'}`}>
+    <div className={`min-h-screen flex transition-colors duration-200 ${
+      theme === 'amoled'
+        ? 'bg-black text-white'
+        : 'bg-[#F7FAFF] dark:bg-surface-950 text-slate-900 dark:text-white'
+    }`}>
       {/* Left Panel */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary-600 via-primary-700 to-surface-900" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary-600 via-primary-900 to-surface-950" />
         <div className="absolute inset-0">
           <div className="absolute top-20 left-20 w-72 h-72 bg-accent-500/20 rounded-full blur-[120px] float-slow" />
           <div className="absolute bottom-32 right-16 w-96 h-96 bg-primary-400/20 rounded-full blur-[150px] float-medium" />
@@ -288,14 +323,14 @@ export default function Login() {
             <div className="w-12 h-12 rounded-xl gradient-card flex items-center justify-center shadow-lg shadow-primary-500/30">
               <Sparkles className="w-6 h-6 text-white" />
             </div>
-            <span className="text-xl font-accent tracking-wider text-white uppercase">FST Pay</span>
+            <span className="text-xl font-accent tracking-wider text-slate-900 dark:text-white uppercase">FST Pay</span>
           </div>
 
           <div className="text-center lg:text-left">
-            <h1 className="text-3xl font-primary font-bold text-white">
+            <h1 className="text-3xl font-primary font-bold text-slate-900 dark:text-white">
               {step === 'credentials' ? 'Welcome back' : 'Verify your email'}
             </h1>
-            <p className="mt-2 text-surface-400">
+            <p className="mt-2 text-slate-500 dark:text-surface-400">
               {step === 'credentials'
                 ? 'Sign in to manage your smart wallet'
                 : `We sent a 6-digit code to ${email}`}
@@ -311,46 +346,51 @@ export default function Login() {
           {step === 'credentials' ? (
             <form onSubmit={handleLogin} className="space-y-5">
               <div className="page-section">
-                <label htmlFor="login-email" className="input-label">Email Address</label>
-                <div className="relative input-field flex items-center px-0 py-0">
+                <label htmlFor="login-email" className="input-label text-slate-700 dark:text-surface-300 font-medium text-xs">Email Address</label>
+                <div className="relative flex items-center px-0 py-0 bg-white dark:bg-surface-800/60 border border-slate-200 dark:border-surface-600/40 rounded-xl focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20 transition-all shadow-xs">
                   <div className="flex items-center justify-center w-11 shrink-0">
-                    <Mail className="w-4 h-4 text-surface-400" />
+                    <Mail className="w-4 h-4 text-slate-400 dark:text-surface-400" />
                   </div>
                   <input
                     id="login-email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
+                    placeholder="Enter your email address"
                     required
                     autoComplete="email"
-                    className="bg-transparent flex-1 py-3 pr-4 text-white placeholder-surface-400 focus:outline-none"
+                    className="bg-transparent flex-1 py-3 pr-4 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-surface-400 caret-primary-600 dark:caret-primary-400 text-sm font-medium focus:outline-none"
+                    style={{ color: theme === 'dark' || theme === 'amoled' ? '#ffffff' : '#0f172a' }}
                   />
                 </div>
               </div>
 
               <div className="page-section">
-                <label htmlFor="login-password" className="input-label">Password</label>
-                <div className="relative input-field flex items-center px-0 py-0">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label htmlFor="login-password" className="input-label text-slate-700 dark:text-surface-300 font-medium text-xs mb-0">Password</label>
+                </div>
+                <div className="relative flex items-center px-0 py-0 bg-white dark:bg-surface-800/60 border border-slate-200 dark:border-surface-600/40 rounded-xl focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20 transition-all shadow-xs">
                   <div className="flex items-center justify-center w-11 shrink-0">
-                    <Lock className="w-4 h-4 text-surface-400" />
+                    <Lock className="w-4 h-4 text-slate-400 dark:text-surface-400" />
                   </div>
                   <input
                     id="login-password"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
+                    placeholder="Enter your password"
                     required
                     minLength={8}
                     autoComplete="current-password"
-                    className="bg-transparent flex-1 py-3 pr-4 text-white placeholder-surface-400 focus:outline-none"
+                    className="bg-transparent flex-1 py-3 pr-4 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-surface-400 caret-primary-600 dark:caret-primary-400 text-sm font-medium focus:outline-none"
+                    style={{ color: theme === 'dark' || theme === 'amoled' ? '#ffffff' : '#0f172a' }}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="pr-4 text-surface-500 hover:text-surface-300 transition-colors"
+                    className="pr-4 text-slate-400 hover:text-slate-600 dark:text-surface-400 dark:hover:text-surface-200 transition-colors"
                     tabIndex={-1}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -368,7 +408,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="btn-gradient w-full flex items-center justify-center gap-2 py-3 page-section"
+                className="btn-gradient w-full flex items-center justify-center gap-2 py-3.5 page-section font-bold shadow-md shadow-primary-500/20"
               >
                 {isLoading ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -381,8 +421,8 @@ export default function Login() {
               </button>
 
               <div className="relative flex items-center justify-center my-1 page-section">
-                <div className="border-t border-surface-700/60 w-full"></div>
-                <span className="bg-surface-900 px-3 text-xs text-surface-400 uppercase tracking-wider font-semibold">
+                <div className="border-t border-slate-200 dark:border-surface-700/60 w-full"></div>
+                <span className="bg-[#F7FAFF] dark:bg-surface-950 amoled:bg-black px-3 text-xs text-slate-400 dark:text-surface-400 uppercase tracking-wider font-semibold">
                   or
                 </span>
               </div>
@@ -391,45 +431,41 @@ export default function Login() {
                 type="button"
                 onClick={handlePasskeyLogin}
                 disabled={isPasskeyLoading || isLoading}
-                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-primary-500/30 bg-primary-600/10 hover:bg-primary-600/20 text-white font-medium text-sm transition-all shadow-sm group page-section"
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-primary-200 dark:border-primary-500/30 bg-primary-50/70 hover:bg-primary-100/70 dark:bg-primary-600/10 dark:hover:bg-primary-600/20 text-primary-700 dark:text-primary-300 font-semibold text-sm transition-all shadow-xs group page-section"
               >
                 {isPasskeyLoading ? (
-                  <Loader2 className="w-5 h-5 text-primary-400 animate-spin" />
+                  <Loader2 className="w-5 h-5 text-primary-600 dark:text-primary-400 animate-spin" />
                 ) : (
                   <>
-                    <Fingerprint className="w-5 h-5 text-primary-400 group-hover:scale-110 transition-transform" />
+                    <Fingerprint className="w-5 h-5 text-primary-600 dark:text-primary-400 group-hover:scale-110 transition-transform" />
                     <span>Sign in with Passkey (Face ID / Touch ID)</span>
                   </>
                 )}
               </button>
-
-              <p className="text-center text-sm text-surface-500">
-                Made with <span className="text-primary-400">❤</span> for smart spenders
-              </p>
             </form>
           ) : step === 'totp' ? (
             <form onSubmit={handleTotpVerify} className="space-y-6">
               <div className="text-center space-y-2">
-                <div className="w-12 h-12 rounded-2xl bg-primary-500/10 border border-primary-500/20 text-primary-400 flex items-center justify-center mx-auto">
+                <div className="w-12 h-12 rounded-2xl bg-primary-500/10 border border-primary-500/20 text-primary-500 flex items-center justify-center mx-auto">
                   <ShieldCheck className="w-6 h-6" />
                 </div>
-                <h3 className="text-lg font-display font-semibold text-white">Authenticator App 2FA</h3>
-                <p className="text-xs text-surface-400">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Authenticator App 2FA</h3>
+                <p className="text-xs text-slate-500 dark:text-surface-400">
                   Enter the 6-digit code from Google Authenticator, 1Password, or Authy.
                 </p>
               </div>
 
               <div>
-                <label htmlFor="totp-input" className="input-label">Authenticator Code</label>
+                <label htmlFor="totp-input" className="input-label text-slate-700 dark:text-surface-300 font-medium text-xs">Authenticator Code</label>
                 <input
                   id="totp-input"
                   type="text"
                   value={totpCode}
                   onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="000000"
+                  placeholder="Enter 6-digit code"
                   required
                   maxLength={6}
-                  className="input-field text-center text-3xl font-mono tracking-[0.5em] py-4"
+                  className="input-field text-center text-3xl font-mono tracking-[0.5em] py-4 bg-white dark:bg-surface-800/60 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-surface-400 caret-primary-600 dark:caret-primary-400 border-slate-200 dark:border-surface-600/40 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                   autoFocus
                 />
               </div>
@@ -437,7 +473,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={isLoading || totpCode.length !== 6}
-                className="btn-gradient w-full flex items-center justify-center gap-2 py-3"
+                className="btn-gradient w-full flex items-center justify-center gap-2 py-3.5 font-bold shadow-md shadow-primary-500/20"
               >
                 {isLoading ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -449,11 +485,11 @@ export default function Login() {
                 )}
               </button>
 
-              <div className="space-y-2 pt-2 text-center border-t border-surface-800">
+              <div className="space-y-2 pt-2 text-center border-t border-slate-200 dark:border-surface-800">
                 <button
                   type="button"
                   onClick={() => { setStep('backup'); setError(''); }}
-                  className="text-xs text-primary-400 hover:text-primary-300 font-medium block w-full py-1"
+                  className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium block w-full py-1"
                 >
                   Lost your phone? Use an emergency recovery code
                 </button>
@@ -461,14 +497,14 @@ export default function Login() {
                   type="button"
                   onClick={handleRequestEmailFallback}
                   disabled={isLoading}
-                  className="text-xs text-surface-400 hover:text-surface-300 block w-full py-1"
+                  className="text-xs text-slate-500 dark:text-surface-400 hover:text-slate-700 dark:hover:text-surface-300 block w-full py-1"
                 >
                   Send code to registered email instead
                 </button>
                 <button
                   type="button"
                   onClick={() => { setStep('credentials'); setTotpCode(''); setError(''); }}
-                  className="btn-ghost w-full text-xs"
+                  className="w-full text-center py-1 text-xs font-semibold text-slate-500 dark:text-surface-400 hover:text-slate-800 dark:hover:text-white transition-colors"
                 >
                   ← Back to login
                 </button>
@@ -477,26 +513,26 @@ export default function Login() {
           ) : step === 'backup' ? (
             <form onSubmit={handleBackupVerify} className="space-y-6">
               <div className="text-center space-y-2">
-                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center mx-auto">
                   <KeyRound className="w-6 h-6" />
                 </div>
-                <h3 className="text-lg font-display font-semibold text-white">Emergency Recovery Code</h3>
-                <p className="text-xs text-surface-400">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Emergency Recovery Code</h3>
+                <p className="text-xs text-slate-500 dark:text-surface-400">
                   Enter one of your single-use 8-character backup codes saved during 2FA enrollment.
                 </p>
               </div>
 
               <div>
-                <label htmlFor="backup-input" className="input-label">Recovery Code (XXXX-XXXX)</label>
+                <label htmlFor="backup-input" className="input-label text-slate-700 dark:text-surface-300 font-medium text-xs">Recovery Code</label>
                 <input
                   id="backup-input"
                   type="text"
                   value={backupCode}
                   onChange={(e) => setBackupCode(e.target.value.toUpperCase())}
-                  placeholder="8F4A-9K2C"
+                  placeholder="Enter recovery code"
                   required
                   maxLength={10}
-                  className="input-field text-center text-xl font-mono tracking-widest py-3 uppercase"
+                  className="input-field text-center text-xl font-mono tracking-widest py-3 uppercase bg-white dark:bg-surface-800/60 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-surface-400 caret-primary-600 dark:caret-primary-400 border-slate-200 dark:border-surface-600/40 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                   autoFocus
                 />
               </div>
@@ -504,7 +540,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={isLoading || backupCode.trim().length < 8}
-                className="btn-gradient w-full flex items-center justify-center gap-2 py-3"
+                className="btn-gradient w-full flex items-center justify-center gap-2 py-3.5 font-bold shadow-md shadow-primary-500/20"
               >
                 {isLoading ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -516,11 +552,11 @@ export default function Login() {
                 )}
               </button>
 
-              <div className="space-y-2 pt-2 text-center border-t border-surface-800">
+              <div className="space-y-2 pt-2 text-center border-t border-slate-200 dark:border-surface-800">
                 <button
                   type="button"
                   onClick={() => { setStep('totp'); setError(''); }}
-                  className="text-xs text-primary-400 hover:text-primary-300 font-medium block w-full py-1"
+                  className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium block w-full py-1"
                 >
                   Use Authenticator App 6-digit code
                 </button>
@@ -528,14 +564,14 @@ export default function Login() {
                   type="button"
                   onClick={handleRequestEmailFallback}
                   disabled={isLoading}
-                  className="text-xs text-surface-400 hover:text-surface-300 block w-full py-1"
+                  className="text-xs text-slate-500 dark:text-surface-400 hover:text-slate-700 dark:hover:text-surface-300 block w-full py-1"
                 >
                   Send code to registered email instead
                 </button>
                 <button
                   type="button"
                   onClick={() => { setStep('credentials'); setBackupCode(''); setError(''); }}
-                  className="btn-ghost w-full text-xs"
+                  className="w-full text-center py-1 text-xs font-semibold text-slate-500 dark:text-surface-400 hover:text-slate-800 dark:hover:text-white transition-colors"
                 >
                   ← Back to login
                 </button>
@@ -544,21 +580,21 @@ export default function Login() {
           ) : (
             <form onSubmit={handleOtpVerify} className="space-y-6">
               {fallbackSent && (
-                <div className="p-3 rounded-xl bg-accent-500/10 border border-accent-500/20 text-accent-400 text-xs text-center">
+                <div className="p-3 rounded-xl bg-accent-500/10 border border-accent-500/20 text-accent-600 dark:text-accent-400 text-xs text-center font-medium">
                   Verification OTP dispatched to {email}.
                 </div>
               )}
               <div>
-                <label htmlFor="otp-input" className="input-label">Email Verification Code</label>
+                <label htmlFor="otp-input" className="input-label text-slate-700 dark:text-surface-300 font-medium text-xs">Email Verification Code</label>
                 <input
                   id="otp-input"
                   type="text"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="000000"
+                  placeholder="Enter 6-digit code"
                   required
                   maxLength={6}
-                  className="input-field text-center text-3xl font-mono tracking-[0.5em] py-4"
+                  className="input-field text-center text-3xl font-mono tracking-[0.5em] py-4 bg-white dark:bg-surface-800/60 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-surface-400 caret-primary-600 dark:caret-primary-400 border-slate-200 dark:border-surface-600/40 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                   autoFocus
                 />
               </div>
@@ -566,7 +602,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={isLoading || otp.length !== 6}
-                className="btn-gradient w-full flex items-center justify-center gap-2 py-3"
+                className="btn-gradient w-full flex items-center justify-center gap-2 py-3.5 font-bold shadow-md shadow-primary-500/20"
               >
                 {isLoading ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -581,16 +617,16 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => { setStep('credentials'); setOtp(''); setError(''); setFallbackSent(false); }}
-                className="btn-ghost w-full text-sm"
+                className="w-full text-center py-1 text-xs font-semibold text-slate-500 dark:text-surface-400 hover:text-slate-800 dark:hover:text-white transition-colors"
               >
                 ← Back to login
               </button>
             </form>
           )}
 
-          <p className="text-center text-sm text-surface-400">
+          <p className="text-center text-sm text-slate-500 dark:text-surface-400">
             Don't have an account?{' '}
-            <Link to="/register" className="text-primary-400 hover:text-primary-300 font-medium transition-colors">
+            <Link to="/register" className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-semibold transition-colors">
               Create one free
             </Link>
           </p>

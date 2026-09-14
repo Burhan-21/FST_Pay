@@ -27,31 +27,52 @@ export default function Register() {
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const passwordChecks = [
-    { label: 'At least 8 characters', valid: password.length >= 8 },
-    { label: 'Contains a number', valid: /\d/.test(password) },
-    { label: 'Contains uppercase', valid: /[A-Z]/.test(password) },
+    { label: '8+ characters', valid: password.length >= 8 },
+    { label: 'One lowercase (a-z)', valid: /[a-z]/.test(password) },
+    { label: 'One uppercase (A-Z)', valid: /[A-Z]/.test(password) },
+    { label: 'One number (0-9)', valid: /\d/.test(password) },
+    { label: 'One special symbol (!@#$...)', valid: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password) },
     { label: 'Passwords match', valid: password === confirmPassword && confirmPassword.length > 0 },
   ];
 
-  const isFormValid = passwordChecks.every((c) => c.valid) && fullName && email && dateOfBirth;
+  const isFormValid = passwordChecks.every((c) => c.valid) && fullName.trim().length > 0 && email.trim().length > 0 && dateOfBirth;
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormValid) return;
-    if (!recaptchaToken) { setError('Please complete the reCAPTCHA verification'); return; }
+    const cleanFullName = fullName.trim();
+    const cleanEmail = email.trim().toLowerCase();
+    const tokenToSend = recaptchaToken || (import.meta.env.DEV ? 'dev-local-token' : '');
+    if (!tokenToSend) {
+      setError('Please complete the reCAPTCHA verification');
+      return;
+    }
     setError('');
     setIsLoading(true);
     try {
-      const result = await register(fullName, email, password, dateOfBirth, recaptchaToken);
+      const result = await register(cleanFullName, cleanEmail, password, dateOfBirth, tokenToSend);
       if (result.requiresOtp) setStep('otp');
       else navigate('/dashboard');
     } catch (err: unknown) {
-      if (axios.isAxiosError<{ message?: string }>(err)) {
-        setError(err.response?.data?.message || 'Registration failed. Please try again.');
+      if (axios.isAxiosError<{ message?: string; data?: Record<string, string> }>(err)) {
+        if (!err.response) {
+          setError('Cannot connect to backend server. Please ensure backend is running.');
+        } else {
+          const resData = err.response.data;
+          if (resData?.data && typeof resData.data === 'object' && Object.keys(resData.data).length > 0) {
+            const firstErr = Object.values(resData.data)[0];
+            setError(firstErr || resData.message || 'Registration validation failed.');
+          } else {
+            setError(resData?.message || 'Registration failed. Please check the entered details.');
+          }
+        }
+      } else if (err instanceof Error) {
+        setError(err.message);
       } else {
         setError('Registration failed. Please try again.');
       }
@@ -60,10 +81,16 @@ export default function Register() {
 
   const handleOtpVerify = async (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanOtp = otp.trim();
+    if (cleanOtp.length !== 6) {
+      setError('Please enter the 6-digit verification code.');
+      return;
+    }
     setError('');
     setIsLoading(true);
     try {
-      await verifyOtp(email, otp);
+      await verifyOtp(cleanEmail, cleanOtp);
       navigate('/dashboard');
     } catch (err: unknown) {
       if (axios.isAxiosError<{ message?: string }>(err)) {
@@ -76,36 +103,40 @@ export default function Register() {
 
   if (step === 'otp') {
     return (
-      <div className={`min-h-screen flex items-center justify-center p-6 ${theme === 'amoled' ? 'bg-black' : 'bg-surface-950'}`}>
-        <div className="max-w-md w-full space-y-6 animate-scale-in">
+      <div className={`min-h-screen flex items-center justify-center p-6 transition-colors duration-200 ${
+        theme === 'amoled'
+          ? 'bg-black text-white'
+          : 'bg-[#F7FAFF] dark:bg-surface-950 text-slate-900 dark:text-white'
+      }`}>
+        <div className="max-w-md w-full space-y-6 animate-scale-in bg-white dark:bg-surface-900 amoled:bg-surface-900/60 p-8 rounded-3xl border border-slate-200/80 dark:border-surface-800 shadow-xl">
           <div className="text-center">
-            <div className="w-16 h-16 rounded-2xl gradient-card flex items-center justify-center mx-auto mb-4 shadow-2xl shadow-primary-500/30">
+            <div className="w-16 h-16 rounded-2xl gradient-card flex items-center justify-center mx-auto mb-4 shadow-xl shadow-primary-500/20">
               <Mail className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-3xl font-primary font-bold text-white">Verify your email</h1>
-            <p className="mt-2 text-surface-400">
-              We sent a 6-digit code to <span className="text-white font-medium">{email}</span>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Verify your email</h1>
+            <p className="mt-2 text-sm text-slate-500 dark:text-surface-400">
+              We sent a 6-digit code to <span className="font-semibold text-slate-900 dark:text-white">{email}</span>
             </p>
           </div>
 
           {error && (
-            <div className="p-4 rounded-2xl bg-danger-500/10 border border-danger-500/20 text-danger-400 text-sm animate-slide-down">
+            <div className="p-4 rounded-2xl bg-danger-500/10 border border-danger-500/20 text-danger-500 dark:text-danger-400 text-sm animate-slide-down">
               {error}
             </div>
           )}
 
           <form onSubmit={handleOtpVerify} className="space-y-5">
             <div>
-              <label htmlFor="otp-input" className="input-label">Verification Code</label>
+              <label htmlFor="otp-input" className="input-label text-slate-700 dark:text-surface-300 font-medium text-xs">Verification Code</label>
               <input
                 id="otp-input"
                 type="text"
                 value={otp}
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="000000"
+                placeholder="Enter 6-digit code"
                 required
                 maxLength={6}
-                className="input-field text-center text-3xl font-mono tracking-[0.5em] py-4"
+                className="input-field text-center text-3xl font-mono tracking-[0.5em] py-4 bg-white dark:bg-surface-800/60 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-surface-400 caret-primary-600 dark:caret-primary-400 border-slate-200 dark:border-surface-600/40 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                 autoFocus
               />
             </div>
@@ -113,7 +144,7 @@ export default function Register() {
             <button
               type="submit"
               disabled={isLoading || otp.length !== 6}
-              className="btn-gradient w-full flex items-center justify-center gap-2 py-3"
+              className="btn-gradient w-full flex items-center justify-center gap-2 py-3.5 font-bold shadow-md shadow-primary-500/20"
             >
               {isLoading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -128,7 +159,7 @@ export default function Register() {
             <button
               type="button"
               onClick={() => { setStep('details'); setOtp(''); setError(''); }}
-              className="btn-ghost w-full text-sm"
+              className="w-full text-center py-2 text-xs font-semibold text-slate-500 dark:text-surface-400 hover:text-slate-800 dark:hover:text-white transition-colors"
             >
               ← Back to registration
             </button>
@@ -139,7 +170,11 @@ export default function Register() {
   }
 
   return (
-    <div className={`min-h-screen flex ${theme === 'amoled' ? 'bg-black' : 'bg-surface-950'}`}>
+    <div className={`min-h-screen flex transition-colors duration-200 ${
+      theme === 'amoled'
+        ? 'bg-black text-white'
+        : 'bg-[#F7FAFF] dark:bg-surface-950 text-slate-900 dark:text-white'
+    }`}>
       {/* Left Panel */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-accent-600 via-primary-700 to-surface-900" />
@@ -194,59 +229,62 @@ export default function Register() {
           </div>
 
           <div className="text-center lg:text-left">
-            <h1 className="text-3xl font-primary font-bold text-white">Create your account</h1>
-            <p className="mt-2 text-surface-400">Free forever. No hidden fees.</p>
+            <h1 className="text-3xl font-primary font-bold text-slate-900 dark:text-white">Create your account</h1>
+            <p className="mt-2 text-slate-500 dark:text-surface-400">Free forever. No hidden fees.</p>
           </div>
 
           {error && (
-            <div className="p-4 rounded-2xl bg-danger-500/10 border border-danger-500/20 text-danger-400 text-sm animate-slide-down">
+            <div className="p-4 rounded-2xl bg-danger-500/10 border border-danger-500/20 text-danger-500 dark:text-danger-400 text-sm animate-slide-down">
               {error}
             </div>
           )}
 
           <form onSubmit={handleRegister} className="space-y-4">
             <div className="page-section">
-              <label htmlFor="reg-name" className="input-label">Full Name</label>
-              <div className="flex items-center gap-0 input-field px-0 py-0">
+              <label htmlFor="reg-name" className="input-label text-slate-700 dark:text-surface-300 font-medium text-xs">Full Name</label>
+              <div className="flex items-center gap-0 px-0 py-0 bg-white dark:bg-surface-800/60 border border-slate-200 dark:border-surface-600/40 rounded-xl focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20 shadow-xs transition-all">
                 <div className="flex items-center justify-center w-11 shrink-0">
-                  <User className="w-4 h-4 text-surface-400" />
+                  <User className="w-4 h-4 text-slate-400 dark:text-surface-400" />
                 </div>
                 <input
                   id="reg-name"
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="John Doe"
+                  placeholder="Enter your full name"
                   required
-                  className="bg-transparent flex-1 py-3 pr-4 text-white placeholder-surface-400 focus:outline-none"
+                  autoComplete="name"
+                  className="bg-transparent flex-1 py-3 pr-4 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-surface-400 caret-primary-600 dark:caret-primary-400 text-sm font-medium focus:outline-none"
+                  style={{ color: theme === 'dark' || theme === 'amoled' ? '#ffffff' : '#0f172a' }}
                 />
               </div>
             </div>
 
             <div className="page-section">
-              <label htmlFor="reg-email" className="input-label">Email Address</label>
-              <div className="flex items-center gap-0 input-field px-0 py-0">
+              <label htmlFor="reg-email" className="input-label text-slate-700 dark:text-surface-300 font-medium text-xs">Email Address</label>
+              <div className="flex items-center gap-0 px-0 py-0 bg-white dark:bg-surface-800/60 border border-slate-200 dark:border-surface-600/40 rounded-xl focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20 shadow-xs transition-all">
                 <div className="flex items-center justify-center w-11 shrink-0">
-                  <Mail className="w-4 h-4 text-surface-400" />
+                  <Mail className="w-4 h-4 text-slate-400 dark:text-surface-400" />
                 </div>
                 <input
                   id="reg-email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  placeholder="Enter your email address"
                   required
                   autoComplete="email"
-                  className="bg-transparent flex-1 py-3 pr-4 text-white placeholder-surface-400 focus:outline-none"
+                  className="bg-transparent flex-1 py-3 pr-4 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-surface-400 caret-primary-600 dark:caret-primary-400 text-sm font-medium focus:outline-none"
+                  style={{ color: theme === 'dark' || theme === 'amoled' ? '#ffffff' : '#0f172a' }}
                 />
               </div>
             </div>
 
             <div className="page-section">
-              <label htmlFor="reg-dob" className="input-label">Date of Birth</label>
-              <div className="flex items-center gap-0 input-field px-0 py-0">
+              <label htmlFor="reg-dob" className="input-label text-slate-700 dark:text-surface-300 font-medium text-xs">Date of Birth</label>
+              <div className="flex items-center gap-0 px-0 py-0 bg-white dark:bg-surface-800/60 border border-slate-200 dark:border-surface-600/40 rounded-xl focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20 shadow-xs transition-all">
                 <div className="flex items-center justify-center w-11 shrink-0">
-                  <Calendar className="w-4 h-4 text-surface-400" />
+                  <Calendar className="w-4 h-4 text-slate-400 dark:text-surface-400" />
                 </div>
                 <input
                   id="reg-dob"
@@ -254,33 +292,37 @@ export default function Register() {
                   value={dateOfBirth}
                   onChange={(e) => setDateOfBirth(e.target.value)}
                   required
-                  max={new Date().toISOString().split('T')[0]}
-                  className="bg-transparent flex-1 py-3 pr-4 text-white focus:outline-none [color-scheme:dark]"
+                  max={new Date(new Date().setFullYear(new Date().getFullYear() - 12)).toISOString().split('T')[0]}
+                  className="bg-transparent flex-1 py-3 pr-4 text-slate-900 dark:text-white caret-primary-600 dark:caret-primary-400 text-sm font-medium focus:outline-none [color-scheme:light] dark:[color-scheme:dark]"
+                  style={{ color: theme === 'dark' || theme === 'amoled' ? '#ffffff' : '#0f172a' }}
                 />
               </div>
             </div>
 
             <div className="page-section">
-              <label htmlFor="reg-password" className="input-label">Password</label>
-              <div className="flex items-center gap-0 input-field px-0 py-0">
+              <label htmlFor="reg-password" className="input-label text-slate-700 dark:text-surface-300 font-medium text-xs">Password</label>
+              <div className="flex items-center gap-0 px-0 py-0 bg-white dark:bg-surface-800/60 border border-slate-200 dark:border-surface-600/40 rounded-xl focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20 shadow-xs transition-all">
                 <div className="flex items-center justify-center w-11 shrink-0">
-                  <Lock className="w-4 h-4 text-surface-400" />
+                  <Lock className="w-4 h-4 text-slate-400 dark:text-surface-400" />
                 </div>
                 <input
                   id="reg-password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="Enter your password"
                   required
+                  minLength={8}
                   autoComplete="new-password"
-                  className="bg-transparent flex-1 py-3 pr-4 text-white placeholder-surface-400 focus:outline-none"
+                  className="bg-transparent flex-1 py-3 pr-4 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-surface-400 caret-primary-600 dark:caret-primary-400 text-sm font-medium focus:outline-none"
+                  style={{ color: theme === 'dark' || theme === 'amoled' ? '#ffffff' : '#0f172a' }}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="pr-4 text-surface-500 hover:text-surface-300 transition-colors"
+                  className="pr-4 text-slate-400 hover:text-slate-600 dark:text-surface-400 dark:hover:text-surface-200 transition-colors"
                   tabIndex={-1}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -288,21 +330,32 @@ export default function Register() {
             </div>
 
             <div className="page-section">
-              <label htmlFor="reg-confirm" className="input-label">Confirm Password</label>
-              <div className="flex items-center gap-0 input-field px-0 py-0">
+              <label htmlFor="reg-confirm" className="input-label text-slate-700 dark:text-surface-300 font-medium text-xs">Confirm Password</label>
+              <div className="flex items-center gap-0 px-0 py-0 bg-white dark:bg-surface-800/60 border border-slate-200 dark:border-surface-600/40 rounded-xl focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20 shadow-xs transition-all">
                 <div className="flex items-center justify-center w-11 shrink-0">
-                  <Lock className="w-4 h-4 text-surface-400" />
+                  <Lock className="w-4 h-4 text-slate-400 dark:text-surface-400" />
                 </div>
                 <input
                   id="reg-confirm"
-                  type="password"
+                  type={showConfirmPassword ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="Confirm your password"
                   required
+                  minLength={8}
                   autoComplete="new-password"
-                  className="bg-transparent flex-1 py-3 pr-4 text-white placeholder-surface-400 focus:outline-none"
+                  className="bg-transparent flex-1 py-3 pr-4 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-surface-400 caret-primary-600 dark:caret-primary-400 text-sm font-medium focus:outline-none"
+                  style={{ color: theme === 'dark' || theme === 'amoled' ? '#ffffff' : '#0f172a' }}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="pr-4 text-slate-400 hover:text-slate-600 dark:text-surface-400 dark:hover:text-surface-200 transition-colors"
+                  tabIndex={-1}
+                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
@@ -310,10 +363,10 @@ export default function Register() {
             <div className="grid grid-cols-2 gap-2 page-section">
               {passwordChecks.map((check) => (
                 <div key={check.label} className="flex items-center gap-2 text-xs">
-                  <div className={`w-4 h-4 rounded-full flex items-center justify-center transition-all duration-300 ${check.valid ? 'bg-accent-500 shadow-lg shadow-accent-500/30' : 'bg-surface-700'}`}>
+                  <div className={`w-4 h-4 rounded-full flex items-center justify-center transition-all duration-300 ${check.valid ? 'bg-accent-500 shadow-lg shadow-accent-500/30' : 'bg-slate-200 dark:bg-surface-700'}`}>
                     {check.valid && <Check className="w-2.5 h-2.5 text-white" />}
                   </div>
-                  <span className={check.valid ? 'text-accent-400' : 'text-surface-500'}>{check.label}</span>
+                  <span className={check.valid ? 'text-accent-600 dark:text-accent-400 font-medium' : 'text-slate-400 dark:text-surface-500'}>{check.label}</span>
                 </div>
               ))}
             </div>
@@ -329,7 +382,7 @@ export default function Register() {
             <button
               type="submit"
               disabled={isLoading || !isFormValid}
-              className="btn-gradient w-full flex items-center justify-center gap-2 py-3 mt-2 page-section"
+              className="btn-gradient w-full flex items-center justify-center gap-2 py-3.5 mt-2 page-section font-bold shadow-md shadow-primary-500/20"
             >
               {isLoading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -342,9 +395,9 @@ export default function Register() {
             </button>
           </form>
 
-          <p className="text-center text-sm text-surface-400">
+          <p className="text-center text-sm text-slate-500 dark:text-surface-400">
             Already have an account?{' '}
-            <Link to="/login" className="text-primary-400 hover:text-primary-300 font-medium transition-colors">
+            <Link to="/login" className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-semibold transition-colors">
               Sign in
             </Link>
           </p>

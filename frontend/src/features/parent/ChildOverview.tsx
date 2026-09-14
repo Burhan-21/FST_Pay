@@ -143,8 +143,8 @@ export default function ChildOverview() {
               {child.fullName.charAt(0).toUpperCase()}
             </div>
             <div>
-              <h2 className="text-xl md:text-2xl font-display font-bold text-white">{child.fullName}</h2>
-              <p className="text-xs text-surface-400 mt-1">{child.email} · linked as <span className="text-primary-400 font-semibold">{child.relationship}</span></p>
+              <h2 className="text-xl md:text-2xl font-display font-bold text-slate-900 dark:text-white">{child.fullName}</h2>
+              <p className="text-xs text-slate-500 dark:text-surface-400 mt-1">{child.email} · linked as <span className="text-primary-600 dark:text-primary-400 font-semibold">{child.relationship}</span></p>
             </div>
           </div>
 
@@ -171,9 +171,9 @@ export default function ChildOverview() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             <GlassCard padding="lg" className="space-y-5">
-              <h3 className="text-lg font-display font-bold text-white tracking-wide border-b border-surface-700/50 pb-3 flex items-center justify-between">
+              <h3 className="text-lg font-display font-bold text-slate-900 dark:text-white tracking-wide border-b border-slate-200 dark:border-surface-700/50 pb-3 flex items-center justify-between">
                 <span>Virtual Cards</span>
-                <span className="text-xs text-surface-400 font-normal">Active cards assigned to {child.fullName}</span>
+                <span className="text-xs text-slate-500 dark:text-surface-400 font-normal">Active cards assigned to {child.fullName}</span>
               </h3>
 
               {child.virtualCards.length === 0 ? (
@@ -238,24 +238,24 @@ export default function ChildOverview() {
 
             {/* Child transactions list */}
             <GlassCard padding="lg">
-              <h3 className="text-lg font-display font-bold text-white tracking-wide border-b border-surface-700/50 pb-3 mb-4">
+              <h3 className="text-lg font-display font-bold text-slate-900 dark:text-white tracking-wide border-b border-slate-200 dark:border-surface-700/50 pb-3 mb-4">
                 Recent Transactions
               </h3>
               {child.recentTransactions.length === 0 ? (
-                <p className="text-surface-500 text-xs py-8 text-center">No transaction logs recorded.</p>
+                <p className="text-slate-400 dark:text-surface-500 text-xs py-8 text-center">No transaction logs recorded.</p>
               ) : (
                 <div className="space-y-2">
                   {child.recentTransactions.map((txn, idx) => (
-                    <div key={txn.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-surface-800/30 transition-all" style={{ animationDelay: `${idx * 50}ms` }}>
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${txn.type === 'CREDIT' ? 'bg-accent-500/10' : 'bg-surface-700/50'}`}>
+                    <div key={txn.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-surface-800/30 transition-all" style={{ animationDelay: `${idx * 50}ms` }}>
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${txn.type === 'CREDIT' ? 'bg-accent-500/10' : 'bg-slate-100 dark:bg-surface-700/50'}`}>
                         {getCategoryEmoji(txn.category)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-white truncate">{txn.merchant || txn.description}</p>
-                        <p className="text-xs text-surface-500">{txn.category} · {new Date(txn.createdAt).toLocaleDateString()}</p>
+                        <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">{txn.merchant || txn.description}</p>
+                        <p className="text-xs text-slate-500 dark:text-surface-500">{txn.category} · {new Date(txn.createdAt).toLocaleDateString()}</p>
                       </div>
                       <div className="text-right">
-                        <p className={`text-sm font-bold font-display ${txn.type === 'CREDIT' ? 'text-accent-400' : 'text-white'}`}>
+                        <p className={`text-sm font-bold font-display ${txn.type === 'CREDIT' ? 'text-accent-600 dark:text-accent-400' : 'text-slate-900 dark:text-white'}`}>
                           {txn.type === 'CREDIT' ? '+' : '-'}{formatCurrency(txn.amount)}
                         </p>
                       </div>
@@ -268,7 +268,7 @@ export default function ChildOverview() {
 
           {/* Goals list sidebar */}
           <GlassCard padding="lg" className="space-y-4">
-            <h3 className="text-lg font-display font-bold text-white tracking-wide border-b border-surface-700/50 pb-2">
+            <h3 className="text-lg font-display font-bold text-slate-900 dark:text-white tracking-wide border-b border-slate-200 dark:border-surface-700/50 pb-2">
               Active Budget Goals
             </h3>
 

@@ -124,8 +124,8 @@ export default function CardsPage() {
     <PageTransition className="space-y-6">
       <div className="flex items-center justify-between page-section">
         <div>
-          <h1 className="text-2xl font-primary font-bold text-white">Virtual Cards</h1>
-          <p className="text-surface-400 mt-1">Manage your prepaid virtual cards</p>
+          <h1 className="text-2xl font-primary font-bold text-slate-900 dark:text-white">Virtual Cards</h1>
+          <p className="text-slate-500 dark:text-surface-400 mt-1">Manage your prepaid virtual cards</p>
         </div>
         <Button
           onClick={() => { setShowCreate(true); setSelectedBg('sunset'); setSelectedMascot('none'); setCustomPicUrl(''); }}
@@ -262,8 +262,8 @@ export default function CardsPage() {
           <div className="p-4 rounded-xl glass flex items-start gap-3">
             <Shield className="w-5 h-5 text-accent-400 mt-0.5 shrink-0" />
             <div>
-              <p className="text-sm text-white font-semibold">Secure Virtual Card</p>
-              <p className="text-xs text-surface-400 mt-0.5">Generated instantly with custom details and spending limits.</p>
+              <p className="text-sm text-slate-900 dark:text-white font-semibold">Secure Virtual Card</p>
+              <p className="text-xs text-slate-500 dark:text-surface-400 mt-0.5">Generated instantly with custom details and spending limits.</p>
             </div>
           </div>
 
@@ -311,7 +311,7 @@ export default function CardsPage() {
                 <div className={`w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-300 ${isOneTime ? 'translate-x-5.5' : 'translate-x-0.5'} mt-0.5`} />
               </div>
               <input type="checkbox" checked={isOneTime} onChange={(e) => setIsOneTime(e.target.checked)} className="hidden" />
-              <span className="text-xs text-surface-300 font-medium">One-time use (auto-deletes after first transaction)</span>
+              <span className="text-xs text-slate-700 dark:text-surface-300 font-medium">One-time use (auto-deletes after first transaction)</span>
             </label>
           </div>
 

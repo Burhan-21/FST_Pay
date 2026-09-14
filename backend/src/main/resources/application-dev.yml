@@ -6,7 +6,7 @@ spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/fstpay_app}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:Burhan@2004}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
   jpa:
     show-sql: false
     hibernate:
@@ -20,6 +20,11 @@ spring:
   kafka:
     listener:
       auto-startup: false
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
 
 logging:
   level:
@@ -41,10 +46,10 @@ management:
 
 app:
   admin:
-    email: admin@fstpay.com
-    password: Admin@1234
-    fullName: FST Pay Admin
+    email: ${ADMIN_EMAIL:admin@fstpay.com}
+    password: ${ADMIN_PASSWORD:}
+    fullName: ${ADMIN_FULLNAME:FST Pay Admin}
 
 jwt:
-  secret: ${JWT_SECRET:dGVzdC1qd3Qtc2VjcmV0LXRoYXQtaXMtYXQtbGVhc3QtMjU2LWJpdHMtbG9uZw==}
+  secret: ${JWT_SECRET:}
 

@@ -154,10 +154,10 @@ export default function RewardsPage() {
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold text-white flex items-center gap-2">
+          <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <Trophy className="w-7 h-7 text-warning-400" /> Rewards & Level Up
           </h1>
-          <p className="text-surface-400 mt-1">Sticking to budgets and saving unlocks premium badges & reward gift cards.</p>
+          <p className="text-slate-500 dark:text-surface-400 mt-1">Sticking to budgets and saving unlocks premium badges & reward gift cards.</p>
         </div>
 
         <Button
@@ -232,11 +232,11 @@ export default function RewardsPage() {
       </div>
 
       {/* Badges showcase rack */}
-      <div className="glass-card p-6 border border-surface-800/80 shadow-md">
-        <h3 className="text-lg font-display font-semibold text-white mb-1 flex items-center gap-2">
-          <Award className="w-5 h-5 text-purple-400" /> Badge Rack
+      <div className="glass-card p-6 border border-slate-200 dark:border-surface-800/80 shadow-md">
+        <h3 className="text-lg font-display font-semibold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+          <Award className="w-5 h-5 text-purple-500 dark:text-purple-400" /> Badge Rack
         </h3>
-        <p className="text-surface-400 text-xs mb-5">Earn 150 points for each badge unlocked.</p>
+        <p className="text-slate-500 dark:text-surface-400 text-xs mb-5">Earn 150 points for each badge unlocked.</p>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
           {badges.map((badge) => (
@@ -244,27 +244,29 @@ export default function RewardsPage() {
               key={badge.id} 
               className={`relative overflow-hidden p-5 rounded-2xl border text-center transition-all duration-300 ${
                 badge.unlocked 
-                  ? 'bg-surface-800/40 border-primary-500/30 shadow-md hover:border-primary-500/50' 
-                  : 'bg-surface-900/40 border-surface-800/80 grayscale opacity-50'
+                  ? 'bg-white dark:bg-surface-800/40 border-primary-200 dark:border-primary-500/30 shadow-sm hover:border-primary-500/50' 
+                  : 'bg-slate-50 dark:bg-surface-900/40 border-slate-200 dark:border-surface-800/80'
               }`}
             >
               {/* Lock icon if locked */}
               {!badge.unlocked && (
-                <div className="absolute top-2 right-2 p-1 bg-surface-900 rounded-full border border-surface-800">
-                  <Lock className="w-3 h-3 text-surface-500" />
+                <div className="absolute top-2 right-2 p-1 bg-white dark:bg-surface-900 rounded-full border border-slate-200 dark:border-surface-800 shadow-xs">
+                  <Lock className="w-3 h-3 text-slate-400 dark:text-surface-500" />
                 </div>
               )}
               
-              <span className="text-4xl block mb-2">{badge.icon || '🏆'}</span>
-              <h4 className="text-sm font-semibold text-white">{badge.displayName}</h4>
-              <p className="text-surface-400 text-xxs mt-1 min-h-[30px] leading-tight">{badge.description}</p>
+              <span className={`text-4xl block mb-2 ${badge.unlocked ? '' : 'grayscale opacity-60'}`}>
+                {badge.icon || '🏆'}
+              </span>
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white">{badge.displayName}</h4>
+              <p className="text-slate-500 dark:text-surface-400 text-xxs mt-1 min-h-[30px] leading-tight font-medium">{badge.description}</p>
               
               {badge.unlocked ? (
-                <div className="mt-3 text-xxs font-bold text-emerald-400 bg-emerald-500/10 py-1 px-2 rounded-full inline-block">
+                <div className="mt-3 text-xxs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 py-1 px-2.5 rounded-full inline-block">
                   Unlocked
                 </div>
               ) : (
-                <div className="mt-3 text-xxs font-bold text-surface-500 bg-surface-800 py-1 px-2 rounded-full inline-block">
+                <div className="mt-3 text-xxs font-bold text-slate-600 dark:text-surface-400 bg-slate-200 dark:bg-surface-800 py-1 px-2.5 rounded-full inline-block">
                   Locked
                 </div>
               )}
@@ -274,11 +276,11 @@ export default function RewardsPage() {
       </div>
 
       {/* Vouchers Catalog Shop */}
-      <div className="glass-card p-6 border border-surface-800/80 shadow-md">
-        <h3 className="text-lg font-display font-semibold text-white mb-1 flex items-center gap-2">
-          <Gift className="w-5 h-5 text-accent-400" /> Rewards Shop
+      <div className="glass-card p-6 border border-slate-200 dark:border-surface-800/80 shadow-md">
+        <h3 className="text-lg font-display font-semibold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+          <Gift className="w-5 h-5 text-accent-500 dark:text-accent-400" /> Rewards Shop
         </h3>
-        <p className="text-surface-400 text-xs mb-5">Redeem your accumulated points for real-world coupons and card themes.</p>
+        <p className="text-slate-500 dark:text-surface-400 text-xs mb-5">Redeem your accumulated points for real-world coupons and card themes.</p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {catalog.map((item) => {
@@ -289,27 +291,27 @@ export default function RewardsPage() {
             return (
               <div 
                 key={item.id} 
-                className="flex flex-col justify-between p-5 rounded-2xl bg-surface-800/20 border border-surface-800/80 hover:border-surface-700 transition-all hover:shadow-lg"
+                className="flex flex-col justify-between p-5 rounded-2xl bg-slate-50 dark:bg-surface-800/20 border border-slate-200 dark:border-surface-800/80 hover:border-primary-400/40 transition-all hover:shadow-lg"
               >
                 <div>
-                  <div className="w-12 h-12 bg-accent-500/10 text-accent-400 rounded-xl flex items-center justify-center mb-3">
+                  <div className="w-12 h-12 bg-accent-500/10 text-accent-500 dark:text-accent-400 rounded-xl flex items-center justify-center mb-3">
                     <Gift className="w-6 h-6" />
                   </div>
-                  <h4 className="font-semibold text-white text-sm">{item.title}</h4>
-                  <p className="text-surface-400 text-xs mt-1 leading-normal">{item.description}</p>
+                  <h4 className="font-semibold text-slate-900 dark:text-white text-sm">{item.title}</h4>
+                  <p className="text-slate-500 dark:text-surface-400 text-xs mt-1 leading-normal">{item.description}</p>
                   
                   <div className="flex items-center gap-1.5 mt-3">
-                    <span className="text-xs text-surface-400">Stock:</span>
-                    <span className={`text-xs font-semibold ${isOutOfStock ? 'text-danger-400' : 'text-emerald-400'}`}>
+                    <span className="text-xs text-slate-400 dark:text-surface-400">Stock:</span>
+                    <span className={`text-xs font-semibold ${isOutOfStock ? 'text-danger-500 dark:text-danger-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                       {isOutOfStock ? 'Out of Stock' : `${item.stock} left`}
                     </span>
                   </div>
                 </div>
 
-                <div className="mt-5 pt-3 border-t border-surface-800/60">
+                <div className="mt-5 pt-3 border-t border-slate-200 dark:border-surface-800/60">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs text-surface-400 font-medium">Cost</span>
-                    <span className="text-sm font-bold text-accent-400">{item.costPoints.toLocaleString()} pts</span>
+                    <span className="text-xs text-slate-500 dark:text-surface-400 font-medium">Cost</span>
+                    <span className="text-sm font-bold text-accent-600 dark:text-accent-400">{item.costPoints.toLocaleString()} pts</span>
                   </div>
 
                   <Button
@@ -331,14 +333,14 @@ export default function RewardsPage() {
 
       {/* Redeemed coupon codes history */}
       {redemptions.length > 0 && (
-        <div className="glass-card p-6 border border-surface-800/80 shadow-md">
-          <h3 className="text-lg font-display font-semibold text-white mb-4 flex items-center gap-2">
-            <Check className="w-5 h-5 text-emerald-400" /> Redeemed Codes & Inventory
+        <div className="glass-card p-6 border border-slate-200 dark:border-surface-800/80 shadow-md">
+          <h3 className="text-lg font-display font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+            <Check className="w-5 h-5 text-emerald-500 dark:text-emerald-400" /> Redeemed Codes & Inventory
           </h3>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-surface-800 text-surface-400 text-xs font-semibold">
+                <tr className="border-b border-slate-200 dark:border-surface-800 text-slate-500 dark:text-surface-400 text-xs font-semibold">
                   <th className="py-3 px-4">Item</th>
                   <th className="py-3 px-4">Claim Code</th>
                   <th className="py-3 px-4">Redeemed At</th>
@@ -347,7 +349,7 @@ export default function RewardsPage() {
               </thead>
               <tbody>
                 {redemptions.map((red) => (
-                  <tr key={red.id} className="border-b border-surface-800/60 hover:bg-surface-800/10 text-white">
+                  <tr key={red.id} className="border-b border-slate-100 dark:border-surface-800/60 hover:bg-slate-50 dark:hover:bg-surface-800/10 text-slate-900 dark:text-white">
                     <td className="py-3 px-4 font-semibold text-xs">{red.title}</td>
                     <td className="py-3 px-4 font-mono text-xs text-accent-400 bg-black/10 px-2 py-1 rounded w-max select-all">
                       {red.codeClaimed}
