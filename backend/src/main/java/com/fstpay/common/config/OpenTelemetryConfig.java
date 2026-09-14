@@ -43,10 +43,16 @@ public class OpenTelemetryConfig {
 
         SdkTracerProvider tracerProvider = tracerProviderBuilder.build();
 
-        return OpenTelemetrySdk.builder()
+        OpenTelemetrySdk sdk = OpenTelemetrySdk.builder()
                 .setTracerProvider(tracerProvider)
                 .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
-                .buildAndRegisterGlobal();
+                .build();
+        try {
+            io.opentelemetry.api.GlobalOpenTelemetry.set(sdk);
+        } catch (IllegalStateException ignored) {
+            // Already registered in this JVM (e.g. devtools hot reload)
+        }
+        return sdk;
     }
 
     @Bean

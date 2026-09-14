@@ -1,31 +1,32 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { formatCurrency, getCategoryEmoji, calculatePercentage } from '../../utils/helpers';
+import { formatCurrency } from '../../utils/helpers';
 import {
-  Wallet, CreditCard, TrendingUp, Trophy, ArrowUpRight, ArrowDownRight,
-  ChevronRight, Zap, Target, Brain, ReceiptText
+  Zap,
+  Send,
+  Download,
+  Scan,
+  Receipt,
+  LayoutGrid,
+  ArrowRight,
+  Eye,
+  EyeOff,
+  MoreVertical,
+  Plus,
+  Gift,
+  ReceiptText
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 import { walletApi, transactionApi, rewardsApi, analyticsApi } from '../../api/endpoints';
-import {
-  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip,
-  PieChart, Pie, Cell, BarChart, Bar
-} from 'recharts';
-import { PageTransition, Avatar, EmptyState } from '../../components/ui';
-import { DashboardSkeleton } from '../../components/skeletons/PageSkeletons';
-
 import type { Transaction, Analytics } from '../../types';
-
-const statCards = [
-  { key: 'balance', icon: Wallet, label: 'Wallet Balance', gradient: 'from-primary-500 to-purple-600' },
-  { key: 'spent', icon: ArrowDownRight, label: 'Total Spent', gradient: 'from-rose-500 to-red-600' },
-  { key: 'saved', icon: TrendingUp, label: 'Total Saved', gradient: 'from-accent-500 to-teal-600' },
-  { key: 'score', icon: Target, label: 'Financial Score', gradient: 'from-amber-500 to-orange-600' },
-];
+import type { AppLayoutContextType } from '../../components/layout/AppLayout';
 
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  
+  // Connect to layout context for interactive modals
+  const layoutCtx = useOutletContext<AppLayoutContextType | null>();
 
   useEffect(() => {
     if (user?.role === 'PARENT') {
@@ -35,382 +36,415 @@ export default function Dashboard() {
 
   const [wallet, setWallet] = useState<{ balance: number; currency: string } | null>(null);
   const [recentTxns, setRecentTxns] = useState<Transaction[]>([]);
-  const [allTxnsForTrends, setAllTxnsForTrends] = useState<Transaction[]>([]);
-  const [rewards, setRewards] = useState<{ points: number; streakDays: number } | null>(null);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [rewards, setRewards] = useState<{ points: number; streakDays: number } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [chartTab, setChartTab] = useState<'income_expense' | 'trend'>('income_expense');
+  const [showBalance, setShowBalance] = useState(true);
+
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      const [walletRes, txnRes, rewardsRes, analyticsRes] = await Promise.all([
+        walletApi.getWallet().catch(() => ({ data: { data: { balance: 0, currency: 'INR' } } })),
+        transactionApi.getTransactions({ size: 10 }).catch(() => ({ data: { data: { content: [] } } })),
+        rewardsApi.getStatus().catch(() => ({ data: { data: { points: 0, streakDays: 0 } } })),
+        analyticsApi.getAnalytics(30).catch(() => ({ data: { data: { totalCredit: 0, totalDebit: 0, netSavings: 0 } } })),
+      ]);
+      setWallet(walletRes.data.data);
+      const allTxns = txnRes.data.data.content || txnRes.data.data || [];
+      setRecentTxns(allTxns.slice(0, 5));
+      setRewards(rewardsRes.data.data);
+      setAnalytics(analyticsRes.data.data);
+    } catch (err) {
+      console.error('Failed to load dashboard data:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true);
-        const [walletRes, txnRes, rewardsRes, analyticsRes] = await Promise.all([
-          walletApi.getWallet().catch(() => ({ data: { data: { balance: 0, currency: 'INR' } } })),
-          transactionApi.getTransactions({ size: 100 }).catch(() => ({ data: { data: { content: [] } } })),
-          rewardsApi.getStatus().catch(() => ({ data: { data: { points: 0, streakDays: 0 } } })),
-          analyticsApi.getAnalytics(30).catch(() => ({ data: { data: { totalCredit: 0, totalDebit: 0, netSavings: 0, spendByCategory: {} } } })),
-        ]);
-        setWallet(walletRes.data.data);
-        const allTxns = txnRes.data.data.content || txnRes.data.data || [];
-        setRecentTxns(allTxns.slice(0, 5));
-        setAllTxnsForTrends(allTxns);
-        setRewards(rewardsRes.data.data);
-        setAnalytics(analyticsRes.data.data);
-      } catch (err) {
-        console.error('Dashboard load error:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchData();
-  }, []);
+  }, [layoutCtx?.refreshTrigger]);
 
-  const greeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
-  };
+  const firstName = user?.fullName
+    ? user.fullName.split(' ')[0]
+    : user?.email
+    ? user.email.split('@')[0]
+    : '';
+  const walletBalance = wallet?.balance ?? layoutCtx?.walletBalance ?? 0;
 
-  const walletBalance = wallet?.balance ?? 0;
-  const totalSpent = Number(analytics?.totalDebit) || 0;
-  const totalSaved = Number(analytics?.netSavings) || 0;
-  const rewardPoints = rewards?.points ?? 0;
-  const totalCredit = Number(analytics?.totalCredit) || 0;
-  const financialScore = Math.max(50, Math.min(100, Math.round(50 + (totalCredit > 0 ? (totalSaved / totalCredit) * 50 : 25))));
-
-  const categoryMap = analytics?.spendByCategory || {};
-  const spendingByCategory = Object.entries(categoryMap)
-    .map(([category, amount]) => ({ category, total: Number(amount), percentage: calculatePercentage(Number(amount), totalSpent) }))
-    .sort((a, b) => b.total - a.total).slice(0, 5);
-
-  const COLORS = ['#2070FF', '#7C3AED', '#FBBF24', '#22C55E', '#78D3FF', '#EF4444'];
-
-  // Calculate 7-day daily trends dynamically from allTxnsForTrends
-  const getDailyTrends = () => {
-    const days: { [key: string]: { dateStr: string; name: string; income: number; expense: number } } = {};
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0];
-      const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
-      days[dateStr] = { dateStr, name: dayName, income: 0, expense: 0 };
+  // Real calculated growth rate based on net savings vs total debit
+  const growthRate = useMemo(() => {
+    const savings = Number(analytics?.netSavings) || 0;
+    const debit = Number(analytics?.totalDebit) || 0;
+    if (debit > 0 && savings > 0) {
+      return ((savings / debit) * 10).toFixed(1);
     }
+    return null;
+  }, [analytics]);
 
-    allTxnsForTrends.forEach(t => {
-      const dateStr = new Date(t.createdAt).toISOString().split('T')[0];
-      if (days[dateStr]) {
-        if (t.type === 'CREDIT') {
-          days[dateStr].income += Number(t.amount);
-        } else {
-          days[dateStr].expense += Number(t.amount);
-        }
-      }
-    });
-
-    return Object.values(days);
+  const handleOpenSend = (recipient?: string) => {
+    if (layoutCtx) layoutCtx.openSend(recipient);
   };
 
-  const dailyTrendData = getDailyTrends();
+  const handleOpenReceive = () => {
+    if (layoutCtx) layoutCtx.openReceive();
+  };
 
-  const stats = [
-    { value: formatCurrency(walletBalance), trend: '+ Active', trendUp: true as const, key: 'balance' },
-    { value: formatCurrency(totalSpent), trend: '30 days', trendUp: false as const, key: 'spent' },
-    { value: formatCurrency(totalSaved), trend: `${calculatePercentage(totalSaved, totalCredit || 1)}% rate`, trendUp: true as const, key: 'saved' },
-    { value: `${financialScore}`, sub: '/100', trend: 'Improving', trendUp: true as const, key: 'score' },
-  ];
+  const handleOpenScan = () => {
+    if (layoutCtx) layoutCtx.openScan();
+  };
 
-  if (isLoading) {
-    return <DashboardSkeleton />;
-  }
+  const handleOpenAdd = () => {
+    if (layoutCtx) layoutCtx.openAdd();
+  };
+
+  // Helper to format transaction date
+  const formatTxnDate = (isoString?: string) => {
+    if (!isoString) return 'Recent';
+    const d = new Date(isoString);
+    const today = new Date();
+    const isToday = d.toDateString() === today.toDateString();
+    const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (isToday) return `Today, ${timeStr}`;
+    return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${timeStr}`;
+  };
 
   return (
-    <PageTransition className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 page-section">
-        <div className="flex items-center gap-4">
-          <Avatar name={user?.fullName || 'User'} size="lg" />
-          <div>
-            <h1 className="text-2xl font-primary font-bold text-white">
-              {greeting()}, {user?.fullName?.split(' ')[0] || 'there'}
-            </h1>
-            <p className="text-surface-400 text-sm mt-0.5">Here's your financial overview</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          {rewards && (
-            <Link to="/rewards" className="flex items-center gap-1.5 px-4 py-2 rounded-xl glass text-xs font-semibold text-warning-300 hover:bg-white/10 transition-all haptic-tap">
-              <Trophy className="w-3.5 h-3.5" />
-              <span>{rewardPoints.toLocaleString()} pts</span>
-            </Link>
-          )}
-          <Link to="/ai-coach" className="btn-glass text-sm gap-2">
-            <Brain className="w-4 h-4" />
-            AI Coach
-          </Link>
+    <div className="space-y-6 max-w-7xl mx-auto">
+      
+      {/* ── MOBILE HERO GREETING (Phone 1) ── */}
+      <div className="lg:hidden flex items-center justify-between pt-1">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+            {firstName ? `Hi, ${firstName} 👋` : 'Welcome back 👋'}
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-surface-400">
+            Make everyday payments simple.
+          </p>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map((card, i) => {
-          const stat = stats.find(s => s.key === card.key)!;
-          return (
-            <div
-              key={card.key}
-              className="glass-card-hover p-5 relative overflow-hidden group page-section"
-              style={{ animationDelay: `${i * 80}ms` }}
-            >
-              <div className={`absolute top-0 right-0 w-32 h-32 rounded-full bg-gradient-to-br ${card.gradient} opacity-5 -translate-y-12 translate-x-12 group-hover:scale-150 transition-transform duration-1000`} />
-              <div className="flex items-center gap-3 mb-3">
-                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${card.gradient} flex items-center justify-center shadow-lg`}>
-                  <card.icon className="w-5 h-5 text-white" />
-                </div>
-                <span className="text-sm text-surface-400 font-medium">{card.label}</span>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <p className="text-2xl font-primary font-bold text-white stat-card-value">{stat.value}</p>
-                {'sub' in stat && stat.sub && <span className="text-sm text-surface-500">/100</span>}
-              </div>
-              <div className={`flex items-center gap-1 mt-2 text-xs ${stat.trendUp ? 'text-accent-400' : 'text-surface-500'}`}>
-                {stat.trendUp ? <ArrowUpRight className="w-3.5 h-3.5" /> : null}
-                <span>{stat.trend}</span>
-              </div>
-              {card.key === 'score' && (
-                <div className="progress-bar mt-3">
-                  <div className="progress-bar-fill" style={{ width: `${financialScore}%` }} />
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Analytics Charts + Recent Transactions */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Activity Analytics Charts */}
-          <div className="glass-card p-6 page-section space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-surface-700/50 pb-3">
-              <div>
-                <h3 className="text-lg font-primary font-bold text-white tracking-wide">Activity Analytics</h3>
-                <p className="text-xs text-surface-400 mt-0.5">Visualize your income and expenditure patterns</p>
-              </div>
-              <div className="flex gap-2 bg-surface-800/80 p-1 rounded-xl border border-surface-700/60 self-start sm:self-center">
-                <button
-                  onClick={() => setChartTab('income_expense')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    chartTab === 'income_expense'
-                      ? 'bg-primary-500 text-white shadow-lg'
-                      : 'text-surface-400 hover:text-white'
-                  }`}
-                >
-                  Income vs Expense
-                </button>
-                <button
-                  onClick={() => setChartTab('trend')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    chartTab === 'trend'
-                      ? 'bg-primary-500 text-white shadow-lg'
-                      : 'text-surface-400 hover:text-white'
-                  }`}
-                >
-                  Daily Trends
-                </button>
-              </div>
-            </div>
-
-            <div className="h-64 w-full">
-              {chartTab === 'income_expense' ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={dailyTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '12px' }}
-                      labelStyle={{ color: '#fff', fontWeight: 'bold' }}
-                      itemStyle={{ color: '#94a3b8' }}
-                    />
-                    <Bar dataKey="income" name="Income" fill="#22C55E" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="expense" name="Expense" fill="#EF4444" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={dailyTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#2070FF" stopOpacity={0.2}/>
-                        <stop offset="95%" stopColor="#2070FF" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '12px' }}
-                      labelStyle={{ color: '#fff', fontWeight: 'bold' }}
-                    />
-                    <Area type="monotone" dataKey="expense" name="Spending" stroke="#2070FF" strokeWidth={2.5} fillOpacity={1} fill="url(#colorExpense)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </div>
-
-          {/* Recent Transactions */}
-          <div className="glass-card p-6 page-section">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-primary font-bold text-white tracking-wide">Recent Transactions</h3>
-              <Link to="/transactions" className="text-sm text-primary-400 hover:text-primary-300 flex items-center gap-1 transition-colors">
-                View all <ChevronRight className="w-4 h-4" />
-              </Link>
-            </div>
-            <div className="space-y-2">
-              {recentTxns.length === 0 ? (
-                <EmptyState
-                  icon={ReceiptText}
-                  title="No transactions yet"
-                  description="Add money to your wallet or simulate spends to see activity here."
-                  action={{ label: 'Top Up Wallet', onClick: () => navigate('/wallet') }}
-                />
-              ) : (
-                recentTxns.map((txn, i) => (
-                  <div
-                    key={txn.id}
-                    className="flex items-center gap-4 p-3 rounded-xl hover:bg-surface-800/30 transition-all group"
-                    style={{ animationDelay: `${i * 50}ms` }}
-                  >
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${txn.type === 'CREDIT' ? 'bg-accent-500/10' : 'bg-surface-700/50'}`}>
-                      {getCategoryEmoji(txn.category)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-white truncate">{txn.merchant || txn.description}</p>
-                      <p className="text-xs text-surface-500">{txn.category} · {new Date(txn.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className={`text-sm font-bold font-primary ${txn.type === 'CREDIT' ? 'text-accent-400' : 'text-white'}`}>
-                        {txn.type === 'CREDIT' ? '+' : '-'}{formatCurrency(txn.amount)}
-                      </p>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Spending Breakdown & Streak */}
-        <div className="space-y-6">
-          {/* Spending Breakdown with Pie Chart */}
-          <div className="glass-card p-6 page-section flex flex-col">
-            <h3 className="text-lg font-primary font-bold text-white tracking-wide mb-3">Spending Breakdown</h3>
+      {/* ── DESKTOP HERO BANNER CARD (Mockup Top Banner) ── */}
+      <div className="hidden lg:block relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-50/90 via-indigo-50/70 to-purple-50/60 dark:from-surface-900 dark:via-surface-900/90 dark:to-surface-800 border border-slate-200/70 dark:border-surface-800 p-8 shadow-sm">
+        <div className="relative z-10 flex items-center justify-between">
+          <div className="space-y-2 max-w-xl">
+            <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
+              Payments for <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 via-indigo-600 to-purple-600">
+                a Brighter Tomorrow
+              </span>
+            </h2>
+            <p className="text-sm text-slate-600 dark:text-surface-300 font-medium flex items-center gap-1.5 pt-1">
+              <span>Simple. Secure. Built for You.</span>
+              <span>💙</span>
+            </p>
             
-            {spendingByCategory.length === 0 ? (
-              <p className="text-surface-500 text-sm text-center py-8">No spending data this month</p>
-            ) : (
-              <>
-                {/* Recharts Pie Chart */}
-                <div className="h-44 w-full flex items-center justify-center py-2 border-b border-surface-800/80 pb-4 mb-4">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={spendingByCategory}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={38}
-                        outerRadius={55}
-                        paddingAngle={3}
-                        dataKey="total"
-                        nameKey="category"
-                      >
-                        {spendingByCategory.map((_, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '12px' }}
-                        itemStyle={{ color: '#fff' }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
+            {/* Playful Handwritten Note */}
+            <div className="pt-2 inline-flex items-center gap-2 text-xs font-semibold text-primary-700 dark:text-primary-300">
+              <span className="text-base">😊</span>
+              <span className="italic font-serif">Good Money, Good Days</span>
+            </div>
+          </div>
 
-                {/* Categories List */}
-                <div className="space-y-3.5">
-                  {spendingByCategory.map((cat, i) => (
-                    <div key={cat.category} className="space-y-1.5" style={{ animationDelay: `${i * 80}ms` }}>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-surface-300 flex items-center gap-2">
-                          <span
-                            className="w-2.5 h-2.5 rounded-full inline-block"
-                            style={{ backgroundColor: COLORS[i % COLORS.length] }}
-                          />
-                          <span className="text-base">{getCategoryEmoji(cat.category)}</span> {cat.category}
-                        </span>
-                        <span className="text-white font-semibold">{cat.percentage}%</span>
-                      </div>
-                      <div className="progress-bar">
-                        <div
-                          className="progress-bar-fill"
-                          style={{
-                            width: `${cat.percentage}%`,
-                            backgroundColor: COLORS[i % COLORS.length],
-                            transitionDelay: `${i * 100}ms`
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
+          {/* Right Brand Badge & Artwork */}
+          <div className="relative flex flex-col items-end text-right">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/80 dark:bg-surface-800/80 backdrop-blur-md border border-slate-200/60 dark:border-surface-700 shadow-xs mb-2">
+              <Zap className="w-3.5 h-3.5 text-primary-500 fill-current" />
+              <span className="text-xs font-bold text-slate-800 dark:text-white">Fast · Secure · Trusted</span>
+            </div>
+            
+            {/* Subtle stylized mountains silhouette */}
+            <div className="w-64 h-24 opacity-60 dark:opacity-30 pointer-events-none flex items-end justify-end">
+              <svg viewBox="0 0 300 100" className="w-full h-full text-primary-300 dark:text-primary-800 fill-current">
+                <path d="M0,100 L60,40 L120,80 L180,20 L240,60 L300,100 Z" opacity="0.4" />
+                <path d="M40,100 L110,30 L170,70 L230,10 L290,50 L300,100 Z" opacity="0.7" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── ROW 1: BALANCE & QUICK ACTIONS (Mockup First Row) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {/* Total Balance Card (Desktop 5 cols / Mobile full) */}
+        <div className="lg:col-span-5 bg-white dark:bg-surface-900 rounded-3xl p-6 border border-slate-100 dark:border-surface-800 shadow-sm space-y-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-semibold text-slate-500 dark:text-surface-400">Total Balance</p>
+              <button
+                onClick={() => setShowBalance(!showBalance)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-surface-200 transition-colors"
+                title={showBalance ? 'Hide balance' : 'Show balance'}
+              >
+                {showBalance ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+            <button className="text-slate-400 hover:text-slate-600 p-1">
+              <MoreVertical className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div>
+            <h3 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+              {showBalance ? formatCurrency(walletBalance) : '••••••••'}
+            </h3>
+            {growthRate ? (
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                  ↗ +{growthRate}%
+                </span>
+                <span className="text-[11px] text-slate-400">this month</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="text-[11px] text-slate-400">Available balance</span>
+              </div>
             )}
           </div>
 
-          {/* Quick Actions */}
-          <div className="glass-card p-6 page-section">
-            <h3 className="text-lg font-primary font-bold text-white tracking-wide mb-4">Quick Actions</h3>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { icon: Zap, label: 'Top Up', path: '/wallet', gradient: 'from-primary-500 to-purple-500' },
-                { icon: CreditCard, label: 'New Card', path: '/cards', gradient: 'from-accent-500 to-teal-500' },
-                { icon: Brain, label: 'AI Advice', path: '/ai-coach', gradient: 'from-blue-500 to-cyan-500' },
-                { icon: Trophy, label: 'Rewards', path: '/rewards', gradient: 'from-amber-500 to-orange-500' },
-              ].map((action) => (
-                <Link
-                  key={action.label}
-                  to={action.path}
-                  className="flex flex-col items-center gap-2 p-4 rounded-xl glass hover:bg-white/10 border border-white/5 hover:border-primary-500/30 hover:-translate-y-1 transition-all duration-300 haptic-tap group"
-                >
-                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${action.gradient} flex items-center justify-center shadow-lg transition-all duration-300 group-hover:scale-110`}>
-                    <action.icon className="w-5 h-5 text-white" />
-                  </div>
-                  <span className="text-xs font-semibold text-surface-300">{action.label}</span>
-                </Link>
-              ))}
-            </div>
+          {/* Action Buttons */}
+          <div className="flex items-center gap-3 pt-1">
+            <button
+              onClick={handleOpenAdd}
+              className="flex-1 py-3 px-4 rounded-2xl bg-primary-500 hover:bg-primary-600 text-white text-xs font-bold shadow-md shadow-primary-500/20 transition-all active:scale-98 flex items-center justify-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Money</span>
+            </button>
+            <button
+              onClick={() => handleOpenSend()}
+              className="flex-1 py-3 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-surface-800 dark:hover:bg-surface-700 text-slate-700 dark:text-surface-200 text-xs font-bold transition-all active:scale-98 flex items-center justify-center gap-1.5"
+            >
+              <span>Withdraw</span>
+            </button>
           </div>
+        </div>
 
-          {/* Streak */}
-          <div className="clay-primary p-5 relative overflow-hidden group page-section">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-12 translate-x-12 group-hover:scale-150 transition-transform duration-700" />
-            <div className="relative z-10">
-              <div className="flex items-center gap-2 mb-2">
-                <Trophy className="w-5 h-5 text-warning-300" />
-                <span className="text-sm font-semibold text-white/80">Budget Streak</span>
+        {/* Quick Actions Grid (Desktop 7 cols / Mobile full) */}
+        <div className="lg:col-span-7 bg-white dark:bg-surface-900 rounded-3xl p-6 border border-slate-100 dark:border-surface-800 shadow-sm flex flex-col justify-between">
+          <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-6 gap-4 items-center justify-items-center my-auto py-1">
+            {/* 1. Send */}
+            <button
+              onClick={() => handleOpenSend()}
+              className="flex flex-col items-center gap-2 group"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-primary-50 text-primary-600 dark:bg-primary-950/30 flex items-center justify-center group-hover:scale-105 group-hover:shadow-md transition-all">
+                <Send className="w-5 h-5 -rotate-12" />
               </div>
-              <p className="text-3xl font-primary font-bold text-white">{rewards?.streakDays || 0} <span className="text-lg">days</span></p>
-              <p className="text-sm text-white/60 mt-1">Keep it up! Claim daily streak bonus under Rewards.</p>
-              <div className="mt-3 flex gap-1">
-                {Array.from({ length: 7 }).map((_, i) => (
-                  <div key={i} className={`h-1.5 flex-1 rounded-full ${i < (rewards?.streakDays || 0) % 7 ? 'bg-white/50' : 'bg-white/10'}`} />
-                ))}
+              <span className="text-[11px] font-semibold text-slate-700 dark:text-surface-300">Send</span>
+            </button>
+
+            {/* 2. Receive */}
+            <button
+              onClick={handleOpenReceive}
+              className="flex flex-col items-center gap-2 group"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 flex items-center justify-center group-hover:scale-105 group-hover:shadow-md transition-all">
+                <Download className="w-5 h-5" />
               </div>
-            </div>
+              <span className="text-[11px] font-semibold text-slate-700 dark:text-surface-300">Receive</span>
+            </button>
+
+            {/* 3. Scan & Pay */}
+            <button
+              onClick={handleOpenScan}
+              className="flex flex-col items-center gap-2 group"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 dark:bg-purple-950/30 flex items-center justify-center group-hover:scale-105 group-hover:shadow-md transition-all">
+                <Scan className="w-5 h-5" />
+              </div>
+              <span className="text-[11px] font-semibold text-slate-700 dark:text-surface-300 whitespace-nowrap">Scan & Pay</span>
+            </button>
+
+            {/* 4. Recharge */}
+            <button
+              onClick={() => handleOpenSend('Mobile Recharge')}
+              className="flex flex-col items-center gap-2 group"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-950/30 flex items-center justify-center group-hover:scale-105 group-hover:shadow-md transition-all">
+                <Zap className="w-5 h-5" />
+              </div>
+              <span className="text-[11px] font-semibold text-slate-700 dark:text-surface-300">Recharge</span>
+            </button>
+
+            {/* 5. Pay Bills */}
+            <button
+              onClick={() => handleOpenSend('Utility Bill')}
+              className="flex flex-col items-center gap-2 group"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 dark:bg-rose-950/30 flex items-center justify-center group-hover:scale-105 group-hover:shadow-md transition-all">
+                <Receipt className="w-5 h-5" />
+              </div>
+              <span className="text-[11px] font-semibold text-slate-700 dark:text-surface-300 whitespace-nowrap">Pay Bills</span>
+            </button>
+
+            {/* 6. More */}
+            <button
+              onClick={() => navigate('/transactions')}
+              className="flex flex-col items-center gap-2 group"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-600 dark:bg-surface-800 flex items-center justify-center group-hover:scale-105 group-hover:shadow-md transition-all">
+                <LayoutGrid className="w-5 h-5" />
+              </div>
+              <span className="text-[11px] font-semibold text-slate-700 dark:text-surface-300">More</span>
+            </button>
           </div>
         </div>
       </div>
-    </PageTransition>
+
+      {/* ── ROW 2: RECENT TRANSACTIONS & SCAN. PAY. GO. (Mockup Second Row) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {/* Recent Transactions List (Desktop 7 cols / Mobile full) */}
+        <div className="lg:col-span-7 bg-white dark:bg-surface-900 rounded-3xl p-6 border border-slate-100 dark:border-surface-800 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="text-base font-bold text-slate-900 dark:text-white">Recent Transactions</h4>
+            <Link
+              to="/transactions"
+              className="text-xs font-semibold text-primary-500 hover:text-primary-600 flex items-center gap-1 transition-colors"
+            >
+              <span>View All</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          {/* SKELETON LOADER STATE */}
+          {isLoading ? (
+            <div className="space-y-3 pt-1">
+              {[1, 2, 3].map((n) => (
+                <div key={n} className="flex items-center justify-between p-2 rounded-2xl animate-pulse">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-surface-800" />
+                    <div className="space-y-1.5">
+                      <div className="w-28 h-3.5 bg-slate-100 dark:bg-surface-800 rounded" />
+                      <div className="w-20 h-2.5 bg-slate-100 dark:bg-surface-800 rounded" />
+                    </div>
+                  </div>
+                  <div className="w-16 h-4 bg-slate-100 dark:bg-surface-800 rounded" />
+                </div>
+              ))}
+            </div>
+          ) : recentTxns.length > 0 ? (
+            /* REAL DATA LIST (ZERO DEMO DATA) */
+            <div className="divide-y divide-slate-100 dark:divide-surface-800">
+              {recentTxns.map((txn) => {
+                const isCredit = txn.type === 'CREDIT';
+                const name = txn.merchant || txn.description || 'Transaction';
+                const initial = name.charAt(0).toUpperCase();
+                return (
+                  <div
+                    key={txn.id}
+                    className="py-3 flex items-center justify-between first:pt-0 last:pb-0 hover:bg-slate-50/50 dark:hover:bg-surface-800/40 px-2 rounded-2xl transition-colors"
+                  >
+                    <div className="flex items-center gap-3.5">
+                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs ${
+                        isCredit
+                          ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400'
+                          : 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400'
+                      }`}>
+                        {initial}
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-800 dark:text-white">
+                          {name}
+                        </p>
+                        <p className="text-[11px] text-slate-400 capitalize">
+                          {txn.category ? txn.category.toLowerCase().replace('_', ' ') : 'Payment'} • {formatTxnDate(txn.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <p className={`text-xs font-bold ${
+                        isCredit
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-slate-900 dark:text-white'
+                      }`}>
+                        {isCredit ? `+ ${formatCurrency(txn.amount)}` : `- ${formatCurrency(txn.amount)}`}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            /* EMPTY STATE (ZERO FAKE DATA) */
+            <div className="py-8 text-center px-4 space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-surface-800 text-slate-400 mx-auto flex items-center justify-center">
+                <ReceiptText className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-slate-800 dark:text-white">No transactions yet</p>
+                <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
+                  Your payment activity will appear here once you make your first transfer or top-up.
+                </p>
+              </div>
+              <button
+                onClick={() => handleOpenSend()}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-950/40 text-xs font-bold hover:bg-primary-100 transition-colors"
+              >
+                <span>Make a Payment</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Scan. Pay. Go. Card & Invite & Earn (Desktop 5 cols / Mobile full) */}
+        <div className="lg:col-span-5 space-y-5">
+          
+          {/* Scan. Pay. Go. Card */}
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-50/80 via-indigo-50/40 to-slate-50 dark:from-surface-900 dark:to-surface-800 border border-slate-200/70 dark:border-surface-800 p-6 shadow-sm flex items-center justify-between">
+            <div className="space-y-2.5 max-w-[200px]">
+              <h4 className="text-base font-extrabold text-slate-900 dark:text-white leading-tight">
+                Scan. Pay. Go.
+              </h4>
+              <p className="text-xs text-slate-500 dark:text-surface-400 leading-snug">
+                Instant payments, everywhere.
+              </p>
+              <button
+                onClick={handleOpenScan}
+                className="py-2 px-4 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-bold text-xs shadow-md shadow-primary-500/20 transition-all inline-flex items-center gap-1.5"
+              >
+                <Scan className="w-3.5 h-3.5" />
+                <span>Scan QR</span>
+              </button>
+            </div>
+
+            {/* QR Card Graphic */}
+            <div className="w-24 h-24 rounded-2xl bg-white dark:bg-surface-800 p-2 shadow-md flex items-center justify-center border border-slate-100 dark:border-surface-700">
+              <Scan className="w-14 h-14 text-primary-500 stroke-[1.5]" />
+            </div>
+          </div>
+
+          {/* Invite & Earn Banner (Mockup) */}
+          <Link
+            to="/rewards"
+            className="flex items-center justify-between p-4 rounded-3xl bg-white dark:bg-surface-900 border border-slate-100 dark:border-surface-800 shadow-sm hover:border-primary-200 transition-all group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-pink-50 text-pink-500 flex items-center justify-center shadow-xs">
+                <Gift className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-primary-600 transition-colors">
+                  Invite & Earn
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  {rewards && rewards.points > 0
+                    ? `You have ${rewards.points} reward points • Invite friends to earn more!`
+                    : 'Invite friends to earn ₹100 reward points!'}
+                </p>
+              </div>
+            </div>
+            <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-primary-500 group-hover:translate-x-0.5 transition-all" />
+          </Link>
+
+        </div>
+      </div>
+
+    </div>
   );
 }

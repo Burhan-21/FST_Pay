@@ -2,13 +2,13 @@ import { useEffect, useState, useCallback } from 'react';
 import type { ThemeMode } from '../types';
 import { ThemeContext } from './ThemeContext';
 
-const THEME_CYCLE: ThemeMode[] = ['dark', 'light', 'amoled'];
+const THEME_CYCLE: ThemeMode[] = ['light', 'dark', 'amoled'];
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<ThemeMode>(() => {
     const saved = localStorage.getItem('fst-theme') as ThemeMode | null;
     if (saved && ['light', 'dark', 'amoled'].includes(saved)) return saved;
-    return 'dark';
+    return 'light';
   });
 
   const applyTheme = useCallback((mode: ThemeMode) => {

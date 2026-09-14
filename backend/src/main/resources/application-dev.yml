@@ -1,16 +1,33 @@
 spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/fstpay_app}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:Burhan@2004}
   jpa:
-    show-sql: true
+    show-sql: false
+    hibernate:
+      ddl-auto: update
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+  kafka:
+    listener:
+      auto-startup: false
 
 logging:
   level:
-    com.fstpay: DEBUG
+    com.fstpay: INFO
     org.springframework.security: INFO
 
 server:
+  port: 8080
   error:
     include-message: always
     include-binding-errors: always
@@ -19,4 +36,15 @@ management:
   health:
     kafka:
       enabled: false
+    redis:
+      enabled: false
+
+app:
+  admin:
+    email: admin@fstpay.com
+    password: Admin@1234
+    fullName: FST Pay Admin
+
+jwt:
+  secret: ${JWT_SECRET:dGVzdC1qd3Qtc2VjcmV0LXRoYXQtaXMtYXQtbGVhc3QtMjU2LWJpdHMtbG9uZw==}
 

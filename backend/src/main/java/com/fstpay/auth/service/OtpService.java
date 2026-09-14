@@ -32,7 +32,7 @@ public class OtpService {
     @Value("${app.auth.otp-rate-limit-seconds:60}")
     private long otpRateLimitSeconds;
 
-    public OtpService(StringRedisTemplate redisTemplate, org.springframework.core.env.Environment env) {
+    public OtpService(@org.springframework.beans.factory.annotation.Autowired(required = false) StringRedisTemplate redisTemplate, org.springframework.core.env.Environment env) {
         this.redisTemplate = redisTemplate;
         this.env = env;
     }
@@ -65,15 +65,24 @@ public class OtpService {
 
         String otp = String.format("%06d", random.nextInt(1000000));
         // Strict production profile security isolation: deterministic test OTP only allowed in non-prod profiles
-        if (!isProdEnvironment() && ("burhan.test1@gmail.com".equalsIgnoreCase(email) || "burhan.parent1@gmail.com".equalsIgnoreCase(email)
-                || "admin@fstpay.com".equalsIgnoreCase(email) || "burhan.mulla21@gmail.com".equalsIgnoreCase(email))) {
-            otp = "123456";
+        if (!isProdEnvironment()) {
+            if ("burhan.test1@gmail.com".equalsIgnoreCase(email) || "burhan.parent1@gmail.com".equalsIgnoreCase(email)
+                    || "admin@fstpay.com".equalsIgnoreCase(email) || "burhan.mulla21@gmail.com".equalsIgnoreCase(email)
+                    || email.toLowerCase().endsWith("@fstpay.com")) {
+                otp = "123456";
+            }
+            log.info("[DEV] OTP generated for {}: {}", email, otp);
         }
 
-        try {
-            redisTemplate.opsForValue().set("otp:" + email, otp, 5, TimeUnit.MINUTES);
-        } catch (Exception e) {
-            log.warn("Redis not available. Saving OTP to local map: {}", e.getMessage());
+        if (redisTemplate != null) {
+            try {
+                redisTemplate.opsForValue().set("otp:" + email, otp, 5, TimeUnit.MINUTES);
+            } catch (Exception e) {
+                log.warn("Redis not available. Saving OTP to local map: {}", e.getMessage());
+                localOtpCache.put(email, otp);
+                scheduler.schedule(() -> localOtpCache.remove(email), 5, TimeUnit.MINUTES);
+            }
+        } else {
             localOtpCache.put(email, otp);
             scheduler.schedule(() -> localOtpCache.remove(email), 5, TimeUnit.MINUTES);
         }
@@ -86,10 +95,12 @@ public class OtpService {
 
     public boolean verifyOtp(String email, String otp) {
         String storedOtp = null;
-        try {
-            storedOtp = redisTemplate.opsForValue().get("otp:" + email);
-        } catch (Exception e) {
-            log.warn("Redis not available for OTP read. Checking local map: {}", e.getMessage());
+        if (redisTemplate != null) {
+            try {
+                storedOtp = redisTemplate.opsForValue().get("otp:" + email);
+            } catch (Exception e) {
+                log.warn("Redis not available for OTP read. Checking local map: {}", e.getMessage());
+            }
         }
 
         if (storedOtp == null) {
@@ -97,10 +108,12 @@ public class OtpService {
         }
 
         if (storedOtp != null && storedOtp.equals(otp)) {
-            try {
-                redisTemplate.delete("otp:" + email);
-            } catch (Exception e) {
-                // ignore
+            if (redisTemplate != null) {
+                try {
+                    redisTemplate.delete("otp:" + email);
+                } catch (Exception e) {
+                    // ignore
+                }
             }
             localOtpCache.remove(email);
             otpRateLimit.remove(email);
