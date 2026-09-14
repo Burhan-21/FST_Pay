@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import axios from 'axios';
 import { X, Wallet, QrCode, CreditCard, Building2, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { walletApi } from '../../api/endpoints';
@@ -16,6 +16,11 @@ const QUICK_AMOUNTS = [100, 500, 1000, 2000, 5000];
 export default function AddMoneyModal({ isOpen, onClose, onSuccess, currentBalance }: AddMoneyModalProps) {
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState<'UPI' | 'CARD' | 'NETBANKING'>('UPI');
+  const [upiId, setUpiId] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  const [selectedBank, setSelectedBank] = useState('sbi');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -36,6 +41,25 @@ export default function AddMoneyModal({ isOpen, onClose, onSuccess, currentBalan
     }
     if (num > 100000) {
       setError('Single transaction limit is ₹1,00,000.');
+      return;
+    }
+
+    if (method === 'CARD') {
+      const cleanCard = cardNumber.replace(/\s+/g, '');
+      if (cleanCard.length < 15) {
+        setError('Please enter a valid card number (16 digits).');
+        return;
+      }
+      if (!cardExpiry || cardExpiry.length < 5) {
+        setError('Please enter card expiry date (MM/YY).');
+        return;
+      }
+      if (!cardCvv || cardCvv.length < 3) {
+        setError('Please enter a valid 3-digit CVV.');
+        return;
+      }
+    } else if (method === 'UPI' && upiId.trim() && !upiId.includes('@')) {
+      setError('Please enter a valid UPI ID (e.g. user@okaxis).');
       return;
     }
 
@@ -62,6 +86,11 @@ export default function AddMoneyModal({ isOpen, onClose, onSuccess, currentBalan
 
   const handleClose = () => {
     setAmount('');
+    setUpiId('');
+    setCardNumber('');
+    setCardExpiry('');
+    setCardCvv('');
+    setSelectedBank('sbi');
     setError('');
     setSuccess(false);
     onClose();
@@ -73,7 +102,7 @@ export default function AddMoneyModal({ isOpen, onClose, onSuccess, currentBalan
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-surface-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-primary-50 text-primary-600 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-2xl bg-primary-50 dark:bg-primary-500/15 text-primary-600 dark:text-primary-400 flex items-center justify-center font-bold">
               <Wallet className="w-5 h-5" />
             </div>
             <div>
@@ -92,7 +121,7 @@ export default function AddMoneyModal({ isOpen, onClose, onSuccess, currentBalan
         {/* Content */}
         {success ? (
           <div className="p-8 text-center space-y-3">
-            <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-500 mx-auto flex items-center justify-center shadow-lg shadow-emerald-500/20">
+            <div className="w-16 h-16 rounded-full bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center shadow-lg shadow-emerald-500/20">
               <CheckCircle2 className="w-9 h-9" />
             </div>
             <h4 className="text-lg font-bold text-slate-900 dark:text-white">Money Added Successfully!</h4>
@@ -103,7 +132,7 @@ export default function AddMoneyModal({ isOpen, onClose, onSuccess, currentBalan
         ) : (
           <form onSubmit={handleSubmit} className="p-6 space-y-5">
             {error && (
-              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-600 flex items-center gap-2">
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 dark:bg-danger-500/10 dark:border-danger-500/20 text-xs text-rose-600 dark:text-danger-400 flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{error}</span>
               </div>
@@ -111,11 +140,11 @@ export default function AddMoneyModal({ isOpen, onClose, onSuccess, currentBalan
 
             {/* Amount input */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-surface-400 mb-2">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-surface-300 mb-2">
                 Enter Amount
               </label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-slate-400">₹</span>
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-slate-500 dark:text-surface-400">₹</span>
                 <input
                   type="number"
                   step="any"
@@ -142,8 +171,8 @@ export default function AddMoneyModal({ isOpen, onClose, onSuccess, currentBalan
                   onClick={() => handleQuickSelect(val)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                     amount === val.toString()
-                      ? 'bg-primary-500 text-white shadow-md shadow-primary-500/20'
-                      : 'bg-slate-100 dark:bg-surface-800 text-slate-700 dark:text-surface-300 hover:bg-slate-200'
+                      ? 'bg-primary-500 text-white shadow-md shadow-primary-500/20 font-bold'
+                      : 'bg-slate-100 dark:bg-surface-800 text-slate-700 dark:text-surface-300 hover:bg-slate-200 dark:hover:bg-surface-700/80 border border-slate-200 dark:border-surface-700/50'
                   }`}
                 >
                   +₹{val}
@@ -153,7 +182,7 @@ export default function AddMoneyModal({ isOpen, onClose, onSuccess, currentBalan
 
             {/* Payment Method Selector */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-surface-400 mb-2">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-surface-300 mb-2">
                 Payment Method
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -168,11 +197,11 @@ export default function AddMoneyModal({ isOpen, onClose, onSuccess, currentBalan
                     <button
                       key={m.id}
                       type="button"
-                      onClick={() => setMethod(m.id as any)}
+                      onClick={() => { setMethod(m.id as any); setError(''); }}
                       className={`p-3 rounded-2xl border text-center transition-all flex flex-col items-center gap-1.5 ${
                         isSelected
-                          ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-950/20 text-primary-600 font-semibold shadow-sm'
-                          : 'border-slate-200 dark:border-surface-700/60 hover:bg-slate-50 dark:hover:bg-surface-800 text-slate-600 dark:text-surface-400'
+                          ? 'border-primary-500 bg-primary-50 text-primary-600 dark:bg-primary-950/30 dark:border-primary-500 dark:text-primary-400 font-bold shadow-sm'
+                          : 'border-slate-200 dark:border-surface-700/60 bg-white dark:bg-surface-800 hover:bg-slate-50 dark:hover:bg-surface-750 text-slate-700 dark:text-surface-400 font-medium'
                       }`}
                     >
                       <Icon className="w-5 h-5" />
@@ -182,6 +211,111 @@ export default function AddMoneyModal({ isOpen, onClose, onSuccess, currentBalan
                 })}
               </div>
             </div>
+
+            {/* Dynamic Method Details */}
+            {method === 'UPI' && (
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-surface-800/40 border border-slate-200 dark:border-surface-700/60 space-y-2 animate-fade-in">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-surface-300">
+                  Virtual Payment Address (UPI ID)
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={upiId}
+                    onChange={(e) => setUpiId(e.target.value)}
+                    placeholder="user@okhdfcbank or 9876543210@upi"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-surface-900 border border-slate-200 dark:border-surface-700 text-xs font-medium text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-surface-500 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-surface-400">
+                  Payment authorization will be dispatched directly to your connected UPI provider.
+                </p>
+              </div>
+            )}
+
+            {method === 'CARD' && (
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-surface-800/40 border border-slate-200 dark:border-surface-700/60 space-y-3 animate-fade-in">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-surface-300 mb-1">
+                    Card Number
+                  </label>
+                  <input
+                    type="text"
+                    value={cardNumber}
+                    onChange={(e) => {
+                      const clean = e.target.value.replace(/\D/g, '').slice(0, 16);
+                      const parts = clean.match(/.{1,4}/g);
+                      setCardNumber(parts ? parts.join(' ') : clean);
+                    }}
+                    placeholder="4111 2222 3333 4444"
+                    maxLength={19}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-surface-900 border border-slate-200 dark:border-surface-700 text-xs font-mono font-medium text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-surface-500 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-surface-300 mb-1">
+                      Expiry Date
+                    </label>
+                    <input
+                      type="text"
+                      value={cardExpiry}
+                      onChange={(e) => {
+                        let val = e.target.value.replace(/[^0-9/]/g, '').slice(0, 5);
+                        if (val.length === 2 && !val.includes('/')) val += '/';
+                        setCardExpiry(val);
+                      }}
+                      placeholder="MM/YY"
+                      maxLength={5}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-surface-900 border border-slate-200 dark:border-surface-700 text-xs font-mono text-center font-medium text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-surface-500 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-surface-300 mb-1">
+                      CVV
+                    </label>
+                    <input
+                      type="password"
+                      value={cardCvv}
+                      onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, '').slice(0, 3))}
+                      placeholder="•••"
+                      maxLength={3}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-surface-900 border border-slate-200 dark:border-surface-700 text-xs font-mono text-center font-medium text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-surface-500 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {method === 'NETBANKING' && (
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-surface-800/40 border border-slate-200 dark:border-surface-700/60 space-y-2.5 animate-fade-in">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-surface-300">
+                  Select Your Bank
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'sbi', name: 'State Bank of India' },
+                    { id: 'hdfc', name: 'HDFC Bank' },
+                    { id: 'icici', name: 'ICICI Bank' },
+                    { id: 'axis', name: 'Axis Bank' },
+                  ].map((bank) => (
+                    <button
+                      key={bank.id}
+                      type="button"
+                      onClick={() => setSelectedBank(bank.id)}
+                      className={`p-2.5 rounded-xl border text-left transition-all text-xs font-semibold flex items-center gap-2 ${
+                        selectedBank === bank.id
+                          ? 'bg-primary-50 dark:bg-primary-950/30 border-primary-500 text-primary-700 dark:text-primary-400 shadow-sm'
+                          : 'bg-white dark:bg-surface-900 border-slate-200 dark:border-surface-700 text-slate-700 dark:text-surface-300 hover:bg-slate-100 dark:hover:bg-surface-800'
+                      }`}
+                    >
+                      <Building2 className="w-4 h-4 text-primary-500 shrink-0" />
+                      <span className="truncate">{bank.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Submit Button */}
             <button
