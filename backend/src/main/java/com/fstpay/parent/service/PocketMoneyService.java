@@ -33,14 +33,20 @@ public class PocketMoneyService {
         User parent = userRepository.findByEmail(parentEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("Parent not found"));
 
+        // If payment method is external (UPI, CARD, BANK_TRANSFER), fund parent's wallet first
+        String method = request.getPaymentMethod();
+        if (method != null && !method.trim().isEmpty() && !"WALLET".equalsIgnoreCase(method.trim())) {
+            walletService.topUp(parentEmail, amount, method.trim());
+        }
+
         // 2. Delegate transfer to WalletService
         String category = "TRANSFER";
-        String description = String.format("Pocket money: %s", request.getNote() != null ? request.getNote() : "");
+        String description = String.format("Pocket money: %s", request.getNote() != null && !request.getNote().isBlank() ? request.getNote() : "Family transfer");
         String merchant = "FST Pay Family";
 
         walletService.transfer(parent, child, amount, category, description, merchant);
 
-        log.info("Sent pocket money of ₹{} from parent {} to child {} using delegated WalletService.transfer()", 
-                amount, parentEmail, child.getEmail());
+        log.info("Sent pocket money of ₹{} from parent {} to child {} using method {}", 
+                amount, parentEmail, child.getEmail(), method != null ? method : "WALLET");
     }
 }

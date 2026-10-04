@@ -152,6 +152,7 @@ export interface Analytics {
   spendingByCategory: SpendingByCategory[];
   spendByCategory?: Record<string, number>;
   topMerchants: Array<{ merchant: string; amount: number }>;
+  dailyAverageSpend?: number;
 }
 
 export interface ApiResponse<T> {
@@ -203,12 +204,24 @@ export interface LoginCredentials {
   recaptchaToken?: string;
 }
 
+export interface UserContact {
+  id: string;
+  name: string;
+  upiId?: string;
+  phone?: string;
+  accountNumber?: string;
+  ifscCode?: string;
+  bankName?: string;
+  createdAt?: string;
+}
+
 export interface RegisterFormData {
   fullName: string;
   email: string;
   password: string;
   dateOfBirth?: string;
   recaptchaToken?: string;
+  role?: string;
 }
 
 export interface OtpVerification {
@@ -452,13 +465,17 @@ export interface SpendSimulationResponse {
 
 export interface ParentNotification {
   id: string;
-  parent: User;
+  parent?: User;
   child?: User;
-  type: 'POCKET_MONEY' | 'APPROVAL_REQUEST' | 'APPROVAL_DECISION' | 'REPORT_GENERATED' | 'SECURITY_ALERT';
+  type: 'POCKET_MONEY' | 'APPROVAL_REQUEST' | 'APPROVAL_DECISION' | 'REPORT_GENERATED' | 'SECURITY_ALERT' | string;
   title: string;
   message: string;
   isRead: boolean;
   createdAt: string;
+  childId?: string;
+  childName?: string;
+  amount?: number;
+  status?: string;
 }
 
 export interface ChildSummary {
@@ -472,6 +489,8 @@ export interface ChildSummary {
   parentalWeeklyLimit?: number;
   parentalMonthlyLimit?: number;
   parentalRestrictedCategories?: string;
+  parentalBlockedMerchants?: string;
+  walletBalance?: number;
   createdAt: string;
 }
 
@@ -489,6 +508,7 @@ export interface ParentDashboardData {
   children: ChildSummary[];
   totalChildrenBalance: number;
   totalPocketMoneySentThisMonth: number;
+  parentWalletBalance?: number;
   pendingApprovalsCount: number;
   recentNotifications: ParentNotification[];
   activityTimeline: ActivityTimelineEvent[];
@@ -505,11 +525,13 @@ export interface ChildDetail {
   parentalWeeklyLimit: number;
   parentalMonthlyLimit: number;
   parentalRestrictedCategories: string;
+  parentalBlockedMerchants?: string;
   walletBalance: number;
   walletCurrency: string;
   virtualCards: VirtualCard[];
   activeGoals: WalletGoal[];
   recentTransactions: Transaction[];
+  analytics?: Analytics;
 }
 
 export interface SseSettlementUpdatePayload {
@@ -678,5 +700,27 @@ export interface WebAuthnLoginRequest {
   authenticatorData: string;
   signature: string;
   userHandle?: string;
+}
+
+export interface SplitPaymentRequest {
+  totalAmount: number;
+  splitCount: number;
+  userShare?: number;
+  merchant: string;
+  category?: string;
+  note?: string;
+  currency?: string;
+}
+
+export interface SplitPayment {
+  id: string;
+  totalAmount: number;
+  splitCount: number;
+  userShare: number;
+  perPersonAmount: number;
+  merchant: string;
+  note?: string;
+  status: string;
+  createdAt: string;
 }
 

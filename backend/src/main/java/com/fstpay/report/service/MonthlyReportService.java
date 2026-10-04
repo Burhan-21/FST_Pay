@@ -58,12 +58,11 @@ public class MonthlyReportService {
     }
 
     public byte[] generateMonthlyReportPdf(User user, Instant startPeriod, Instant endPeriod) {
-        Wallet wallet = walletRepository.findByUser(user)
-                .orElseThrow(() -> new RuntimeException("Wallet not found"));
+        Wallet wallet = walletRepository.findByUser(user).orElse(null);
 
-        List<Transaction> transactions = transactionRepository.findByWalletIdAndCreatedAtBetween(
-                wallet.getId(), startPeriod, endPeriod
-        );
+        List<Transaction> transactions = wallet != null
+                ? transactionRepository.findByWalletIdAndCreatedAtBetween(wallet.getId(), startPeriod, endPeriod)
+                : java.util.Collections.emptyList();
 
         List<WalletGoal> goals = walletGoalRepository.findByUser(user);
         HealthScoreResponse healthScore = null;
@@ -269,8 +268,12 @@ public class MonthlyReportService {
 
         String subject = "Your FST Pay Monthly Statement - " + periodStr;
         String filename = "FSTPay_Statement_" + periodStr.replace(" ", "_") + ".pdf";
-
-        emailProvider.sendHtmlWithAttachment(user.getEmail(), subject, htmlBody, pdfBytes, filename);
+        try {
+            emailProvider.sendHtmlWithAttachment(user.getEmail(), subject, htmlBody, pdfBytes, filename);
+            log.info("Monthly statement email dispatched successfully to {}", user.getEmail());
+        } catch (Exception e) {
+            log.error("Failed to deliver monthly report email to {}: {}", user.getEmail(), e.getMessage());
+        }
     }
 
     private PdfPCell createLabelValueCell(String label, String value, Font labelFont, Font valueFont) {

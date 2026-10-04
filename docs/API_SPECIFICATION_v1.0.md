@@ -2,8 +2,8 @@
 
 **Document ID:** FST-API-2026-Q2  
 **Version:** 1.0  
-**Date:** June 17, 2026  
-**Owner:** API Designer / Backend Lead  
+**Author & Project Lead:** Shaikh Mohammed Burhan  
+**Owner:** Shaikh Mohammed Burhan  
 **Status:** 🟢 READY FOR DEVELOPMENT
 
 ---
@@ -29,9 +29,9 @@ Register a new user account.
 **Request:**
 ```json
 {
-  "email": "smburhan.personal@gmail.com",
+  "email": "alex@fstpay.com",
   "password": "Burhan@1234",
-  "fullName": "Burhan Test",
+  "fullName": "Shaikh Mohammed Burhan",
   "dateOfBirth": "2010-01-15"
 }
 ```
@@ -49,7 +49,7 @@ Register a new user account.
   "data": {
     "message": "Signup successful. OTP sent to your email.",
     "sessionId": "sess-uuid-123",
-    "email": "smburhan.personal@gmail.com",
+    "email": "alex@fstpay.com",
     "requiresOtp": true,
     "otpExpiresIn": 600
   },
@@ -87,8 +87,8 @@ Verify OTP and complete signup.
     "message": "Email verified successfully",
     "user": {
       "id": "user-uuid-123",
-      "email": "smburhan.personal@gmail.com",
-      "fullName": "Burhan Test",
+      "email": "alex@fstpay.com",
+      "fullName": "Shaikh Mohammed Burhan",
       "role": "USER",
       "createdAt": "2026-06-17T10:30:00Z"
     }
@@ -112,7 +112,7 @@ Authenticate user with email and password.
 **Request:**
 ```json
 {
-  "email": "smburhan.personal@gmail.com",
+  "email": "alex@fstpay.com",
   "password": "Burhan@1234",
   "captchaToken": "google-recaptcha-token"
 }
@@ -163,8 +163,8 @@ Verify OTP and get JWT tokens.
     "expiresIn": 86400,
     "user": {
       "id": "user-uuid-123",
-      "email": "smburhan.personal@gmail.com",
-      "fullName": "Burhan Test",
+      "email": "alex@fstpay.com",
+      "fullName": "Shaikh Mohammed Burhan",
       "role": "USER"
     }
   },
@@ -270,8 +270,8 @@ Authorization: Bearer <accessToken>
   "success": true,
   "data": {
     "id": "user-uuid-123",
-    "email": "smburhan.personal@gmail.com",
-    "fullName": "Burhan Test",
+    "email": "alex@fstpay.com",
+    "fullName": "Shaikh Mohammed Burhan",
     "dateOfBirth": "2010-01-15",
     "role": "USER",
     "status": "ACTIVE",
@@ -511,7 +511,7 @@ GET /api/v1/cards/card-uuid-123
     "cardNumberMasked": "•••• •••• •••• 9012",
     "cvv": "123",
     "expiryDate": "12/27",
-    "cardholderName": "BURHAN TEST",
+    "cardholderName": "Shaikh Mohammed Burhan",
     "status": "ACTIVE",
     "dailyLimit": 10000.00,
     "spendingToday": 500.00,
@@ -1048,7 +1048,7 @@ Get child's financial summary (parent only).
   "data": {
     "child": {
       "id": "user-uuid-123",
-      "fullName": "Burhan Test",
+      "fullName": "Shaikh Mohammed Burhan",
       "monthlySpending": 8500.00,
       "walletBalance": 1500.00,
       "categoryBreakdown": { /* same as analytics */ }

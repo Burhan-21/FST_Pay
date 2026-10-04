@@ -128,6 +128,25 @@ public class VirtualCardService implements VirtualCardOperations {
         return virtualCardRepository.save(card);
     }
 
+    @Override
+    @Transactional
+    public VirtualCard regenerateCard(String email, UUID cardId) {
+        VirtualCard card = getCardForUser(email, cardId);
+        if ("CANCELLED".equals(card.getStatus())) {
+            throw new BadRequestException("Cannot regenerate a cancelled card");
+        }
+        String newCardNumber = generateCardNumber();
+        LocalDate expiryDate = LocalDate.now().plusYears(3);
+        String rawCvv = String.format("%03d", random.nextInt(1000));
+        String cvvHash = passwordEncoder.encode(rawCvv);
+
+        card.setCardNumber(newCardNumber);
+        card.setExpiryMonth(expiryDate.getMonthValue());
+        card.setExpiryYear(expiryDate.getYear());
+        card.setCvvHash(cvvHash);
+        return virtualCardRepository.save(card);
+    }
+
     private VirtualCard getCardForUser(String email, UUID cardId) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));

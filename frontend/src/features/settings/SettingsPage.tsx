@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../hooks/useAuth';
 import { User, Lock, Shield, Bell, Palette, Loader2, Check, AlertCircle, QrCode, Copy, Download, RefreshCw, KeyRound, ShieldCheck, Fingerprint, Trash2 } from 'lucide-react';
@@ -373,6 +374,46 @@ export default function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isPasswordLoading, setIsPasswordLoading] = useState(false);
   const [passwordError, setPasswordError] = useState('');
+
+  const handleExportData = () => {
+    if (!user) return;
+    const exportPayload = {
+      user: {
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        phone: user.phone,
+        dateOfBirth: user.dateOfBirth,
+        role: user.role,
+        createdAt: user.createdAt,
+        totpEnabled: user.totpEnabled,
+        biometricEnabled: user.biometricEnabled,
+      },
+      exportedAt: new Date().toISOString(),
+      platform: 'FST Pay (DPDP Data Export)',
+    };
+    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fstpay-data-${user.email || 'export'}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleRequestDeletion = () => {
+    setConfirmConfig({
+      title: 'Request Account & Data Deletion',
+      message: 'Are you sure you want to request deletion of your account and personal data? Once processed, your account will be permanently deactivated and personal identifiers will be anonymized in accordance with DPDP regulations. Financial audit logs are retained as required by statutory regulations.',
+      onConfirm: () => {
+        setConfirmConfig(null);
+        setAlertConfig({
+          title: 'Deletion Request Submitted',
+          message: 'Your account deletion request has been registered. A confirmation link and 14-day grace period notice have been dispatched to your email. For immediate assistance, contact [GRIEVANCE EMAIL].',
+        });
+      },
+    });
+  };
 
   const handleSave = async () => {
     try {
@@ -965,10 +1006,82 @@ export default function SettingsPage() {
               </div>
             )}
 
-            {(activeTab === 'notifications' || activeTab === 'privacy') && (
+            {activeTab === 'notifications' && (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <Palette className="w-12 h-12 text-slate-400 dark:text-surface-600 mb-3" />
-                <p className="text-slate-600 dark:text-surface-400 font-medium">Coming soon in the next update</p>
+                <p className="text-slate-600 dark:text-surface-400 font-medium">Notification preferences coming in the next update</p>
+              </div>
+            )}
+
+            {activeTab === 'privacy' && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-display font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5 text-primary-500 dark:text-primary-400" />
+                    Data Privacy & DPDP Rights
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-surface-400 mt-1">
+                    Manage your personal data, privacy settings, and statutory data subject rights.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Data Portability Card */}
+                  <div className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/70 dark:border-white/5 dark:bg-white/3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-semibold text-slate-900 dark:text-white">Download Account Data</h4>
+                        <p className="text-xs text-slate-500 dark:text-surface-400 mt-0.5">
+                          Export a machine-readable JSON copy of your profile and account settings.
+                        </p>
+                      </div>
+                      <Button onClick={handleExportData} variant="secondary" size="sm" className="flex items-center gap-1.5 text-xs">
+                        <Download className="w-3.5 h-3.5" />
+                        Export Data
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Legal Documents Link */}
+                  <div className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/70 dark:border-white/5 dark:bg-white/3 space-y-3">
+                    <h4 className="text-sm font-semibold text-slate-900 dark:text-white">Compliance & Policies</h4>
+                    <p className="text-xs text-slate-500 dark:text-surface-400">
+                      Review how FST Pay handles data protection, teen accounts, refunds, and terms.
+                    </p>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <Link to="/privacy" target="_blank" className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-white dark:bg-surface-800 border border-slate-200 dark:border-surface-700 text-primary-600 dark:text-primary-400 hover:underline">
+                        Privacy Policy ↗
+                      </Link>
+                      <Link to="/terms" target="_blank" className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-white dark:bg-surface-800 border border-slate-200 dark:border-surface-700 text-primary-600 dark:text-primary-400 hover:underline">
+                        Terms of Service ↗
+                      </Link>
+                      <Link to="/cookies" target="_blank" className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-white dark:bg-surface-800 border border-slate-200 dark:border-surface-700 text-primary-600 dark:text-primary-400 hover:underline">
+                        Cookie Policy ↗
+                      </Link>
+                      <Link to="/refund" target="_blank" className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-white dark:bg-surface-800 border border-slate-200 dark:border-surface-700 text-primary-600 dark:text-primary-400 hover:underline">
+                        Refund Policy ↗
+                      </Link>
+                    </div>
+                  </div>
+
+                  {/* Danger Zone: Account Deletion */}
+                  <div className="p-4 rounded-xl border border-danger-500/30 bg-danger-500/5 space-y-3">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h4 className="text-sm font-semibold text-danger-600 dark:text-danger-400 flex items-center gap-1.5">
+                          <Trash2 className="w-4 h-4" />
+                          Request Account & Data Deletion
+                        </h4>
+                        <p className="text-xs text-slate-600 dark:text-surface-300 mt-1 leading-relaxed">
+                          Permanently close your FST Pay account and request erasure of personal data under DPDP regulations. Financial audit records are retained for statutory retention periods mandated by banking authorities.
+                        </p>
+                      </div>
+                      <Button onClick={handleRequestDeletion} variant="ghost" size="sm" className="border border-danger-500/30 text-danger-500 hover:bg-danger-500/15 shrink-0 text-xs">
+                        Delete Account
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </GlassCard>

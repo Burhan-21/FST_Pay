@@ -42,6 +42,13 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success("Login successful", response));
     }
 
+    @PostMapping("/resend-otp")
+    @Operation(summary = "Resend OTP verification code", description = "Generates and dispatches a fresh 6-digit OTP to the specified email address, subject to rate limits.")
+    public ResponseEntity<ApiResponse<String>> resendOtp(@Valid @RequestBody ResendOtpRequest request) {
+        authService.resendOtp(request.getEmail());
+        return ResponseEntity.ok(ApiResponse.success("A new verification code has been sent to your email", null));
+    }
+
     @PostMapping("/totp/verify")
     @Operation(summary = "Verify TOTP authenticator code", description = "Validates the 6-digit TOTP code from an authenticator app and returns access/refresh JWT tokens on success.")
     public ResponseEntity<ApiResponse<TokenResponse>> verifyTotp(@Valid @RequestBody com.fstpay.auth.totp.dto.VerifyTotpRequest request) {

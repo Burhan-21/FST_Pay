@@ -32,20 +32,15 @@ public class OtpService {
     @Value("${app.auth.otp-rate-limit-seconds:60}")
     private long otpRateLimitSeconds;
 
-    public OtpService(@org.springframework.beans.factory.annotation.Autowired(required = false) StringRedisTemplate redisTemplate, org.springframework.core.env.Environment env) {
+    public OtpService(@org.springframework.beans.factory.annotation.Autowired(required = false) StringRedisTemplate redisTemplate) {
         this.redisTemplate = redisTemplate;
-        this.env = env;
+        this.env = null;
     }
 
-    private boolean isProdEnvironment() {
-        if (env != null && env.getActiveProfiles() != null) {
-            for (String profile : env.getActiveProfiles()) {
-                if ("prod".equalsIgnoreCase(profile) || "production".equalsIgnoreCase(profile)) {
-                    return true;
-                }
-            }
-        }
-        return false;
+    public OtpService(@org.springframework.beans.factory.annotation.Autowired(required = false) StringRedisTemplate redisTemplate,
+                      @org.springframework.beans.factory.annotation.Autowired(required = false) org.springframework.core.env.Environment env) {
+        this.redisTemplate = redisTemplate;
+        this.env = env;
     }
 
     public String forceGenerateOtp(String email) {
@@ -64,15 +59,6 @@ public class OtpService {
         }
 
         String otp = String.format("%06d", random.nextInt(1000000));
-        // Strict production profile security isolation: deterministic test OTP only allowed in non-prod profiles
-        if (!isProdEnvironment()) {
-            if ("burhan.test1@gmail.com".equalsIgnoreCase(email) || "burhan.parent1@gmail.com".equalsIgnoreCase(email)
-                    || "admin@fstpay.com".equalsIgnoreCase(email) || "burhan.mulla21@gmail.com".equalsIgnoreCase(email)
-                    || email.toLowerCase().endsWith("@fstpay.com")) {
-                otp = "123456";
-            }
-            log.info("[DEV] OTP generated for {}: {}", email, otp);
-        }
 
         if (redisTemplate != null) {
             try {

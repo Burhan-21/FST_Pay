@@ -5,6 +5,6 @@ import lombok.Data;
 
 @Data
 public class UpdateDesignRequest {
-    @Size(max = 2000, message = "Card design data cannot exceed 2000 characters")
+    @Size(max = 5000000, message = "Card design data cannot exceed 5MB")
     private String cardDesign;
 }

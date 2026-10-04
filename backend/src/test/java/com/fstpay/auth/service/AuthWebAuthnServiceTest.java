@@ -118,7 +118,7 @@ class AuthWebAuthnServiceTest {
         testUser = User.builder()
                 .id(UUID.randomUUID())
                 .email("alex@example.com")
-                .fullName("Alex Rivera")
+                .fullName("Shaikh Mohammed Burhan")
                 .role("USER")
                 .isActive(true)
                 .biometricEnabled(true)

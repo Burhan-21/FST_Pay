@@ -1,5 +1,6 @@
 # System Architecture Specification — FST Pay
 
+> **Author & Project Lead**: Shaikh Mohammed Burhan  
 > **Document Version**: 2.0.0  
 > **Architecture Pattern**: Modular Monolith + Event-Driven Transactional Outbox  
 > **Target Deployment**: Vercel (Frontend) + Render PaaS (Backend & Data) + OCI Roadmap  

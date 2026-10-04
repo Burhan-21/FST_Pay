@@ -2,8 +2,8 @@
 
 Write-Host "╔════════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
 Write-Host "║   FST Pay - Login/Signup Testing Setup                         ║" -ForegroundColor Cyan
-Write-Host "║   Email: smburhan.personal@gmail.com                           ║" -ForegroundColor Cyan
-Write-Host "║   Password: Burhan@1234                                        ║" -ForegroundColor Cyan
+Write-Host "║   Email: testuser@fstpay.com                                   ║" -ForegroundColor Cyan
+Write-Host "║   Password: TestUser@1234                                      ║" -ForegroundColor Cyan
 Write-Host "╚════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host ""
 
@@ -211,18 +211,18 @@ Write-Host "3. Open Browser:" -ForegroundColor $White
 Write-Host "   http://localhost:5173" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "4. Test Credentials:" -ForegroundColor $White
-Write-Host "   Email: smburhan.personal@gmail.com" -ForegroundColor Cyan
-Write-Host "   Password: Burhan@1234" -ForegroundColor Cyan
+Write-Host "   Email: testuser@fstpay.com" -ForegroundColor Cyan
+Write-Host "   Password: TestUser@1234" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "5. Refer to Guide:" -ForegroundColor $White
-Write-Host "   See LOGIN_SIGNUP_TESTING_GUIDE.md for detailed test cases" -ForegroundColor Cyan
+Write-Host "   See docs/archive/LOGIN_SIGNUP_TESTING_GUIDE.md for detailed test cases" -ForegroundColor Cyan
 Write-Host ""
 
 Write-Host "Resources:" -ForegroundColor $Yellow
 Write-Host "==========" -ForegroundColor $Yellow
 Write-Host ""
 Write-Host "📚 Testing Guide:" -ForegroundColor $White
-Write-Host "   file:///d:/FST_Pay/LOGIN_SIGNUP_TESTING_GUIDE.md" -ForegroundColor Cyan
+Write-Host "   docs/archive/LOGIN_SIGNUP_TESTING_GUIDE.md" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "🔍 Monitor Database:" -ForegroundColor $White
 Write-Host "   psql -h localhost -p 5434 -U fstpay -d fstpay" -ForegroundColor Cyan

@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { 
   Search, 
-  Terminal, 
   LayoutDashboard, 
   Wallet, 
   CreditCard, 
@@ -13,39 +12,69 @@ import {
   Trophy, 
   Settings, 
   ShieldAlert, 
+  ShieldCheck,
+  User,
   LogOut,
-  Sparkles
+  Send,
+  Download,
+  Scan,
+  Plus
 } from 'lucide-react';
 
 interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenSend?: () => void;
+  onOpenReceive?: () => void;
+  onOpenScan?: () => void;
+  onOpenAdd?: () => void;
 }
 
-export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
+export default function CommandPalette({
+  isOpen,
+  onClose,
+  onOpenSend,
+  onOpenReceive,
+  onOpenScan,
+  onOpenAdd,
+}: CommandPaletteProps) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [search, setSearch] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Group commands
-  const commands = [
-    { id: 'dashboard', title: 'Dashboard', category: 'Navigation', icon: LayoutDashboard, action: () => navigate('/dashboard') },
-    { id: 'wallet', title: 'Wallet Page', category: 'Navigation', icon: Wallet, action: () => navigate('/wallet') },
-    { id: 'cards', title: 'Virtual Cards', category: 'Navigation', icon: CreditCard, action: () => navigate('/cards') },
-    { id: 'transactions', title: 'Transactions List', category: 'Navigation', icon: ArrowLeftRight, action: () => navigate('/transactions') },
-    { id: 'analytics', title: 'Analytics & Trends', category: 'Navigation', icon: TrendingUp, action: () => navigate('/analytics') },
-    { id: 'ai-coach', title: 'AI Money Coach', category: 'Navigation', icon: Bot, action: () => navigate('/ai-coach') },
-    { id: 'rewards', title: 'Rewards & Streak', category: 'Navigation', icon: Trophy, action: () => navigate('/rewards') },
-    { id: 'settings', title: 'Account Settings', category: 'Navigation', icon: Settings, action: () => navigate('/settings') },
-    ...(user?.role === 'ADMIN' ? [
-      { id: 'admin', title: 'Admin Control Center', category: 'Navigation', icon: ShieldAlert, action: () => navigate('/admin') }
-    ] : []),
-    { id: 'simulate', title: 'Simulate Spend Transaction', category: 'Actions', icon: Terminal, action: () => navigate('/transactions') },
-    { id: 'parental-mode', title: 'Configure Parental Lock', category: 'Actions', icon: Sparkles, action: () => navigate('/settings') },
-    { id: 'logout', title: 'Sign Out Account', category: 'Actions', icon: LogOut, action: () => { logout(); navigate('/login'); } }
-  ];
+  const isParent = user?.role === 'PARENT';
+  const isAdmin = user?.role === 'ADMIN';
+
+  // Build commands dynamically by role
+  const commands = isParent
+    ? [
+        { id: 'parent-dashboard', title: 'Parent Dashboard', category: 'Navigation', icon: LayoutDashboard, action: () => navigate('/parent/dashboard') },
+        { id: 'parent-approvals', title: 'Spend Approvals Queue', category: 'Navigation', icon: ShieldCheck, action: () => navigate('/parent/approvals') },
+        { id: 'profile', title: 'My Profile', category: 'Navigation', icon: User, action: () => navigate('/settings') },
+        { id: 'settings', title: 'Account Settings', category: 'Navigation', icon: Settings, action: () => navigate('/settings') },
+        { id: 'logout', title: 'Sign Out Account', category: 'Actions', icon: LogOut, action: () => { logout(); navigate('/login'); } },
+      ]
+    : [
+        { id: 'dashboard', title: 'Dashboard', category: 'Navigation', icon: LayoutDashboard, action: () => navigate('/dashboard') },
+        { id: 'wallet', title: 'Wallet Overview', category: 'Navigation', icon: Wallet, action: () => navigate('/wallet') },
+        { id: 'cards', title: 'Virtual Cards', category: 'Navigation', icon: CreditCard, action: () => navigate('/cards') },
+        { id: 'transactions', title: 'Transactions History', category: 'Navigation', icon: ArrowLeftRight, action: () => navigate('/transactions') },
+        { id: 'analytics', title: 'Analytics & Trends', category: 'Navigation', icon: TrendingUp, action: () => navigate('/analytics') },
+        { id: 'ai-coach', title: 'AI Money Coach', category: 'Navigation', icon: Bot, action: () => navigate('/ai-coach') },
+        { id: 'rewards', title: 'Rewards & Streak', category: 'Navigation', icon: Trophy, action: () => navigate('/rewards') },
+        { id: 'profile', title: 'My Profile', category: 'Navigation', icon: User, action: () => navigate('/settings') },
+        { id: 'settings', title: 'Account Settings', category: 'Navigation', icon: Settings, action: () => navigate('/settings') },
+        ...(isAdmin ? [
+          { id: 'admin', title: 'Admin Control Center', category: 'Navigation', icon: ShieldAlert, action: () => navigate('/admin') }
+        ] : []),
+        { id: 'action-send', title: 'Send Money', category: 'Actions', icon: Send, action: () => onOpenSend ? onOpenSend() : navigate('/wallet') },
+        { id: 'action-receive', title: 'Receive Money (QR / UPI)', category: 'Actions', icon: Download, action: () => onOpenReceive ? onOpenReceive() : navigate('/wallet') },
+        { id: 'action-scan', title: 'Scan & Pay QR', category: 'Actions', icon: Scan, action: () => onOpenScan ? onOpenScan() : navigate('/dashboard') },
+        { id: 'action-add', title: 'Add Money to Wallet', category: 'Actions', icon: Plus, action: () => onOpenAdd ? onOpenAdd() : navigate('/wallet') },
+        { id: 'logout', title: 'Sign Out Account', category: 'Actions', icon: LogOut, action: () => { logout(); navigate('/login'); } }
+      ];
 
   // Filter commands by search
   const filtered = commands.filter(cmd => 

@@ -6,19 +6,26 @@ import { useTheme } from '../../hooks/useTheme';
 import { Eye, EyeOff, ArrowRight, Mail, Lock, Loader2, Sparkles, Shield, TrendingUp, KeyRound, ShieldCheck, Fingerprint } from 'lucide-react';
 import { authApi } from '../../api/endpoints';
 import ReCAPTCHA from 'react-google-recaptcha';
+import ThemeToggle from '../../components/ui/ThemeToggle';
+import OtpInput from '../../components/ui/OtpInput';
+import ForgotPasswordModal from './ForgotPasswordModal';
 
 export default function Login() {
   const navigate = useNavigate();
   const { login, verifyOtp, verifyTotp, verifyBackupCode, loginWithPasskey, user } = useAuth();
   const { theme } = useTheme();
 
+  const redirectByUserRole = (role?: string) => {
+    if (role === 'PARENT') {
+      navigate('/parent/dashboard');
+    } else {
+      navigate('/dashboard');
+    }
+  };
+
   useEffect(() => {
     if (user) {
-      if (user.role === 'PARENT') {
-        navigate('/parent/dashboard');
-      } else {
-        navigate('/dashboard');
-      }
+      redirectByUserRole(user.role);
     }
   }, [user, navigate]);
 
@@ -34,6 +41,38 @@ export default function Login() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isPasskeyLoading, setIsPasskeyLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [isResending, setIsResending] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState('');
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const interval = setInterval(() => {
+      setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [resendCooldown]);
+
+  const handleResendCode = async () => {
+    if (resendCooldown > 0 || isResending) return;
+    setError('');
+    setResendSuccess('');
+    setIsResending(true);
+    try {
+      await authApi.resendOtp(email.trim().toLowerCase());
+      setResendSuccess('A new 6-digit code has been sent to your email.');
+      setResendCooldown(60);
+    } catch (err: unknown) {
+      if (axios.isAxiosError<{ message?: string }>(err)) {
+        setError(err.response?.data?.message || 'Failed to resend code. Please try again.');
+      } else {
+        setError('Failed to resend verification code.');
+      }
+    } finally {
+      setIsResending(false);
+    }
+  };
 
   const bufferFromBase64 = (base64: string): ArrayBuffer => {
     const clean = base64.replace(/-/g, '+').replace(/_/g, '/');
@@ -95,13 +134,14 @@ export default function Login() {
       const signature = base64UrlFromBuffer(response.signature);
       const userHandle = response.userHandle ? base64UrlFromBuffer(response.userHandle) : undefined;
 
-      await loginWithPasskey({
+      const passkeyUser = await loginWithPasskey({
         credentialId: credential.id,
         clientDataJSON,
         authenticatorData,
         signature,
         userHandle,
       });
+      redirectByUserRole(passkeyUser?.role);
     } catch (err: unknown) {
       if (axios.isAxiosError<{ message?: string }>(err)) {
         setError(err.response?.data?.message || 'Passkey authentication failed.');
@@ -174,6 +214,8 @@ export default function Login() {
         setStep('totp');
       } else if (result.requiresOtp) {
         setStep('otp');
+      } else if (result.user) {
+        redirectByUserRole(result.user.role);
       }
     } catch (err: unknown) {
       if (axios.isAxiosError<{ message?: string; data?: Record<string, string> }>(err)) {
@@ -207,7 +249,8 @@ export default function Login() {
     setError('');
     setIsLoading(true);
     try {
-      await verifyOtp(cleanEmail, cleanOtp);
+      const verifiedUser = await verifyOtp(cleanEmail, cleanOtp);
+      redirectByUserRole(verifiedUser?.role);
     } catch (err: unknown) {
       if (axios.isAxiosError<{ message?: string }>(err)) {
         setError(err.response?.data?.message || 'Invalid or expired OTP. Please try again.');
@@ -222,7 +265,8 @@ export default function Login() {
     setError('');
     setIsLoading(true);
     try {
-      await verifyTotp(email, totpCode);
+      const verifiedUser = await verifyTotp(email, totpCode);
+      redirectByUserRole(verifiedUser?.role);
     } catch (err: unknown) {
       if (axios.isAxiosError<{ message?: string }>(err)) {
         setError(err.response?.data?.message || 'Invalid verification code. Please check your authenticator app.');
@@ -237,7 +281,8 @@ export default function Login() {
     setError('');
     setIsLoading(true);
     try {
-      await verifyBackupCode(email, backupCode);
+      const verifiedUser = await verifyBackupCode(email, backupCode);
+      redirectByUserRole(verifiedUser?.role);
     } catch (err: unknown) {
       if (axios.isAxiosError<{ message?: string }>(err)) {
         setError(err.response?.data?.message || 'Invalid or already used backup code.');
@@ -264,11 +309,16 @@ export default function Login() {
   };
 
   return (
-    <div className={`min-h-screen flex transition-colors duration-200 ${
+    <div className={`min-h-screen flex relative transition-colors duration-200 ${
       theme === 'amoled'
         ? 'bg-black text-white'
         : 'bg-[#F7FAFF] dark:bg-surface-950 text-slate-900 dark:text-white'
     }`}>
+      {/* Top-Right Theme Switcher */}
+      <div className="absolute top-5 right-5 z-30">
+        <ThemeToggle />
+      </div>
+
       {/* Left Panel */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary-600 via-primary-900 to-surface-950" />
@@ -338,7 +388,7 @@ export default function Login() {
           </div>
 
           {error && (
-            <div className="p-4 rounded-2xl bg-danger-500/10 border border-danger-500/20 text-danger-400 text-sm animate-slide-down">
+            <div id="login-error-msg" role="alert" className="p-4 rounded-2xl bg-danger-500/10 border border-danger-500/20 text-danger-400 text-sm animate-slide-down">
               {error}
             </div>
           )}
@@ -359,6 +409,8 @@ export default function Login() {
                     placeholder="Enter your email address"
                     required
                     autoComplete="email"
+                    aria-invalid={!!error}
+                    aria-describedby={error ? 'login-error-msg' : undefined}
                     className="bg-transparent flex-1 py-3 pr-4 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-surface-400 caret-primary-600 dark:caret-primary-400 text-sm font-medium focus:outline-none"
                     style={{ color: theme === 'dark' || theme === 'amoled' ? '#ffffff' : '#0f172a' }}
                   />
@@ -368,6 +420,13 @@ export default function Login() {
               <div className="page-section">
                 <div className="flex items-center justify-between mb-1.5">
                   <label htmlFor="login-password" className="input-label text-slate-700 dark:text-surface-300 font-medium text-xs mb-0">Password</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPassword(true)}
+                    className="text-xs font-semibold text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 transition-colors"
+                  >
+                    Forgot password?
+                  </button>
                 </div>
                 <div className="relative flex items-center px-0 py-0 bg-white dark:bg-surface-800/60 border border-slate-200 dark:border-surface-600/40 rounded-xl focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20 transition-all shadow-xs">
                   <div className="flex items-center justify-center w-11 shrink-0">
@@ -382,6 +441,8 @@ export default function Login() {
                     required
                     minLength={8}
                     autoComplete="current-password"
+                    aria-invalid={!!error}
+                    aria-describedby={error ? 'login-error-msg' : undefined}
                     className="bg-transparent flex-1 py-3 pr-4 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-surface-400 caret-primary-600 dark:caret-primary-400 text-sm font-medium focus:outline-none"
                     style={{ color: theme === 'dark' || theme === 'amoled' ? '#ffffff' : '#0f172a' }}
                   />
@@ -455,17 +516,12 @@ export default function Login() {
                 </p>
               </div>
 
-              <div>
-                <label htmlFor="totp-input" className="input-label text-slate-700 dark:text-surface-300 font-medium text-xs">Authenticator Code</label>
-                <input
-                  id="totp-input"
-                  type="text"
+              <div className="space-y-3">
+                <label className="input-label text-center block text-slate-700 dark:text-surface-300 font-medium text-xs">Authenticator Code</label>
+                <OtpInput
                   value={totpCode}
-                  onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="Enter 6-digit code"
-                  required
-                  maxLength={6}
-                  className="input-field text-center text-3xl font-mono tracking-[0.5em] py-4 bg-white dark:bg-surface-800/60 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-surface-400 caret-primary-600 dark:caret-primary-400 border-slate-200 dark:border-surface-600/40 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  onChange={setTotpCode}
+                  hasError={!!error}
                   autoFocus
                 />
               </div>
@@ -584,19 +640,38 @@ export default function Login() {
                   Verification OTP dispatched to {email}.
                 </div>
               )}
-              <div>
-                <label htmlFor="otp-input" className="input-label text-slate-700 dark:text-surface-300 font-medium text-xs">Email Verification Code</label>
-                <input
-                  id="otp-input"
-                  type="text"
+              <div className="space-y-3">
+                <label className="input-label text-center block text-slate-700 dark:text-surface-300 font-medium text-xs">Email Verification Code</label>
+                <OtpInput
                   value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="Enter 6-digit code"
-                  required
-                  maxLength={6}
-                  className="input-field text-center text-3xl font-mono tracking-[0.5em] py-4 bg-white dark:bg-surface-800/60 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-surface-400 caret-primary-600 dark:caret-primary-400 border-slate-200 dark:border-surface-600/40 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  onChange={setOtp}
+                  hasError={!!error}
                   autoFocus
                 />
+                {resendSuccess && (
+                  <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs text-center font-medium">
+                    {resendSuccess}
+                  </div>
+                )}
+                <div className="flex items-center justify-between text-xs text-slate-500 dark:text-surface-400 px-1 pt-1">
+                  <span>Didn't receive code?</span>
+                  <button
+                    type="button"
+                    onClick={handleResendCode}
+                    disabled={isResending || resendCooldown > 0}
+                    className="font-semibold text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isResending ? (
+                      <span className="inline-flex items-center gap-1">
+                        <Loader2 className="w-3 h-3 animate-spin" /> Sending...
+                      </span>
+                    ) : resendCooldown > 0 ? (
+                      <span>Resend code in {resendCooldown}s</span>
+                    ) : (
+                      <span>Resend verification code</span>
+                    )}
+                  </button>
+                </div>
               </div>
 
               <button
@@ -632,6 +707,12 @@ export default function Login() {
           </p>
         </div>
       </div>
+
+      <ForgotPasswordModal
+        isOpen={showForgotPassword}
+        onClose={() => setShowForgotPassword(false)}
+        initialEmail={email}
+      />
     </div>
   );
 }

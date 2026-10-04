@@ -14,7 +14,7 @@ This document provides detailed fixes for all issues found in the code review. A
 **Problem:**
 ```java
 // BEFORE: Hardcoded credentials exposed in source code
-String email = "smburhan.personal@gmail.com";
+String email = "alex@fstpay.com";
 passwordEncoder.encode("yP6j9yf.VUn7@Md");
 System.out.println("Admin user password reset...");  // Exposed in logs
 ```

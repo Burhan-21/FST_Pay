@@ -16,4 +16,6 @@ public class PocketMoneyRequest {
     private BigDecimal amount;
 
     private String note;
+
+    private String paymentMethod;
 }

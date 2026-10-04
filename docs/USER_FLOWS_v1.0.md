@@ -2,8 +2,8 @@
 
 **Document ID:** FST-FLOWS-2026-Q2  
 **Version:** 1.0  
-**Date:** June 17, 2026  
-**Owner:** Product Management
+**Author & Project Lead:** Shaikh Mohammed Burhan  
+**Owner:** Shaikh Mohammed Burhan
 
 ---
 
@@ -29,9 +29,9 @@ START: App opened first time
 "Sign Up" button clicked
    ↓
 SCREEN: Signup Form
- - Enter email: smburhan.personal@gmail.com
+ - Enter email: alex@fstpay.com
  - Enter password: Burhan@1234 (8+ chars, 1 upper, 1 lower, 1 num, 1 special)
- - Enter full name: Burhan Test
+ - Enter full name: Shaikh Mohammed Burhan
  - Enter DOB: 01/15/1990 (must be 13+ years old)
  - Check reCAPTCHA: ✓
    ↓
@@ -46,7 +46,7 @@ Backend: Create user (status = PENDING_VERIFICATION)
 Backend: Generate OTP, send to email
    ↓
 SCREEN: Email Verification
- - Message: "Verification link sent to smburhan.personal@gmail.com"
+ - Message: "Verification link sent to alex@fstpay.com"
  - 6-digit OTP input field
  - "Resend OTP" button
  - 10-minute countdown timer
@@ -108,7 +108,7 @@ User corrects to: 01/15/2010 (14 years old)
 ### Alternative Path 3: Email Already Exists
 
 ```
-Email entered: smburhan.personal@gmail.com (already registered)
+Email entered: alex@fstpay.com (already registered)
    ↓
 [VALIDATE]
  - Email not already registered? ✗
@@ -156,7 +156,7 @@ SCREEN: Login Form
  - reCAPTCHA checkbox
  - "Login" button (disabled)
    ↓
-User enters: email = smburhan.personal@gmail.com
+User enters: email = alex@fstpay.com
 User enters: password = Burhan@1234
    ↓
 [CLIENT VALIDATION]
@@ -185,7 +185,7 @@ Backend: Generate OTP, send to email
 Backend: Start session (temporary)
    ↓
 SCREEN: OTP Verification
- - Message: "OTP sent to smburhan.personal@gmail.com"
+ - Message: "OTP sent to alex@fstpay.com"
  - 6-digit OTP input
  - "Resend OTP" button
  - 10-minute countdown
@@ -404,7 +404,7 @@ SCREEN: Card Details (Amazon)
  - Card number: •••• •••• •••• 1234 (FST Pay card)
  - Expiry: 12/26
  - CVV: 123
- - Cardholder name: Burhan Test
+ - Cardholder name: Shaikh Mohammed Burhan
    ↓
 USER: Opens FST Pay app to get card details
    ↓
@@ -596,7 +596,7 @@ SCREEN: Report Generation
    ↓
 USER: Clicks "Email Report"
    ↓
-Success: "Report sent to smburhan.personal@gmail.com"
+Success: "Report sent to alex@fstpay.com"
    ↓
 END: Analytics viewed and report sent
 ```
@@ -709,7 +709,7 @@ SCREEN: Mom's Dashboard
 MOM: Clicks "Link Family Member"
    ↓
 SCREEN: Link Family
- - "Enter Child's Email": smburhan.personal@gmail.com
+ - "Enter Child's Email": alex@fstpay.com
  - "Relationship": Child
  - "Permission Level": View-only (recommended)
    ↓

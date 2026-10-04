@@ -51,6 +51,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
     @Value("${app.rate-limit.register-max-per-ip-hour:5}")
     private int registerMaxPerIP;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
+
     private Map<String, Bucket> cache;
 
     @PostConstruct
@@ -65,12 +68,52 @@ public class RateLimitFilter extends OncePerRequestFilter {
         );
     }
 
+    private boolean isAllowed(String ip, String path) {
+        if (redisTemplate != null) {
+            try {
+                String endpointType = getEndpointType(path);
+                int limit;
+                long windowSeconds;
+
+                if (path.startsWith("/api/v1/auth/register")) {
+                    limit = registerMaxPerIP;
+                    windowSeconds = 3600;
+                    endpointType = "register";
+                } else if (path.startsWith("/api/v1/auth")) {
+                    limit = authLimit;
+                    windowSeconds = (long) authWindowMinutes * 60;
+                } else if (path.startsWith("/api/v1/ai")) {
+                    limit = aiLimit;
+                    windowSeconds = (long) aiWindowMinutes * 60;
+                } else {
+                    limit = generalLimit;
+                    windowSeconds = (long) generalWindowMinutes * 60;
+                }
+
+                String redisKey = "rate_limit:" + endpointType + ":" + ip;
+                Long currentCount = redisTemplate.opsForValue().increment(redisKey, 1);
+                if (currentCount != null && currentCount == 1) {
+                    redisTemplate.expire(redisKey, Duration.ofSeconds(windowSeconds));
+                }
+
+                if (currentCount != null && currentCount > limit) {
+                    return false;
+                }
+                return true;
+            } catch (Exception e) {
+                log.warn("Redis distributed rate limit error, falling back to in-memory bucket: {}", e.getMessage());
+            }
+        }
+
+        Bucket bucket = getBucketForIp(ip, path);
+        return bucket.tryConsume(1);
+    }
+
     private Bucket getBucketForIp(String ip, String path) {
         String bucketKey = ip + ":" + getEndpointType(path);
         
         return cache.computeIfAbsent(bucketKey, k -> {
             if (path.startsWith("/api/v1/auth/register")) {
-                // Stricter rate limit for account creation
                 return Bucket.builder()
                         .addLimit(Bandwidth.classic(registerMaxPerIP, Refill.greedy(registerMaxPerIP, Duration.ofHours(1))))
                         .build();
@@ -97,17 +140,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private String getClientIP(HttpServletRequest request) {
-        // Only use X-Forwarded-For if explicitly trusted
         if (trustXForwardedFor) {
             String xfHeader = request.getHeader("X-Forwarded-For");
             if (xfHeader != null && !xfHeader.isEmpty()) {
-                // Get first IP only and validate it's not spoofed
                 String[] ips = xfHeader.split(",");
                 return ips[0].trim();
             }
         }
-        
-        // Fall back to remote address (most reliable)
         return request.getRemoteAddr();
     }
 
@@ -117,7 +156,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         
         String path = request.getRequestURI();
         
-        // Skip rate limiting for static assets
+        // Skip rate limiting for static assets and health probes
         if (path.startsWith("/actuator") || path.equals("/") || path.startsWith("/static/")) {
             filterChain.doFilter(request, response);
             return;
@@ -125,9 +164,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
         try {
             String ip = getClientIP(request);
-            Bucket bucket = getBucketForIp(ip, path);
 
-            if (bucket.tryConsume(1)) {
+            if (isAllowed(ip, path)) {
                 filterChain.doFilter(request, response);
             } else {
                 response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
@@ -137,7 +175,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
             }
         } catch (Exception e) {
             log.error("Error in rate limiting filter", e);
-            // On error, allow the request through rather than blocking
             filterChain.doFilter(request, response);
         }
     }

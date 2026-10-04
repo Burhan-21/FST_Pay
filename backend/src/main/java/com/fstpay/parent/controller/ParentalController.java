@@ -9,6 +9,7 @@ import com.fstpay.parent.service.*;
 import com.fstpay.user.entity.User;
 import com.fstpay.user.repository.UserRepository;
 import com.fstpay.card.entity.VirtualCard;
+import com.fstpay.card.dto.UpdateDesignRequest;
 import com.fstpay.card.api.VirtualCardOperations;
 import com.fstpay.notification.service.NotificationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -120,6 +121,7 @@ public class ParentalController {
         return ResponseEntity.ok(ApiResponse.success(dto));
     }
 
+    @com.fstpay.common.idempotency.annotation.Idempotent
     @PostMapping("/pocket-money")
     @Operation(summary = "Transfer pocket money allowance", description = "Performs a ledger-backed transfer from parent's wallet directly into the child's wallet account.")
     public ResponseEntity<ApiResponse<String>> sendPocketMoney(
@@ -164,6 +166,7 @@ public class ParentalController {
         return ResponseEntity.ok(ApiResponse.success("Scheduled allowance deleted successfully", null));
     }
 
+    @com.fstpay.common.idempotency.annotation.Idempotent
     @PostMapping("/allowances/{id}/trigger")
     @Operation(summary = "Trigger scheduled allowance now", description = "Executes an immediate manual sweep of the scheduled allowance.")
     public ResponseEntity<ApiResponse<ScheduledAllowanceResponse>> triggerAllowanceNow(
@@ -207,6 +210,15 @@ public class ParentalController {
             @Valid @RequestBody ApprovalDecisionRequest request) {
         TransactionApproval approval = approvalService.decideApproval(userDetails.getUsername(), id, request);
         return ResponseEntity.ok(ApiResponse.success("Request resolved successfully", mapToApprovalDto(approval)));
+    }
+
+    @PostMapping("/children/link")
+    @Operation(summary = "Link child account", description = "Directly link an existing teenager account by email or phone number.")
+    public ResponseEntity<ApiResponse<String>> linkChild(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Valid @RequestBody LinkChildRequest request) {
+        parentLinkService.linkChildByIdentifier(userDetails.getUsername(), request);
+        return ResponseEntity.ok(ApiResponse.success("Child account linked successfully", null));
     }
 
     @DeleteMapping("/children/{childId}/unlink")
@@ -262,6 +274,18 @@ public class ParentalController {
         User child = parentLinkService.getAuthorizedChild(userDetails.getUsername(), childId);
         VirtualCard card = virtualCardService.unfreezeCard(child.getEmail(), cardId);
         return ResponseEntity.ok(ApiResponse.success("Child's virtual card activated successfully", card));
+    }
+
+    @PutMapping("/children/{childId}/cards/{cardId}/design")
+    @Operation(summary = "Update child virtual card design", description = "Allows parent to customize the design, finish theme, or custom artwork of their child's virtual card.")
+    public ResponseEntity<ApiResponse<VirtualCard>> updateChildCardDesign(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable UUID childId,
+            @PathVariable UUID cardId,
+            @Valid @RequestBody UpdateDesignRequest request) {
+        User child = parentLinkService.getAuthorizedChild(userDetails.getUsername(), childId);
+        VirtualCard card = virtualCardService.updateDesign(child.getEmail(), cardId, request.getCardDesign());
+        return ResponseEntity.ok(ApiResponse.success("Child's virtual card design updated successfully", card));
     }
 
     private ApprovalDto mapToApprovalDto(TransactionApproval app) {

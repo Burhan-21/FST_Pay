@@ -1,5 +1,6 @@
 # Product Requirements Document (PRD) — FST Pay
 
+> **Author & Project Lead**: Shaikh Mohammed Burhan  
 > **Document Version**: 2.0.0  
 > **Status**: Approved & Active  
 > **Product Category**: Next-Gen AI-Powered Digital Wallet & Prepaid Card Platform  

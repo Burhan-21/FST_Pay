@@ -1,17 +1,25 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams, useOutletContext } from 'react-router-dom';
 import axios from 'axios';
 import { formatCurrency, getCategoryEmoji, formatRelativeTime, parseMoneyInput } from '../../utils/helpers';
-import { Search, ArrowUpRight, ArrowDownRight, Plus, AlertCircle, Download, Inbox, Clock, X, Globe } from 'lucide-react';
+import {
+  Search, ArrowUpRight, ArrowDownRight, Plus, AlertCircle, Download, Inbox, Clock, X, Globe,
+  Smartphone, Zap, Wifi, Tv, Flame, Receipt, CheckCircle2, XCircle, Copy, Check, RotateCcw
+} from 'lucide-react';
 import { transactionApi, fxApi } from '../../api/endpoints';
 import type { Transaction, FxQuote } from '../../types';
 import { PageTransition, EmptyState, Modal, Button, SettlementBadge } from '../../components/ui';
 import { TransactionSkeleton } from '../../components/skeletons/PageSkeletons';
+import type { AppLayoutContextType } from '../../components/layout/AppLayout';
 
 const categories = ['ALL', 'FOOD', 'TRANSPORT', 'SHOPPING', 'ENTERTAINMENT', 'EDUCATION', 'HEALTH', 'BILLS', 'OTHER'];
 const simulateCategories = ['FOOD', 'TRANSPORT', 'SHOPPING', 'ENTERTAINMENT', 'EDUCATION', 'HEALTH', 'BILLS', 'OTHER'];
 const supportedCurrencies = ['INR', 'USD', 'EUR', 'GBP', 'AED', 'CAD', 'SGD'];
 
 export default function TransactionsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const layoutCtx = useOutletContext<AppLayoutContextType | null>();
+
   const [txns, setTxns] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSimulateLoading, setIsSimulateLoading] = useState(false);
@@ -19,10 +27,35 @@ export default function TransactionsPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [approvalNotice, setApprovalNotice] = useState<string | null>(null);
 
-  // Filters
-  const [filter, setFilter] = useState('ALL');
+  // Filters - synced with URL query param ?category=...
+  const categoryParam = searchParams.get('category');
+  const [filter, setFilter] = useState(() => (categoryParam && categories.includes(categoryParam) ? categoryParam : 'ALL'));
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'CREDIT' | 'DEBIT'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'SUCCESSFUL' | 'PENDING' | 'FAILED' | 'CANCELLED'>('ALL');
+
+  // Selected Transaction for Details Modal
+  const [selectedTxn, setSelectedTxn] = useState<Transaction | null>(null);
+  const [copiedTxnId, setCopiedTxnId] = useState(false);
+
+  useEffect(() => {
+    const param = searchParams.get('category');
+    if (param && categories.includes(param)) {
+      setFilter(param);
+    } else if (!param && filter !== 'ALL') {
+      // keep current or default
+    }
+  }, [searchParams]);
+
+  const handleFilterChange = (cat: string) => {
+    setFilter(cat);
+    if (cat === 'ALL') {
+      searchParams.delete('category');
+      setSearchParams(searchParams, { replace: true });
+    } else {
+      setSearchParams({ category: cat }, { replace: true });
+    }
+  };
 
   // Simulation Form States
   const [amount, setAmount] = useState('');
@@ -111,10 +144,12 @@ export default function TransactionsPage() {
 
     window.addEventListener('fst:settlement_update', handleSettlementUpdate);
     window.addEventListener('fst:wallet_update', handleWalletUpdate);
+    window.addEventListener('fst:transaction_created', handleWalletUpdate);
     window.addEventListener('fst:approval_decision', handleApprovalDecision);
     return () => {
       window.removeEventListener('fst:settlement_update', handleSettlementUpdate);
       window.removeEventListener('fst:wallet_update', handleWalletUpdate);
+      window.removeEventListener('fst:transaction_created', handleWalletUpdate);
       window.removeEventListener('fst:approval_decision', handleApprovalDecision);
     };
   }, []);
@@ -215,7 +250,61 @@ export default function TransactionsPage() {
     }
   };
 
+  const handleDownloadTxnReceipt = (txn: Transaction) => {
+    const lines = [
+      '========================================',
+      '        FST PAY TRANSACTION RECEIPT     ',
+      '========================================',
+      `Transaction ID : ${txn.id}`,
+      `Date & Time    : ${new Date(txn.createdAt).toLocaleString()}`,
+      `Merchant       : ${txn.merchant}`,
+      `Category       : ${txn.category}`,
+      `Type           : ${txn.type}`,
+      `Amount         : INR ${Number(txn.amount || 0).toFixed(2)}`,
+      txn.originalCurrency && txn.originalCurrency !== 'INR' ? `Foreign Amount : ${txn.originalAmount?.toFixed(2)} ${txn.originalCurrency} (FX Rate: ₹${txn.fxRate?.toFixed(2)})` : '',
+      `Status         : ${txn.status}`,
+      `Closing Balance: INR ${Number(txn.balanceAfter || 0).toFixed(2)}`,
+      `Description    : ${txn.description || 'Payment via FST Pay'}`,
+      '========================================',
+      '        Fast · Secure · Trusted         ',
+      '========================================'
+    ].filter(Boolean).join('\n');
+
+    const blob = new Blob([lines], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `FSTPay_Receipt_${txn.id.slice(0, 8)}.txt`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
+  const handleRetryTxn = (txn: Transaction) => {
+    setSelectedTxn(null);
+    setMerchant(txn.merchant || '');
+    setAmount(txn.amount.toString());
+    setCategory(txn.category || 'FOOD');
+    setDescription(`Retry: ${txn.description || txn.merchant}`);
+    setShowSimulate(true);
+  };
+
   const filtered = txns.filter((t) => {
+    // Status filter
+    if (statusFilter === 'SUCCESSFUL') {
+      const s = (t.status || '').toUpperCase();
+      if (s !== 'SUCCESSFUL' && s !== 'SETTLED' && s !== 'COMPLETED' && s !== 'SUCCESS') return false;
+    } else if (statusFilter === 'PENDING') {
+      const s = (t.status || '').toUpperCase();
+      if (s !== 'PENDING' && s !== 'PROCESSING') return false;
+    } else if (statusFilter === 'FAILED') {
+      const s = (t.status || '').toUpperCase();
+      if (s !== 'FAILED' && s !== 'DECLINED' && s !== 'REJECTED') return false;
+    } else if (statusFilter === 'CANCELLED') {
+      const s = (t.status || '').toUpperCase();
+      if (s !== 'CANCELLED' && s !== 'CANCELED') return false;
+    }
+
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
     return (
@@ -313,7 +402,7 @@ export default function TransactionsPage() {
           {categories.map((cat) => (
             <button
               key={cat}
-              onClick={() => setFilter(cat)}
+              onClick={() => handleFilterChange(cat)}
               className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
                 filter === cat
                   ? 'bg-primary-500 text-white font-bold shadow-xs'
@@ -324,7 +413,77 @@ export default function TransactionsPage() {
             </button>
           ))}
         </div>
+
+        {/* Status Filter Row */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pt-2 border-t border-slate-100 dark:border-surface-800/80">
+          <span className="text-xs font-bold text-slate-500 dark:text-surface-400 whitespace-nowrap mr-1">Status:</span>
+          {(['ALL', 'SUCCESSFUL', 'PENDING', 'FAILED', 'CANCELLED'] as const).map((st) => (
+            <button
+              key={st}
+              onClick={() => setStatusFilter(st)}
+              className={`px-3 py-1 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+                statusFilter === st
+                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold shadow-xs'
+                  : 'bg-slate-100 hover:bg-slate-200 dark:bg-surface-800/60 dark:hover:bg-surface-700 text-slate-600 dark:text-surface-400'
+              }`}
+            >
+              {st === 'ALL' ? 'All' : st === 'SUCCESSFUL' ? '✓ Successful' : st === 'PENDING' ? '⏳ Pending' : st === 'FAILED' ? '✗ Failed' : '⊘ Cancelled'}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {/* Dedicated Bills & Recharge Hub when category is BILLS */}
+      {filter === 'BILLS' && (
+        <div className="rounded-3xl p-6 bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-purple-500/10 border border-amber-200/60 dark:border-amber-900/40 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-rose-500 text-white flex items-center justify-center shadow-md shadow-amber-500/20">
+                <Receipt className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  Bills & Recharge Hub
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-surface-400">
+                  Instant mobile recharge, electricity, broadband, DTH, and utility settlements.
+                </p>
+              </div>
+            </div>
+            <div className="text-xs font-semibold text-slate-600 dark:text-surface-300 bg-white/80 dark:bg-surface-800/80 px-3 py-1.5 rounded-xl border border-slate-200/60 dark:border-surface-700/60 self-start sm:self-auto">
+              Available Wallet: <strong className="text-slate-900 dark:text-white">{formatCurrency(layoutCtx?.walletBalance ?? 0)}</strong>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-1">
+            {[
+              { id: 'MOBILE' as const, label: 'Mobile Recharge', icon: Smartphone, color: 'text-amber-500 bg-amber-50 dark:bg-amber-950/40' },
+              { id: 'ELECTRICITY' as const, label: 'Electricity Bill', icon: Zap, color: 'text-rose-500 bg-rose-50 dark:bg-rose-950/40' },
+              { id: 'BROADBAND' as const, label: 'Broadband / Wi-Fi', icon: Wifi, color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/40' },
+              { id: 'DTH' as const, label: 'DTH / Cable TV', icon: Tv, color: 'text-purple-500 bg-purple-50 dark:bg-purple-950/40' },
+              { id: 'WATER_GAS' as const, label: 'Piped Gas & Water', icon: Flame, color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/40' },
+            ].map((action) => {
+              const Icon = action.icon;
+              return (
+                <button
+                  key={action.id}
+                  type="button"
+                  onClick={() => layoutCtx?.openBillsRecharge(action.id)}
+                  className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white dark:bg-surface-800 border border-slate-200/80 dark:border-surface-700/60 shadow-xs hover:scale-102 hover:shadow-md transition-all group text-center"
+                >
+                  <div className={`w-10 h-10 rounded-xl ${action.color} flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform`}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <span className="text-[11px] font-bold text-slate-800 dark:text-white leading-tight">
+                    {action.label}
+                  </span>
+                  <span className="text-[9px] text-slate-400 mt-0.5">Pay Now</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="glass-card divide-y divide-surface-700/30 page-section">
         {isLoading && filtered.length === 0 ? (
@@ -334,18 +493,23 @@ export default function TransactionsPage() {
             icon={Inbox}
             title="No transactions found"
             description="No transactions match your current search or filter criteria."
-            action={filter !== 'ALL' || typeFilter !== 'ALL' || searchTerm ? {
+            action={filter !== 'ALL' || typeFilter !== 'ALL' || statusFilter !== 'ALL' || searchTerm ? {
               label: 'Clear Filters',
               onClick: () => {
                 setFilter('ALL');
                 setTypeFilter('ALL');
+                setStatusFilter('ALL');
                 setSearchTerm('');
               }
             } : undefined}
           />
         ) : (
           filtered.map((txn) => (
-            <div key={txn.id} className="flex items-center gap-4 p-4 hover:bg-surface-800/30 transition-colors">
+            <div
+              key={txn.id}
+              onClick={() => setSelectedTxn(txn)}
+              className="flex items-center gap-4 p-4 hover:bg-slate-50/80 dark:hover:bg-surface-800/40 cursor-pointer transition-colors"
+            >
               <div className="w-10 h-10 rounded-xl bg-surface-700/50 flex items-center justify-center text-lg">
                 {getCategoryEmoji(txn.category)}
               </div>
@@ -486,6 +650,159 @@ export default function TransactionsPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Transaction Details Modal */}
+      <Modal
+        isOpen={!!selectedTxn}
+        onClose={() => {
+          setSelectedTxn(null);
+          setCopiedTxnId(false);
+        }}
+        title="Transaction Details"
+      >
+        {selectedTxn && (
+          <div className="space-y-4 text-xs">
+            {/* Amount Banner */}
+            <div className={`p-4 rounded-2xl text-center space-y-1 ${
+              selectedTxn.type === 'CREDIT'
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40'
+                : 'bg-slate-50 dark:bg-surface-800/60 border border-slate-200 dark:border-surface-700/60'
+            }`}>
+              <span className="text-[11px] font-semibold text-slate-500 dark:text-surface-400 uppercase tracking-wider">
+                {selectedTxn.type === 'CREDIT' ? 'Money Received' : 'Money Sent'}
+              </span>
+              <h3 className={`text-2xl font-black font-mono tracking-tight ${
+                selectedTxn.type === 'CREDIT' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'
+              }`}>
+                {selectedTxn.type === 'CREDIT' ? '+' : '-'}{formatCurrency(selectedTxn.amount)}
+              </h3>
+              <div className="pt-1 flex justify-center">
+                <SettlementBadge status={selectedTxn.status} size="md" />
+              </div>
+            </div>
+
+            {/* Details Key-Value List */}
+            <div className="space-y-2.5 p-3.5 rounded-2xl bg-slate-50 dark:bg-surface-800/40 border border-slate-100 dark:border-surface-800">
+              <div className="flex justify-between items-center py-1 border-b border-slate-200/60 dark:border-surface-700/40">
+                <span className="text-slate-500 dark:text-surface-400">Merchant / Beneficiary</span>
+                <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <span>{getCategoryEmoji(selectedTxn.category)}</span>
+                  <span>{selectedTxn.merchant}</span>
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center py-1 border-b border-slate-200/60 dark:border-surface-700/40">
+                <span className="text-slate-500 dark:text-surface-400">Category</span>
+                <span className="font-semibold text-slate-800 dark:text-surface-200 uppercase tracking-wider text-[10px]">
+                  {selectedTxn.category || 'GENERAL'}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center py-1 border-b border-slate-200/60 dark:border-surface-700/40">
+                <span className="text-slate-500 dark:text-surface-400">Date & Time</span>
+                <span className="font-medium text-slate-800 dark:text-surface-200">
+                  {new Date(selectedTxn.createdAt).toLocaleString()}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center py-1 border-b border-slate-200/60 dark:border-surface-700/40">
+                <span className="text-slate-500 dark:text-surface-400">Wallet Balance After</span>
+                <span className="font-bold text-slate-900 dark:text-white font-mono">
+                  {formatCurrency(selectedTxn.balanceAfter)}
+                </span>
+              </div>
+
+              {selectedTxn.originalCurrency && selectedTxn.originalCurrency !== 'INR' && (
+                <div className="flex justify-between items-center py-1 border-b border-slate-200/60 dark:border-surface-700/40">
+                  <span className="text-slate-500 dark:text-surface-400">Foreign Currency Amount</span>
+                  <span className="font-bold text-primary-600 dark:text-primary-400 font-mono">
+                    {selectedTxn.originalAmount?.toFixed(2)} {selectedTxn.originalCurrency} (FX: ₹{selectedTxn.fxRate?.toFixed(2)})
+                  </span>
+                </div>
+              )}
+
+              {selectedTxn.description && (
+                <div className="flex justify-between items-center py-1 border-b border-slate-200/60 dark:border-surface-700/40">
+                  <span className="text-slate-500 dark:text-surface-400">Description / Note</span>
+                  <span className="font-medium text-slate-700 dark:text-surface-300 max-w-[200px] truncate text-right">
+                    {selectedTxn.description}
+                  </span>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center py-1">
+                <span className="text-slate-500 dark:text-surface-400">Transaction ID</span>
+                <div className="flex items-center gap-1.5 font-mono text-[10px] text-slate-600 dark:text-surface-300">
+                  <span>{selectedTxn.id.slice(0, 16)}...</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(selectedTxn.id);
+                      setCopiedTxnId(true);
+                      setTimeout(() => setCopiedTxnId(false), 2000);
+                    }}
+                    className="p-1 rounded hover:bg-slate-200 dark:hover:bg-surface-700 transition-colors text-slate-400 hover:text-slate-600"
+                    title="Copy Transaction ID"
+                  >
+                    {copiedTxnId ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Status Information Box */}
+            <div className="p-3 rounded-xl bg-slate-100 dark:bg-surface-800/80 text-[11px] text-slate-600 dark:text-surface-300 leading-relaxed">
+              {(selectedTxn.status === 'SUCCESSFUL' || selectedTxn.status === 'SETTLED' || selectedTxn.status === 'COMPLETED' || selectedTxn.status === 'SUCCESS') && (
+                <p className="flex items-start gap-1.5 text-emerald-700 dark:text-emerald-300">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                  <span>This transaction has settled completely. Your funds and balances have updated synchronously.</span>
+                </p>
+              )}
+              {(selectedTxn.status === 'PENDING' || selectedTxn.status === 'PROCESSING') && (
+                <p className="flex items-start gap-1.5 text-amber-700 dark:text-amber-300">
+                  <Clock className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                  <span>This transaction is currently pending clearing or parental authorization. Balances will settle upon confirmation.</span>
+                </p>
+              )}
+              {(selectedTxn.status === 'FAILED' || selectedTxn.status === 'DECLINED' || selectedTxn.status === 'REJECTED') && (
+                <p className="flex items-start gap-1.5 text-rose-700 dark:text-rose-300">
+                  <XCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                  <span>This transaction failed due to insufficient wallet funds or a network timeout. No funds were permanently debited.</span>
+                </p>
+              )}
+              {(selectedTxn.status === 'CANCELLED' || selectedTxn.status === 'CANCELED') && (
+                <p className="flex items-start gap-1.5 text-slate-600 dark:text-surface-400">
+                  <AlertCircle className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                  <span>This transaction was voided or cancelled before settlement.</span>
+                </p>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-wrap gap-2.5 pt-2">
+              {(selectedTxn.status === 'FAILED' || selectedTxn.status === 'DECLINED' || selectedTxn.status === 'REJECTED') && (
+                <Button
+                  onClick={() => handleRetryTxn(selectedTxn)}
+                  variant="primary"
+                  className="flex-1 text-xs gap-1.5"
+                  leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
+                >
+                  Retry Payment
+                </Button>
+              )}
+
+              <Button
+                onClick={() => handleDownloadTxnReceipt(selectedTxn)}
+                variant="secondary"
+                className="flex-1 text-xs gap-1.5"
+                leftIcon={<Download className="w-3.5 h-3.5" />}
+              >
+                Download Slip
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </PageTransition>
   );

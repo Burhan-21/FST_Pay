@@ -15,4 +15,5 @@ public interface VirtualCardOperations {
     VirtualCard updateLimits(String email, UUID cardId, UpdateLimitRequest request);
     void deleteCard(String email, UUID cardId);
     VirtualCard updateDesign(String email, UUID cardId, String cardDesign);
+    VirtualCard regenerateCard(String email, UUID cardId);
 }

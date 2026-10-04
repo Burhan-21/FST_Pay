@@ -2,18 +2,17 @@
 
 **Document ID:** FST-SEC-2026-Q2  
 **Version:** 1.0  
-**Date:** June 17, 2026  
-**Owner:** Security & Compliance Lead  
+**Author & Project Lead:** Shaikh Mohammed Burhan  
+**Owner:** Shaikh Mohammed Burhan  
 **Status:** 🟢 READY FOR AUDIT
 
 ---
 
 ## 📋 EXECUTIVE SUMMARY
 
-FST Pay implements comprehensive security and compliance controls aligned with:
-- **RBI Guidelines:** Reserve Bank of India regulations for payments and digital wallets
-- **GDPR:** General Data Protection Regulation (if serving EU users, Phase 2)
-- **DPDP Act:** Digital Personal Data Protection Act, 2023 (India)
+FST Pay implements technical controls designed around and aligned with:
+- **RBI Guidelines:** Reserve Bank of India technical safeguards for payments and digital wallets (technical controls implemented; formal regulatory authorization required for live fiat processing)
+- **GDPR & DPDP Act (2023):** Technical controls aligned with relevant privacy requirements; formal legal review required.
 - **OWASP Top 10:** Application Security
 - **ISO 27001:** Information Security Management
 
@@ -64,7 +63,7 @@ Step 3: JWT Token Issuance
 Access Token Payload:
 {
   "sub": "user-uuid-123",
-  "email": "smburhan.personal@gmail.com",
+  "email": "alex@fstpay.com",
   "role": "USER",
   "iat": 1623952800,
   "exp": 1624039200,

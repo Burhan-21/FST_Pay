@@ -26,6 +26,10 @@ vi.mock('../../../api/endpoints', () => ({
     setSpendingLimits: vi.fn(),
     markNotificationsAsRead: vi.fn(),
   },
+  walletApi: {
+    getWallet: vi.fn().mockResolvedValue({ data: { data: { balance: 5000, currency: 'INR' } } }),
+    topUp: vi.fn(),
+  },
 }));
 
 describe('ParentDashboard - Scheduled Allowances & Auto-Sweeps', () => {
@@ -106,7 +110,7 @@ describe('ParentDashboard - Scheduled Allowances & Auto-Sweeps', () => {
       expect(screen.getByText('Scheduled Allowances & Auto-Sweeps')).toBeInTheDocument();
       expect(screen.getAllByText('Leo Teen').length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText('Auto-Sweep to: MacBook Air Fund')).toBeInTheDocument();
-      expect(screen.getByText('Active')).toBeInTheDocument();
+      expect(screen.getAllByText('Active').length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -168,6 +172,11 @@ describe('ParentDashboard - Scheduled Allowances & Auto-Sweeps', () => {
     });
 
     fireEvent.click(screen.getByTitle('Delete schedule'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Delete Allowance Schedule')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
 
     await waitFor(() => {
       expect(parentalApi.deleteAllowance).toHaveBeenCalledWith('allow-1');

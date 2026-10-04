@@ -30,6 +30,7 @@ import java.util.UUID;
 public class TransactionController {
 
     private final TransactionService transactionService;
+    private final com.fstpay.transaction.service.SplitPaymentService splitPaymentService;
 
     @GetMapping
     @Operation(summary = "Get transaction history", description = "Fetches a paginated list of transactions for the authenticated user, optionally filtered by category and debit/credit type.")
@@ -52,6 +53,7 @@ public class TransactionController {
         return ResponseEntity.ok(ApiResponse.success(txn));
     }
 
+    @com.fstpay.common.idempotency.annotation.Idempotent
     @PostMapping("/simulate")
     @Operation(summary = "Simulate a card purchase", description = "Simulates a debit spend on the user's virtual prepaid card. Evaluates transaction rules and triggers approvals if needed.")
     public ResponseEntity<ApiResponse<?>> simulateSpend(
@@ -63,6 +65,24 @@ public class TransactionController {
                     .body(ApiResponse.success(result.getMessage(), result));
         }
         return ResponseEntity.ok(ApiResponse.success(result.getMessage(), result.getTransaction()));
+    }
+
+    @com.fstpay.common.idempotency.annotation.Idempotent
+    @PostMapping("/split")
+    @Operation(summary = "Execute split payment", description = "Debits the user's calculated share of a shared bill/QR payment and persists a split payment record.")
+    public ResponseEntity<ApiResponse<com.fstpay.transaction.entity.SplitPayment>> executeSplitPayment(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Valid @RequestBody com.fstpay.transaction.dto.SplitPaymentRequest request) {
+        com.fstpay.transaction.entity.SplitPayment result = splitPaymentService.executeSplitPayment(userDetails.getUsername(), request);
+        return ResponseEntity.ok(ApiResponse.success("Split payment processed successfully", result));
+    }
+
+    @GetMapping("/split")
+    @Operation(summary = "Get user split payments", description = "Retrieves split payments initiated by the authenticated user.")
+    public ResponseEntity<ApiResponse<java.util.List<com.fstpay.transaction.entity.SplitPayment>>> getSplitPayments(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        java.util.List<com.fstpay.transaction.entity.SplitPayment> splits = splitPaymentService.getUserSplitPayments(userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponse.success(splits));
     }
 
     @GetMapping("/export")

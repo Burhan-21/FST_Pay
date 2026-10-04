@@ -2,7 +2,7 @@
 
 [![Backend CI Pipeline](https://github.com/NexusForge21/FST_Pay/actions/workflows/backend.yml/badge.svg)](https://github.com/NexusForge21/FST_Pay/actions/workflows/backend.yml)
 [![Frontend CI Pipeline](https://github.com/NexusForge21/FST_Pay/actions/workflows/frontend.yml/badge.svg)](https://github.com/NexusForge21/FST_Pay/actions/workflows/frontend.yml)
-[![License: Proprietary](https://img.shields.io/badge/License-Proprietary-blue.svg)](#)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Java: 17+](https://img.shields.io/badge/Java-17%2B-orange.svg)](https://adoptium.net/)
 [![Spring Boot: 3.3.6](https://img.shields.io/badge/Spring%20Boot-3.3.6-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![React: 19](https://img.shields.io/badge/React-19-blue.svg)](https://react.dev/)
@@ -112,13 +112,13 @@ docker compose up -d fstpay-postgres fstpay-redis
 # 2. Start Backend (Spring Boot)
 cd backend
 mvn clean compile
-mvn test                  # Run full test suite (76 tests + 12 ArchUnit checks)
+mvn test                  # Run full test suite (170 tests including 12 ArchUnit architectural checks)
 mvn spring-boot:run       # Starts at http://localhost:8080
 
 # 3. Start Frontend (React 19)
 cd ../frontend
 npm install
-npm run test              # Run Vitest test suite (33 tests)
+npm run test              # Run Vitest test suite (97 tests)
 npm run dev               # Starts at http://localhost:5173
 ```
 
@@ -180,5 +180,21 @@ npm run build
 
 ---
 
+## 👤 Author & Project Lead
+
+- **Author & Project Lead:** Shaikh Mohammed Burhan
+- **Project:** FST Pay
+- **Contact:** [OFFICIAL PROJECT EMAIL]
+
+FST Pay is the original idea and work of Shaikh Mohammed Burhan.
+
+### AI-Assisted Development & Engineering Attribution
+
+Portions of this codebase were initially created with AI-assisted pair programming and subsequently subjected to systematic senior full-stack engineering review, rigorous human verification, production security hardening (elimination of test-account backdoors and hardcoded OTP bypasses, JPA serialization protection, Prometheus actuator lockdown), comprehensive test suite expansion, WCAG 2.1 AA accessibility remediation, and privacy regulation alignment by Shaikh Mohammed Burhan.
+
+---
+
 ## 📄 License
-Proprietary & Confidential. All rights reserved. © 2026 FST Pay Engineering.
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.  
+Copyright &copy; 2026 Shaikh Mohammed Burhan. All rights reserved.

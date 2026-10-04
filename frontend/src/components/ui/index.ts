@@ -13,3 +13,4 @@ export { default as SectionHeader } from './SectionHeader';
 export { default as ProgressRing } from './ProgressRing';
 export { default as Tooltip } from './Tooltip';
 export { SettlementBadge } from './SettlementBadge';
+export { default as ThemeToggle } from './ThemeToggle';

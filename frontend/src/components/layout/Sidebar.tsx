@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, Link, useLocation } from 'react-router-dom';
 import {
   Home,
   Send,
@@ -8,6 +8,7 @@ import {
   Receipt,
   ReceiptText,
   Trophy,
+  Target,
   BarChart3,
   Settings,
   LogOut,
@@ -23,6 +24,7 @@ const navItems = [
   { path: '/wallet?action=receive', icon: Download, label: 'Receive Money' },
   { path: '/wallet?action=scan', icon: Scan, label: 'Scan & Pay' },
   { path: '/cards', icon: CreditCard, label: 'Cards' },
+  { path: '/goals', icon: Target, label: 'Savings Goals' },
   { path: '/transactions?category=BILLS', icon: Receipt, label: 'Bills & Recharges' },
   { path: '/transactions', icon: ReceiptText, label: 'Transactions' },
   { path: '/rewards', icon: Trophy, label: 'Rewards' },
@@ -80,8 +82,13 @@ export default function Sidebar({ isOpen, onClose, onSendClick, onReceiveClick, 
       >
         {/* Logo */}
         <div className="p-6 border-b border-slate-100 dark:border-surface-800">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-primary-500 text-white flex items-center justify-center shadow-md shadow-primary-500/25">
+          <Link
+            to="/dashboard"
+            onClick={onClose}
+            className="flex items-center gap-3 group focus:outline-hidden focus:ring-2 focus:ring-primary-500 rounded-2xl"
+            aria-label="FST Pay Dashboard"
+          >
+            <div className="w-10 h-10 rounded-2xl bg-primary-500 text-white flex items-center justify-center shadow-md shadow-primary-500/25 group-hover:scale-105 transition-transform">
               <Zap className="w-6 h-6 fill-current" />
             </div>
             <div>
@@ -92,7 +99,7 @@ export default function Sidebar({ isOpen, onClose, onSendClick, onReceiveClick, 
                 Fast · Secure · Trusted
               </p>
             </div>
-          </div>
+          </Link>
         </div>
 
         {/* Navigation Links */}

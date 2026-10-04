@@ -88,4 +88,13 @@ public class VirtualCardController {
         VirtualCard card = virtualCardService.updateDesign(userDetails.getUsername(), id, request.getCardDesign());
         return ResponseEntity.ok(ApiResponse.success("Card customization updated successfully", card));
     }
+
+    @PostMapping("/{id}/regenerate")
+    @Operation(summary = "Regenerate card details", description = "Generates new card number, expiry, and CVV for a compromised card.")
+    public ResponseEntity<ApiResponse<VirtualCard>> regenerateCard(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable UUID id) {
+        VirtualCard card = virtualCardService.regenerateCard(userDetails.getUsername(), id);
+        return ResponseEntity.ok(ApiResponse.success("Card details regenerated successfully", card));
+    }
 }

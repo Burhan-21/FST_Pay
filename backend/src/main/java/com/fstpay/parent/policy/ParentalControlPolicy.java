@@ -86,6 +86,22 @@ public class ParentalControlPolicy {
             }
         }
 
+        // 2b. Check Merchant Blocklist Restrictions
+        if (user.getParentalBlockedMerchants() != null && !user.getParentalBlockedMerchants().trim().isEmpty()) {
+            String reqMerchant = merchant != null ? merchant.toUpperCase().trim() : "";
+            if (!reqMerchant.isEmpty()) {
+                String[] blockedList = user.getParentalBlockedMerchants().split(",");
+                for (String blocked : blockedList) {
+                    String term = blocked.trim().toUpperCase();
+                    if (!term.isEmpty() && (reqMerchant.contains(term) || term.contains(reqMerchant))) {
+                        String reason = "Merchant '" + merchant + "' is blocked by parental controls";
+                        log.warn("Merchant blocklist triggered for user {}: {}", user.getEmail(), reason);
+                        return queueForApprovalOrReject(user, amount, category, merchant, description, reason);
+                    }
+                }
+            }
+        }
+
         // 3. Single Transaction Limit
         if (user.getParentalMaxTxnAmount() != null && user.getParentalMaxTxnAmount().compareTo(BigDecimal.ZERO) > 0) {
             if (amount.compareTo(user.getParentalMaxTxnAmount()) > 0) {

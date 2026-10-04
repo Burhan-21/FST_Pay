@@ -27,6 +27,8 @@ export default function Modal({
 }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const previousActiveElement = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   // Lock body scroll
   useEffect(() => {
@@ -47,14 +49,14 @@ export default function Modal({
     // Save current active element to restore later
     previousActiveElement.current = document.activeElement as HTMLElement;
 
-    // Focus the panel first
-    if (panelRef.current) {
+    // Focus the panel initially only if focus is not already within panel
+    if (panelRef.current && !panelRef.current.contains(document.activeElement)) {
       panelRef.current.focus();
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose();
+        onCloseRef.current();
         return;
       }
 
@@ -99,7 +101,7 @@ export default function Modal({
         previousActiveElement.current.focus();
       }
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -107,7 +109,7 @@ export default function Modal({
     <div
       className="modal-overlay"
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) onCloseRef.current();
       }}
       role="dialog"
       aria-modal="true"

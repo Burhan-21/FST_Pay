@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Menu, Bell, Search, Sun, Moon, Zap, User } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
@@ -12,6 +14,18 @@ interface NavbarProps {
 export default function Navbar({ onMenuClick, onSearchClick, isLiveConnected }: NavbarProps) {
   const { user } = useAuth();
   const { theme, cycleTheme } = useTheme();
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  useEffect(() => {
+    if (!showNotifications) return;
+    const handleClose = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('.notification-container')) {
+        setShowNotifications(false);
+      }
+    };
+    window.addEventListener('click', handleClose);
+    return () => window.removeEventListener('click', handleClose);
+  }, [showNotifications]);
 
   const firstName = user?.fullName
     ? user.fullName.split(' ')[0]
@@ -34,12 +48,12 @@ export default function Navbar({ onMenuClick, onSearchClick, isLiveConnected }: 
           </button>
 
           {/* Mobile Logo Brand */}
-          <div className="flex items-center gap-2 lg:hidden">
+          <Link to="/dashboard" className="flex items-center gap-2 lg:hidden" aria-label="FST Pay Dashboard">
             <div className="w-8 h-8 rounded-xl bg-primary-500 text-white flex items-center justify-center">
               <Zap className="w-4 h-4 fill-current" />
             </div>
             <span className="font-bold text-sm text-slate-900 dark:text-white">FST Pay</span>
-          </div>
+          </Link>
 
           {/* Desktop Search Bar (Mockup: "Search people, businesses, bills...") */}
           <button
@@ -61,22 +75,43 @@ export default function Navbar({ onMenuClick, onSearchClick, isLiveConnected }: 
             onClick={cycleTheme}
             className="p-2.5 rounded-2xl text-slate-400 hover:text-slate-700 hover:bg-slate-50 dark:hover:bg-surface-800 transition-colors"
             title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
+            aria-label={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
           >
             {theme === 'light' ? <Moon className="w-4 h-4 text-slate-600" /> : <Sun className="w-4 h-4 text-amber-400" />}
           </button>
 
           {/* Notification Bell */}
-          <button
-            className="relative p-2.5 rounded-2xl text-slate-500 dark:text-surface-400 hover:bg-slate-50 dark:hover:bg-surface-800 transition-colors"
-            aria-label="Notifications"
-          >
-            <Bell className="w-4 h-4" />
-            {isLiveConnected && (
-              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-primary-500 ring-2 ring-white dark:ring-surface-900" />
-            )}
-          </button>
+          <div className="relative notification-container">
+            <button
+              onClick={() => setShowNotifications((prev) => !prev)}
+              className="relative p-2.5 rounded-2xl text-slate-500 dark:text-surface-400 hover:bg-slate-50 dark:hover:bg-surface-800 transition-colors"
+              aria-label="View notifications"
+              aria-expanded={showNotifications}
+            >
+              <Bell className="w-4 h-4" />
+              {isLiveConnected && (
+                <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-primary-500 ring-2 ring-white dark:ring-surface-900" />
+              )}
+            </button>
 
-          {/* User Profile Chip (Mockup: "Hi, Burhan - Good to see you!") */}
+            {showNotifications && (
+              <div className="absolute right-0 mt-2 w-80 rounded-2xl bg-white dark:bg-surface-900 border border-slate-200 dark:border-surface-800 shadow-xl p-4 z-50 animate-scale-in">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-surface-800">
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white">Notifications</h4>
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    {isLiveConnected ? 'Live connected' : 'Offline'}
+                  </span>
+                </div>
+                <div className="py-6 text-center text-xs text-slate-500 dark:text-surface-400 space-y-1">
+                  <Bell className="w-6 h-6 mx-auto text-slate-300 dark:text-surface-600 mb-1" />
+                  <p className="font-semibold text-slate-700 dark:text-surface-300">You're all caught up!</p>
+                  <p className="text-[11px] text-slate-400">Transaction alerts and approvals appear here in real time.</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* User Profile Chip */}
           <div className="flex items-center gap-3 pl-2 border-l border-slate-100 dark:border-surface-800">
             <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-primary-600 to-indigo-500 text-white font-bold text-xs flex items-center justify-center shadow-xs">
               {user?.fullName?.charAt(0).toUpperCase() || <User className="w-4 h-4" />}

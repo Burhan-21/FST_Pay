@@ -89,16 +89,6 @@ public class FstPayApplication {
                     userRepository.save(newAdmin);
                     log.info("Admin user created successfully for email: {}", cleanEmail);
                 }
-
-                // Update E2E test users passwords to "Burhan@1234" to ensure test stability
-                java.util.List<String> testEmails = java.util.List.of("burhan.test1@gmail.com", "burhan.parent1@gmail.com");
-                for (String email : testEmails) {
-                    userRepository.findByEmail(email).ifPresent(u -> {
-                        u.setPasswordHash(passwordEncoder.encode("Burhan@1234"));
-                        userRepository.save(u);
-                        log.info("Test user password reset to Burhan@1234 for: {}", email);
-                    });
-                }
             } catch (Exception e) {
                 log.error("Failed to initialize users", e);
                 throw new RuntimeException("User initialization failed", e);

@@ -3,7 +3,7 @@ import type { ScheduledAllowance, CreateAllowanceRequest, UpdateAllowanceRequest
 
 // ── Auth ──
 export const authApi = {
-  register: (data: { fullName: string; email: string; password: string; dateOfBirth?: string; recaptchaToken?: string }) =>
+  register: (data: { fullName: string; email: string; password: string; dateOfBirth?: string; recaptchaToken?: string; role?: string }) =>
     api.post('/auth/register', data),
 
   login: (data: { email: string; password: string; recaptchaToken?: string }) =>
@@ -38,6 +38,15 @@ export const authApi = {
     signature: string;
     userHandle?: string;
   }) => api.post('/auth/webauthn/verify', data),
+
+  resendOtp: (email: string) =>
+    api.post('/auth/resend-otp', { email }),
+
+  requestPasswordReset: (email: string) =>
+    api.post('/auth/password-reset/request', { email }),
+
+  confirmPasswordReset: (data: { token: string; newPassword: string }) =>
+    api.post('/auth/password-reset/confirm', data),
 };
 
 // ── Two-Factor Authentication (TOTP) ──
@@ -61,11 +70,19 @@ export const userApi = {
     api.put('/users/me/password', data),
 };
 
+// ── Idempotency Helper ──
+const createIdempotencyHeaders = (idempotencyKey?: string) => {
+  const key = idempotencyKey || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'idemp-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9));
+  return { headers: { 'Idempotency-Key': key } };
+};
+
 // ── Wallet ──
 export const walletApi = {
   getWallet: () => api.get('/wallet'),
-  topUp: (data: { amount: number; method: string }) =>
-    api.post('/wallet/topup', data),
+  topUp: (data: { amount: number; method: string }, idempotencyKey?: string) =>
+    api.post('/wallet/topup', data, createIdempotencyHeaders(idempotencyKey)),
+  withdraw: (data: { amount: number; bankName?: string; accountNumber?: string; ifscCode?: string }, idempotencyKey?: string) =>
+    api.post('/wallet/withdraw', data, createIdempotencyHeaders(idempotencyKey)),
   getHistory: (params?: { page?: number; size?: number }) =>
     api.get('/wallet/history', { params }),
 };
@@ -82,7 +99,17 @@ export const cardApi = {
     api.put(`/cards/${id}/limit`, data),
   updateDesign: (id: string, data: { cardDesign: string }) =>
     api.put(`/cards/${id}/design`, data),
+  regenerateCard: (id: string) =>
+    api.post(`/cards/${id}/regenerate`),
   deleteCard: (id: string) => api.delete(`/cards/${id}`),
+};
+
+// ── Contacts ──
+export const contactsApi = {
+  getContacts: () => api.get('/contacts'),
+  createContact: (data: { name: string; upiId?: string; phone?: string; accountNumber?: string; ifscCode?: string; bankName?: string }) =>
+    api.post('/contacts', data),
+  deleteContact: (id: string) => api.delete(`/contacts/${id}`),
 };
 
 // ── Transactions ──
@@ -90,8 +117,12 @@ export const transactionApi = {
   getTransactions: (params?: { page?: number; size?: number; category?: string; type?: string }) =>
     api.get('/transactions', { params }),
   getTransaction: (id: string) => api.get(`/transactions/${id}`),
-  simulateSpend: (data: { amount: number; category: string; merchant: string; description?: string; currency?: string }) =>
-    api.post('/transactions/simulate', data),
+  simulateSpend: (data: { amount: number; category: string; merchant: string; description?: string; currency?: string }, idempotencyKey?: string) =>
+    api.post('/transactions/simulate', data, createIdempotencyHeaders(idempotencyKey)),
+  splitPayment: (data: import('../types').SplitPaymentRequest, idempotencyKey?: string) =>
+    api.post('/transactions/split', data, createIdempotencyHeaders(idempotencyKey)),
+  getSplitPayments: () =>
+    api.get('/transactions/split'),
   exportTransactions: (format: 'csv' | 'pdf') =>
     api.get('/transactions/export', { params: { format }, responseType: 'blob' }),
 };
@@ -172,12 +203,13 @@ export const parentalApi = {
     api.get('/parental/dashboard'),
   getChildDetails: (childId: string) =>
     api.get(`/parental/children/${childId}`),
-  sendPocketMoney: (data: { childId: string; amount: number; description?: string }) =>
+  sendPocketMoney: (data: { childId: string; amount: number; description?: string; paymentMethod?: string }, idempotencyKey?: string) =>
     api.post('/parental/pocket-money', {
       childId: data.childId,
       amount: data.amount,
-      note: data.description
-    }),
+      note: data.description,
+      paymentMethod: data.paymentMethod,
+    }, createIdempotencyHeaders(idempotencyKey)),
   getAllowances: () =>
     api.get<{ data: ScheduledAllowance[] }>('/parental/allowances'),
   createAllowance: (data: CreateAllowanceRequest) =>
@@ -186,10 +218,28 @@ export const parentalApi = {
     api.put<{ data: ScheduledAllowance }>(`/parental/allowances/${id}`, data),
   deleteAllowance: (id: string) =>
     api.delete<{ data: null }>(`/parental/allowances/${id}`),
-  triggerAllowance: (id: string) =>
-    api.post<{ data: ScheduledAllowance }>(`/parental/allowances/${id}/trigger`),
-  setSpendingLimits: (childId: string, data: { parentalControlEnabled?: boolean; parentalMaxTxnAmount?: number; parentalDailyLimit?: number; parentalWeeklyLimit?: number; parentalMonthlyLimit?: number; parentalRestrictedCategories?: string }) =>
-    api.put(`/parental/children/${childId}/limits`, data),
+  triggerAllowance: (id: string, idempotencyKey?: string) =>
+    api.post<{ data: ScheduledAllowance }>(`/parental/allowances/${id}/trigger`, null, createIdempotencyHeaders(idempotencyKey)),
+  linkChild: (data: { identifier: string; relationship?: string }) =>
+    api.post('/parental/children/link', data),
+  setSpendingLimits: (childId: string, data: {
+    parentalControlEnabled?: boolean;
+    parentalMaxTxnAmount?: number;
+    parentalDailyLimit?: number;
+    parentalWeeklyLimit?: number;
+    parentalMonthlyLimit?: number;
+    parentalRestrictedCategories?: string;
+    parentalBlockedMerchants?: string;
+  }) =>
+    api.put(`/parental/children/${childId}/limits`, {
+      parentalControlEnabled: data.parentalControlEnabled,
+      maxTxnAmount: data.parentalMaxTxnAmount,
+      dailyLimit: data.parentalDailyLimit,
+      weeklyLimit: data.parentalWeeklyLimit,
+      monthlyLimit: data.parentalMonthlyLimit,
+      restrictedCategories: data.parentalRestrictedCategories,
+      blockedMerchants: data.parentalBlockedMerchants,
+    }),
   getPendingApprovals: () =>
     api.get('/parental/approvals'),
   getParentApprovalHistory: () =>
@@ -220,6 +270,8 @@ export const parentalApi = {
     api.post(`/parental/children/${childId}/freeze-card/${cardId}`),
   unfreezeChildCard: (childId: string, cardId: string) =>
     api.post(`/parental/children/${childId}/unfreeze-card/${cardId}`),
+  updateChildCardDesign: (childId: string, cardId: string, data: { cardDesign: string }) =>
+    api.put(`/parental/children/${childId}/cards/${cardId}/design`, data),
 };
 
 // ── WebAuthn / Biometrics ──

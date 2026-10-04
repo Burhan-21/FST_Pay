@@ -28,6 +28,7 @@ public class WalletController {
         return ResponseEntity.ok(ApiResponse.success(wallet));
     }
 
+    @com.fstpay.common.idempotency.annotation.Idempotent
     @PostMapping("/topup")
     @Operation(summary = "Top up wallet balance", description = "Adds funds to the user's wallet via a simulated payment gateway (like UPI or Card) and records a double-entry ledger event.")
     public ResponseEntity<ApiResponse<Wallet>> topUp(
@@ -35,5 +36,15 @@ public class WalletController {
             @Valid @RequestBody TopUpRequest request) {
         Wallet wallet = walletService.topUp(userDetails.getUsername(), request.getAmount(), request.getMethod());
         return ResponseEntity.ok(ApiResponse.success("Top-up successful", wallet));
+    }
+
+    @com.fstpay.common.idempotency.annotation.Idempotent
+    @PostMapping("/withdraw")
+    @Operation(summary = "Withdraw wallet balance to bank account", description = "Debits funds from user wallet to an external verified bank account or UPI.")
+    public ResponseEntity<ApiResponse<Wallet>> withdraw(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Valid @RequestBody com.fstpay.wallet.dto.WithdrawRequest request) {
+        Wallet wallet = walletService.withdraw(userDetails.getUsername(), request.getAmount(), request.getBankName(), request.getAccountNumber());
+        return ResponseEntity.ok(ApiResponse.success("Withdrawal successful", wallet));
     }
 }

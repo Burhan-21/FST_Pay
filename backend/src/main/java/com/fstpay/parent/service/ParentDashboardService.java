@@ -49,6 +49,7 @@ public class ParentDashboardService {
     private final NotificationRepository notificationRepository;
     private final VirtualCardRepository virtualCardRepository;
     private final WalletGoalRepository walletGoalRepository;
+    private final com.fstpay.analytics.service.AnalyticsService analyticsService;
 
     public ParentDashboardDto getParentDashboard(String parentEmail) {
         User parent = userRepository.findByEmail(parentEmail)
@@ -57,26 +58,30 @@ public class ParentDashboardService {
         List<ParentChildLink> links = parentChildLinkRepository.findByParentIdAndStatus(parent.getId(), "ACTIVE");
         List<User> children = links.stream().map(ParentChildLink::getChild).collect(Collectors.toList());
 
-        // Convert children to DTOs
-        List<ChildSummaryDto> childDtos = children.stream().map(child -> ChildSummaryDto.builder()
-                .id(child.getId())
-                .fullName(child.getFullName())
-                .email(child.getEmail())
-                .isActive(child.getIsActive())
-                .parentalControlEnabled(child.getParentalControlEnabled())
-                .parentalMaxTxnAmount(child.getParentalMaxTxnAmount())
-                .parentalRestrictedCategories(child.getParentalRestrictedCategories())
-                .createdAt(child.getCreatedAt())
-                .build()
-        ).collect(Collectors.toList());
-
-        // 1. Total children wallet balances
+        // Convert children to DTOs with real balances and limits
+        List<ChildSummaryDto> childDtos = new ArrayList<>();
         BigDecimal totalChildrenBalance = BigDecimal.ZERO;
+
         for (User child : children) {
             Wallet w = walletRepository.findByUser(child).orElse(null);
-            if (w != null && w.getBalance() != null) {
-                totalChildrenBalance = totalChildrenBalance.add(w.getBalance());
-            }
+            BigDecimal childBal = (w != null && w.getBalance() != null) ? w.getBalance() : BigDecimal.ZERO;
+            totalChildrenBalance = totalChildrenBalance.add(childBal);
+
+            childDtos.add(ChildSummaryDto.builder()
+                    .id(child.getId())
+                    .fullName(child.getFullName())
+                    .email(child.getEmail())
+                    .isActive(child.getIsActive())
+                    .parentalControlEnabled(child.getParentalControlEnabled())
+                    .parentalMaxTxnAmount(child.getParentalMaxTxnAmount())
+                    .parentalDailyLimit(child.getParentalDailyLimit())
+                    .parentalWeeklyLimit(child.getParentalWeeklyLimit())
+                    .parentalMonthlyLimit(child.getParentalMonthlyLimit())
+                    .parentalRestrictedCategories(child.getParentalRestrictedCategories())
+                    .parentalBlockedMerchants(child.getParentalBlockedMerchants())
+                    .walletBalance(childBal)
+                    .createdAt(child.getCreatedAt())
+                    .build());
         }
 
         // 2. Pocket money sent this calendar month
@@ -156,6 +161,7 @@ public class ParentDashboardService {
                 .children(childDtos)
                 .totalChildrenBalance(totalChildrenBalance)
                 .totalPocketMoneySentThisMonth(totalPocketMoneySentThisMonth)
+                .parentWalletBalance(parentWallet != null && parentWallet.getBalance() != null ? parentWallet.getBalance() : BigDecimal.ZERO)
                 .pendingApprovalsCount(pendingApprovalsCount)
                 .recentNotifications(notificationDtos)
                 .activityTimeline(timeline)
@@ -185,6 +191,13 @@ public class ParentDashboardService {
         ParentChildLink link = parentChildLinkRepository.findByParentIdAndChildId(
                 userRepository.findByEmail(parentEmail).get().getId(), childId).get();
 
+        com.fstpay.analytics.dto.AnalyticsResponse analytics = null;
+        try {
+            analytics = analyticsService.getAnalytics(child.getEmail(), 30);
+        } catch (Exception e) {
+            log.warn("Could not calculate spending analytics for child {}: {}", child.getEmail(), e.getMessage());
+        }
+
         return ChildDetailDto.builder()
                 .id(child.getId())
                 .fullName(child.getFullName())
@@ -196,11 +209,13 @@ public class ParentDashboardService {
                 .parentalWeeklyLimit(child.getParentalWeeklyLimit())
                 .parentalMonthlyLimit(child.getParentalMonthlyLimit())
                 .parentalRestrictedCategories(child.getParentalRestrictedCategories())
+                .parentalBlockedMerchants(child.getParentalBlockedMerchants())
                 .walletBalance(wallet.getBalance())
                 .walletCurrency(wallet.getCurrency())
                 .virtualCards(cards)
                 .activeGoals(goals)
                 .recentTransactions(txns)
+                .analytics(analytics)
                 .build();
     }
 }

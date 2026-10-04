@@ -15,7 +15,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const root = document.documentElement;
     root.classList.remove('light', 'dark', 'amoled');
     if (mode === 'amoled') {
-      root.classList.add('amoled');
+      root.classList.add('dark', 'amoled');
       document.documentElement.style.setProperty('--amoled-bg', '#000000');
     } else {
       root.classList.add(mode);

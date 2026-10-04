@@ -41,6 +41,7 @@ public class RewardsController {
         return ResponseEntity.ok(rewardsService.getRedemptionHistory(userDetails.getUsername()));
     }
 
+    @com.fstpay.common.idempotency.annotation.Idempotent
     @PostMapping("/redeem/{itemId}")
     public ResponseEntity<RedeemResponse> redeemItem(
             @AuthenticationPrincipal UserDetails userDetails,

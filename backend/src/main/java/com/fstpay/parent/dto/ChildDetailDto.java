@@ -22,6 +22,7 @@ public class ChildDetailDto {
     private BigDecimal parentalWeeklyLimit;
     private BigDecimal parentalMonthlyLimit;
     private String parentalRestrictedCategories;
+    private String parentalBlockedMerchants;
     
     private BigDecimal walletBalance;
     private String walletCurrency;
@@ -29,4 +30,5 @@ public class ChildDetailDto {
     private List<VirtualCard> virtualCards;
     private List<WalletGoal> activeGoals;
     private List<Transaction> recentTransactions;
+    private com.fstpay.analytics.dto.AnalyticsResponse analytics;
 }

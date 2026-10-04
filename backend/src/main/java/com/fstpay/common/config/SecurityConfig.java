@@ -72,7 +72,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/v1/auth/**").permitAll()
                 .requestMatchers("/api/v1/webhooks/**").permitAll()
-                .requestMatchers("/actuator/health/**", "/actuator/prometheus").permitAll()
+                .requestMatchers("/actuator/health/**").permitAll()
                 .requestMatchers("/actuator/**").hasRole("ADMIN")
                 // Swagger / OpenAPI
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
@@ -87,9 +87,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/parental/**").hasAnyRole("PARENT", "ADMIN")
                 // Teen-side endpoints
                 .requestMatchers("/api/v1/teen/**").hasAnyRole("USER", "ADMIN")
-                .requestMatchers("/api/v1/goals/**").hasAnyRole("USER", "ADMIN")
-                .requestMatchers("/api/v1/rewards/**").hasAnyRole("USER", "ADMIN")
-                .requestMatchers("/api/v1/reports/**").hasAnyRole("USER", "ADMIN")
+                .requestMatchers("/api/v1/goals/**").hasAnyRole("USER", "PARENT", "ADMIN")
+                .requestMatchers("/api/v1/rewards/**").hasAnyRole("USER", "PARENT", "ADMIN")
+                .requestMatchers("/api/v1/reports/**").hasAnyRole("USER", "PARENT", "ADMIN")
                 .anyRequest().authenticated()
             )
             .addFilterBefore(rateLimitFilter, org.springframework.security.web.context.SecurityContextHolderFilter.class)
@@ -101,7 +101,10 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
+        config.setAllowedOrigins(Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With"));
         config.setExposedHeaders(List.of("Authorization"));

@@ -3,8 +3,8 @@
 **Application:** FST Pay  
 **Test Date:** June 17, 2026  
 **Credentials Provided:**
-- Email: `smburhan.personal@gmail.com` (Note: You provided "perosnal" - using "personal")
-- Password: `Burhan@1234`
+- Email: `alex@fstpay.com` (Note: You provided "perosnal" - using "personal")
+- Password: `Alex@1234`
 
 ---
 
@@ -150,9 +150,9 @@ Expected output:
 2. Click on **"Sign Up"** link
 3. Fill in the registration form:
    - **Full Name:** Burhan Test
-   - **Email:** smburhan.personal@gmail.com
-   - **Password:** Burhan@1234
-   - **Confirm Password:** Burhan@1234
+   - **Email:** alex@fstpay.com
+   - **Password:** Alex@1234
+   - **Confirm Password:** Alex@1234
    - **Date of Birth:** 1990-01-15 (Must be 12+)
 
 4. **Verify CAPTCHA:**
@@ -180,7 +180,7 @@ Expected output:
    - ✅ Account can now be used for login
 
 **Password Validation During Signup:**
-- ✅ Minimum 8 characters (Burhan@1234 = 11 chars ✅)
+- ✅ Minimum 8 characters (Alex@1234 = 11 chars ✅)
 - ✅ Uppercase letter: B, T ✅
 - ✅ Lowercase letter: u, r, h, a, n, t, e, s, t ✅
 - ✅ Number: 1, 2, 3, 4 ✅
@@ -195,8 +195,8 @@ Expected output:
 1. Open `http://localhost:5173`
 2. Click **"Login"** (if redirected from signup)
 3. Enter credentials:
-   - **Email:** smburhan.personal@gmail.com
-   - **Password:** Burhan@1234
+   - **Email:** alex@fstpay.com
+   - **Password:** Alex@1234
 
 4. **Verify CAPTCHA:**
    - ✅ reCAPTCHA checkbox appears
@@ -206,7 +206,7 @@ Expected output:
 5. Click **"Verify CAPTCHA"** then **"Login"**
 
 6. **Verify OTP Screen:**
-   - ✅ Message: "OTP sent to smburhan.personal@gmail.com"
+   - ✅ Message: "OTP sent to alex@fstpay.com"
    - ✅ OTP input field appears
    - ✅ "Resend OTP" button available
 
@@ -236,7 +236,7 @@ Expected output:
     "refreshToken": "eyJhbGc...",
     "user": {
       "id": "...",
-      "email": "smburhan.personal@gmail.com",
+      "email": "alex@fstpay.com",
       "fullName": "Burhan Test",
       "role": "USER"
     }
@@ -276,12 +276,12 @@ psql -h localhost -p 5434 -U fstpay -d fstpay
 -- Check user account
 SELECT id, email, login_attempts, locked_until 
 FROM users 
-WHERE email = 'smburhan.personal@gmail.com';
+WHERE email = 'alex@fstpay.com';
 
 -- Expected output:
 -- id | email | login_attempts | locked_until
--- uuid | smburhan.personal@gmail.com | 0 | NULL (after successful login)
--- uuid | smburhan.personal@gmail.com | 5 | 2026-06-17 11:10:00+00 (locked)
+-- uuid | alex@fstpay.com | 0 | NULL (after successful login)
+-- uuid | alex@fstpay.com | 5 | 2026-06-17 11:10:00+00 (locked)
 ```
 
 ---
@@ -439,7 +439,7 @@ redis-cli -p 6380
 
 # Check OTP storage
 KEYS "otp:*"
-GET "otp:smburhan.personal@gmail.com"
+GET "otp:alex@fstpay.com"
 
 # Check rate limiting
 KEYS "ratelimit:*"
@@ -571,8 +571,8 @@ $env:JWT_OTP_EXPIRATION_MINUTES = 30
 
 ## ✨ Key Test Credentials
 
-**Email:** smburhan.personal@gmail.com  
-**Password:** Burhan@1234  
+**Email:** alex@fstpay.com  
+**Password:** Alex@1234  
 **Status:** Ready for testing ✅
 
 ---

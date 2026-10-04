@@ -41,6 +41,7 @@ public class VirtualCard {
     private Integer expiryYear;
 
     @Column(name = "cvv_hash", nullable = false, length = 255)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String cvvHash;
 
     @Column(name = "card_type", nullable = false, length = 20)

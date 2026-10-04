@@ -11,4 +11,5 @@ public class SetSpendingLimitRequest {
     private BigDecimal weeklyLimit;
     private BigDecimal monthlyLimit;
     private String restrictedCategories;
+    private String blockedMerchants;
 }

@@ -331,7 +331,7 @@
 
 ### Most Critical Fix
 **Hardcoded Credentials**  
-- Email: smburhan.personal@gmail.com (exposed)
+- Email: alex@fstpay.com (exposed)
 - Password: yP6j9yf.VUn7@Md (exposed)
 - Database password: fstpay_secret (exposed)
 - **Risk Level:** CRITICAL - Anyone with code access = admin access

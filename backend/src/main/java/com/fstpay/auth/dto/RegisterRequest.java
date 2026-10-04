@@ -31,4 +31,7 @@ public class RegisterRequest {
     private String phone;
 
     private String recaptchaToken;
+
+    @Size(max = 20, message = "Role cannot exceed 20 characters")
+    private String role;
 }

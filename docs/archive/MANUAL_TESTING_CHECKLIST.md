@@ -1,8 +1,8 @@
 # FST Pay - Login/Signup Manual Testing Checklist
 
 **Test Credentials:**
-- **Email:** smburhan.personal@gmail.com
-- **Password:** Burhan@1234
+- **Email:** alex@fstpay.com
+- **Password:** Alex@1234
 
 **Application URLs:**
 - Frontend: http://localhost:5173
@@ -28,9 +28,9 @@
 
 ### 1.2 Fill Signup Form
 - [ ] Full Name: **Burhan Test**
-- [ ] Email: **smburhan.personal@gmail.com**
-- [ ] Password: **Burhan@1234**
-- [ ] Confirm Password: **Burhan@1234**
+- [ ] Email: **alex@fstpay.com**
+- [ ] Password: **Alex@1234**
+- [ ] Confirm Password: **Alex@1234**
 - [ ] DOB: **01/15/1990** (or any date 12+ years old)
 
 ### 1.3 Complete reCAPTCHA
@@ -55,7 +55,7 @@
 - [ ] OTP code visible (6 digits)
 - [ ] If no email:
   - [ ] Check spam/junk folder
-  - [ ] Or check Redis: `redis-cli -p 6380` → `GET "otp:smburhan.personal@gmail.com"`
+  - [ ] Or check Redis: `redis-cli -p 6380` → `GET "otp:alex@fstpay.com"`
 
 ### 1.6 Enter OTP
 - [ ] Copy OTP code from email (or Redis)
@@ -85,8 +85,8 @@
   - [ ] "Don't have account? Sign Up" link
 
 ### 2.2 Enter Login Credentials
-- [ ] Email: **smburhan.personal@gmail.com**
-- [ ] Password: **Burhan@1234**
+- [ ] Email: **alex@fstpay.com**
+- [ ] Password: **Alex@1234**
 - [ ] Leave "Remember Me" unchecked
 
 ### 2.3 Complete reCAPTCHA
@@ -99,14 +99,14 @@
 - [ ] Loading indicator appears
 - [ ] After 2-3 seconds:
   - [ ] OTP input screen appears
-  - [ ] See message: "OTP has been sent to smburhan.personal@gmail.com"
+  - [ ] See message: "OTP has been sent to alex@fstpay.com"
   - [ ] 6-digit input field visible
   - [ ] "Resend OTP" button visible
   - [ ] Countdown timer visible (10 minutes)
 
 ### 2.5 Verify OTP During Login
 - [ ] Check email for new OTP (different from signup)
-- [ ] Or check Redis: `GET "otp:smburhan.personal@gmail.com"`
+- [ ] Or check Redis: `GET "otp:alex@fstpay.com"`
 - [ ] Enter 6-digit OTP
 - [ ] Click "Verify" button
 - [ ] After 1-2 seconds:
@@ -130,7 +130,7 @@
 ### 3.1 Attempt Login with Wrong Password (5 times)
 
 #### Attempt #1
-- [ ] Email: **smburhan.personal@gmail.com**
+- [ ] Email: **alex@fstpay.com**
 - [ ] Password: **WrongPassword123**
 - [ ] Complete CAPTCHA
 - [ ] Click Login
@@ -138,7 +138,7 @@
 - [ ] Still on login page
 
 #### Attempt #2
-- [ ] Email: **smburhan.personal@gmail.com**
+- [ ] Email: **alex@fstpay.com**
 - [ ] Password: **AnotherWrong456**
 - [ ] Complete CAPTCHA
 - [ ] Click Login
@@ -159,7 +159,7 @@
 - [ ] Cannot proceed further
 
 ### 3.2 Verify Account is Locked
-- [ ] Try login with **correct password**: Burhan@1234
+- [ ] Try login with **correct password**: Alex@1234
 - [ ] Error still shows: **"Account locked. Try again in 15 minutes."**
 - [ ] Correct password doesn't work
 
@@ -170,19 +170,19 @@ psql -h localhost -p 5434 -U fstpay -d fstpay
 
 -- Run query:
 SELECT email, login_attempts, locked_until FROM users 
-WHERE email = 'smburhan.personal@gmail.com';
+WHERE email = 'alex@fstpay.com';
 
 -- Expected output:
 -- email | login_attempts | locked_until
--- smburhan.personal@gmail.com | 5 | 2026-06-17 11:10:00+00
+-- alex@fstpay.com | 5 | 2026-06-17 11:10:00+00
 ```
 - [ ] Query shows `login_attempts = 5`
 - [ ] `locked_until` shows future timestamp (15 mins from now)
 
 ### 3.4 Wait 15 Minutes (or Test After Unlock Time)
 - [ ] After 15 minutes, try login again
-- [ ] Email: **smburhan.personal@gmail.com**
-- [ ] Password: **Burhan@1234** (correct)
+- [ ] Email: **alex@fstpay.com**
+- [ ] Password: **Alex@1234** (correct)
 - [ ] Should work normally
 - [ ] Redirected to OTP screen
 
@@ -248,8 +248,8 @@ WHERE email = 'smburhan.personal@gmail.com';
 # PowerShell
 for ($i = 1; $i -le 15; $i++) {
     $body = @{
-        email = "smburhan.personal@gmail.com"
-        password = "Burhan@1234"
+        email = "alex@fstpay.com"
+        password = "Alex@1234"
     } | ConvertTo-Json
     
     $response = Invoke-WebRequest `
@@ -317,7 +317,7 @@ for ($i = 1; $i -le 15; $i++) {
 - [ ] Or error appears in real-time as typing
 
 ### 8.3 Passwords Don't Match
-- [ ] Password: **Burhan@1234**
+- [ ] Password: **Alex@1234**
 - [ ] Confirm Password: **DifferentPassword123**
 - [ ] Error: **"Passwords do not match"**
 - [ ] Form won't submit
@@ -449,5 +449,5 @@ ___________________________________________________________________
 
 **Last Updated:** June 17, 2026  
 **Version:** 1.0  
-**Created For:** smburhan.personal@gmail.com : Burhan@1234
+**Created For:** alex@fstpay.com : Alex@1234
 

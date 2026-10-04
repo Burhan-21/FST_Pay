@@ -140,23 +140,23 @@ export default function AiCoachPage() {
     try {
       setIsLoadingData(true);
       const [healthRes, tipsRes, forecastRes, budgetRes, goalsRes, walletRes, alertsRes, roundUpRes] = await Promise.all([
-        aiApi.getHealthScore(),
-        aiApi.getTips(),
-        aiApi.getForecast(),
-        aiApi.getBudgetPlan(),
-        goalsApi.getGoals(),
-        walletApi.getWallet(),
+        aiApi.getHealthScore().catch(() => ({ data: { data: null } })),
+        aiApi.getTips().catch(() => ({ data: { data: [] } })),
+        aiApi.getForecast().catch(() => ({ data: { data: null } })),
+        aiApi.getBudgetPlan().catch(() => ({ data: { data: null } })),
+        goalsApi.getGoals().catch(() => ({ data: { data: [] } })),
+        walletApi.getWallet().catch(() => ({ data: { data: null } })),
         aiApi.getAlerts().catch(() => ({ data: { data: [] } })),
         goalsApi.getRoundUp().catch(() => ({ data: { data: null } }))
       ]);
 
-      setHealthData(healthRes.data.data);
-      setTips(tipsRes.data.data);
-      setForecastData(forecastRes.data.data);
-      setBudgetData(budgetRes.data.data);
-      setGoals(goalsRes.data.data);
-      setWalletBalance(walletRes.data.data?.balance || 0);
-      setAlerts(alertsRes.data.data || []);
+      if (healthRes.data?.data) setHealthData(healthRes.data.data);
+      if (tipsRes.data?.data) setTips(tipsRes.data.data);
+      if (forecastRes.data?.data) setForecastData(forecastRes.data.data);
+      if (budgetRes.data?.data) setBudgetData(budgetRes.data.data);
+      if (goalsRes.data?.data) setGoals(goalsRes.data.data);
+      setWalletBalance(walletRes.data?.data?.balance || 0);
+      setAlerts(alertsRes.data?.data || []);
       if (roundUpRes.data?.data) {
         setRoundUpRule(roundUpRes.data.data);
         if (roundUpRes.data.data.goalId) {
@@ -275,13 +275,26 @@ export default function AiCoachPage() {
 
   const handleCreateGoal = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newGoalName.trim() || !newGoalTarget || !newGoalDate) return;
+    if (!newGoalName.trim()) {
+      setAlertConfig({ title: 'Validation Error', message: 'Please enter a goal name.' });
+      return;
+    }
+    const targetAmt = parseFloat(newGoalTarget);
+    if (isNaN(targetAmt) || targetAmt <= 0) {
+      setAlertConfig({ title: 'Validation Error', message: 'Please enter a valid target amount greater than 0.' });
+      return;
+    }
+    if (!newGoalDate) {
+      setAlertConfig({ title: 'Validation Error', message: 'Please select a target date for your goal.' });
+      return;
+    }
 
     try {
+      const goalCreatedName = newGoalName.trim();
       await goalsApi.createGoal({
-        name: newGoalName,
-        description: newGoalDesc,
-        targetAmount: parseFloat(newGoalTarget),
+        name: goalCreatedName,
+        description: newGoalDesc.trim() || undefined,
+        targetAmount: targetAmt,
         targetDate: newGoalDate,
         priority: newGoalPriority,
         icon: newGoalIcon,
@@ -295,7 +308,11 @@ export default function AiCoachPage() {
       setNewGoalDate('');
       setNewGoalPriority('MEDIUM');
       setIsGoalModalOpen(false);
-      fetchAnalyticsAndGoals();
+      await fetchAnalyticsAndGoals();
+      setAlertConfig({
+        title: 'Goal Created! 🎯',
+        message: `"${goalCreatedName}" has been successfully added to your savings targets!`,
+      });
     } catch (err: unknown) {
       setAlertConfig({
         title: 'Error Creating Goal',
@@ -961,7 +978,7 @@ export default function AiCoachPage() {
                       <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-2">50/30/20 Budget Allocator</h3>
                       <p className="text-xs text-slate-500 dark:text-surface-400 mb-6">Compare recommended guideline partitions vs actual expenses (Needs, Wants, Savings)</p>
                       <div className="h-[280px]">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                           <BarChart
                             data={[
                               {
@@ -1010,7 +1027,7 @@ export default function AiCoachPage() {
                         </span>
                       </div>
                       <div className="h-[280px]">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                           <AreaChart data={forecastData.points} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                             <defs>
                               <linearGradient id="colorOptimistic" x1="0" y1="0" x2="0" y2="1">
@@ -1221,15 +1238,40 @@ export default function AiCoachPage() {
                 />
               </div>
               <div>
-                <label htmlFor="newGoalDate" className="block text-xs font-medium text-slate-700 dark:text-surface-300 mb-1">Target Date *</label>
+                <div className="flex justify-between items-center mb-1">
+                  <label htmlFor="newGoalDate" className="block text-xs font-medium text-slate-700 dark:text-surface-300">Target Date *</label>
+                  <div className="flex items-center gap-1">
+                    {[
+                      { label: '+1M', months: 1 },
+                      { label: '+3M', months: 3 },
+                      { label: '+6M', months: 6 },
+                      { label: '+1Y', months: 12 },
+                    ].map((shortcut) => (
+                      <button
+                        key={shortcut.label}
+                        type="button"
+                        onClick={() => {
+                          const d = new Date();
+                          d.setMonth(d.getMonth() + shortcut.months);
+                          setNewGoalDate(d.toLocaleDateString('en-CA'));
+                        }}
+                        className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-slate-100 dark:bg-surface-800 text-slate-600 dark:text-surface-300 hover:bg-primary-50 hover:text-primary-600 dark:hover:bg-primary-950/40 dark:hover:text-primary-400 transition-colors"
+                        title={`Set target date to +${shortcut.months} months`}
+                      >
+                        {shortcut.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <input
                   id="newGoalDate"
                   type="date"
                   required
                   value={newGoalDate}
                   onChange={(e) => setNewGoalDate(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
-                  className="input-field w-full text-sm"
+                  onClick={(e) => (e.currentTarget as HTMLInputElement).showPicker?.()}
+                  min={new Date().toLocaleDateString('en-CA')}
+                  className="input-field w-full text-sm [color-scheme:light] dark:[color-scheme:dark] cursor-pointer"
                 />
               </div>
             </div>

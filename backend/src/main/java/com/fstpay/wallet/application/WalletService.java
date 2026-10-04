@@ -111,6 +111,51 @@ public class WalletService implements WalletOperations {
 
     @Override
     @Transactional
+    public Wallet withdraw(String email, BigDecimal amount, String bankName, String accountNumber) {
+        if (amount == null || amount.compareTo(MIN_TOPUP_AMOUNT) < 0) {
+            throw new BadRequestException("Withdrawal amount must be at least " + MIN_TOPUP_AMOUNT);
+        }
+        amount = amount.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+
+        Wallet wallet = getWalletByUserEmail(email);
+        if (!wallet.getIsActive()) {
+            throw new BadRequestException("Wallet is inactive");
+        }
+
+        if (wallet.getBalance().compareTo(amount) < 0) {
+            throw new BadRequestException("Insufficient balance. Available: " + wallet.getBalance());
+        }
+
+        BigDecimal newBalance = wallet.getBalance().subtract(amount).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+        wallet.setBalance(newBalance);
+        Wallet savedWallet = walletRepository.save(wallet);
+
+        String maskAcc = (accountNumber != null && accountNumber.length() >= 4)
+                ? "••••" + accountNumber.substring(accountNumber.length() - 4)
+                : "Bank Account";
+        String destination = (bankName != null && !bankName.trim().isEmpty()) ? bankName + " (" + maskAcc + ")" : maskAcc;
+
+        Transaction transaction = Transaction.builder()
+                .wallet(savedWallet)
+                .type("DEBIT")
+                .category("WITHDRAWAL")
+                .amount(amount)
+                .balanceAfter(savedWallet.getBalance())
+                .description("Withdrawal to " + destination)
+                .merchant(destination)
+                .referenceId("WDR-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
+                .status("COMPLETED")
+                .build();
+        transactionRepository.save(transaction);
+
+        walletDailySummaryService.trackSpend(savedWallet, amount);
+        log.info("Withdrawal completed for wallet: {}, amount: {}, destination: {}", wallet.getId(), amount, destination);
+
+        return savedWallet;
+    }
+
+    @Override
+    @Transactional
     public String transfer(User fromUser, User toUser, BigDecimal amount, String category, String description, String merchant) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BadRequestException("Transfer amount must be greater than zero");

@@ -55,22 +55,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { requiresOtp: true, requiresTotp: false, email: data.data.email || email };
     }
     setTokens(data.data);
-    return { requiresOtp: false, requiresTotp: false };
+    return { requiresOtp: false, requiresTotp: false, user: data.data?.user };
   };
 
   const verifyOtp = async (email: string, otp: string) => {
     const { data } = await authApi.verifyOtp({ email, otp });
     setTokens(data.data);
+    return data.data?.user;
   };
 
   const verifyTotp = async (email: string, code: string) => {
     const { data } = await authApi.verifyTotp({ email, code });
     setTokens(data.data);
+    return data.data?.user;
   };
 
   const verifyBackupCode = async (email: string, backupCode: string) => {
     const { data } = await authApi.verifyBackupCode({ email, backupCode });
     setTokens(data.data);
+    return data.data?.user;
   };
 
   const loginWithPasskey = async (passkeyData: {
@@ -82,10 +85,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }) => {
     const { data } = await authApi.verifyWebAuthnLogin(passkeyData);
     setTokens(data.data);
+    return data.data?.user;
   };
 
-  const register = async (fullName: string, email: string, password: string, dateOfBirth?: string, recaptchaToken?: string) => {
-    const { data } = await authApi.register({ fullName, email, password, dateOfBirth, recaptchaToken });
+  const register = async (fullName: string, email: string, password: string, dateOfBirth?: string, recaptchaToken?: string, role?: string) => {
+    const { data } = await authApi.register({ fullName, email, password, dateOfBirth, recaptchaToken, role });
     if (data.data && data.data.requiresOtp) {
       return { requiresOtp: true };
     }

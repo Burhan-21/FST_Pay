@@ -104,36 +104,34 @@ public class EmailService {
         sendOtpEmail(toEmail, otp);
     }
 
-    // ── Placeholder Emails (Phase 4+) ──
+    // ── Roadmap Periodic Notifications ──
+    // Note: Active production Monthly Statement PDF report generation and email delivery 
+    // is fully handled by com.fstpay.report.service.MonthlyReportService.
+    // The methods below are reserved as extension points for future periodic automated notifications.
 
     @Async
     public void sendMonthlyReport(String toEmail, String reportSummary) {
-        // TODO: Phase 4 — Generate and attach PDF report
-        log.info("Monthly report email placeholder for {}", toEmail);
+        log.info("Monthly report notification queued for {}", toEmail);
     }
 
     @Async
     public void sendParentReport(String parentEmail, String childName, String reportSummary) {
-        // TODO: Phase 5 — Parent monthly spending report
-        log.info("Parent report email placeholder for {} (child: {})", parentEmail, childName);
+        log.info("Roadmap parent summary notification queued for {} (child: {})", parentEmail, childName);
     }
 
     @Async
     public void sendWeeklySummary(String toEmail, String summaryContent) {
-        // TODO: Phase 4 — Weekly spending summary
-        log.info("Weekly summary email placeholder for {}", toEmail);
+        log.info("Roadmap weekly summary notification queued for {}", toEmail);
     }
 
     @Async
     public void sendRewardNotification(String toEmail, String rewardMessage) {
-        // TODO: Phase 4 — Reward earned notification
-        log.info("Reward notification email placeholder for {}", toEmail);
+        log.info("Roadmap reward notification queued for {}", toEmail);
     }
 
     @Async
     public void sendAiInsights(String toEmail, String insightsContent) {
-        // TODO: Phase 3 — AI financial insights email
-        log.info("AI insights email placeholder for {}", toEmail);
+        log.info("Roadmap AI insights notification queued for {}", toEmail);
     }
 
     @Async

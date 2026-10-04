@@ -24,5 +24,7 @@ public class ChildSummaryDto {
     private BigDecimal parentalWeeklyLimit;
     private BigDecimal parentalMonthlyLimit;
     private String parentalRestrictedCategories;
+    private String parentalBlockedMerchants;
+    private BigDecimal walletBalance;
     private Instant createdAt;
 }

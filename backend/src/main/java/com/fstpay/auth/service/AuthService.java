@@ -63,6 +63,9 @@ public class AuthService {
     @Value("${app.auth.password-reset-token-expiry-minutes:30}")
     private long passwordResetTokenExpiryMinutes;
 
+    @Value("${app.frontend.url:http://localhost:5173}")
+    private String frontendUrl;
+
     @Transactional
     public TokenResponse register(RegisterRequest request) {
         if (!recaptchaService.verifyToken(request.getRecaptchaToken())) {
@@ -92,13 +95,19 @@ public class AuthService {
             throw new BadRequestException("Invalid date of birth");
         }
 
+        boolean isParent = com.fstpay.common.constants.AppConstants.ROLE_PARENT.equalsIgnoreCase(request.getRole());
+        if (isParent && age < 18) {
+            throw new BadRequestException("Parent/Guardian accounts require a minimum age of 18 years");
+        }
+        String assignedRole = isParent ? com.fstpay.common.constants.AppConstants.ROLE_PARENT : com.fstpay.common.constants.AppConstants.ROLE_USER;
+
         User user = User.builder()
                 .email(request.getEmail().toLowerCase().trim())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .fullName(request.getFullName().trim())
                 .phone(request.getPhone() != null ? request.getPhone().trim() : null)
                 .dateOfBirth(request.getDateOfBirth())
-                .role("USER")
+                .role(assignedRole)
                 .isActive(false)
                 .build();
 
@@ -219,6 +228,25 @@ public class AuthService {
 
         auditService.logAuthEvent(email, "OTP_VERIFIED", "User authenticated successfully");
         return generateAuthTokenResponse(user);
+    }
+
+    @Transactional
+    public void resendOtp(String rawEmail) {
+        if (rawEmail == null || rawEmail.trim().isEmpty()) {
+            throw new BadRequestException("Email is required");
+        }
+        String email = rawEmail.toLowerCase().trim();
+
+        // Rate-limited per email
+        String otp = otpService.generateOtp(email);
+        if (otp == null) {
+            auditService.logAuthEvent(email, "OTP_RATE_LIMITED", "OTP resend rate limited");
+            throw new BadRequestException("Please wait before requesting a new verification code.");
+        }
+
+        emailService.sendOtpEmail(email, otp);
+        auditService.logAuthEvent(email, "OTP_RESENT", "Verification OTP resent");
+        log.info("Resent verification OTP for user: {}", email);
     }
 
     @Transactional
@@ -433,9 +461,9 @@ public class AuthService {
                     .used(false)
                     .build();
 
-            passwordResetTokenRepository.save(resetToken);
-
-            emailService.sendPasswordResetEmail(email, rawToken);
+            String baseUrl = frontendUrl != null ? frontendUrl.split(",")[0].trim() : "http://localhost:5173";
+            String resetLink = baseUrl + "/reset-password?token=" + rawToken;
+            emailService.sendPasswordResetEmail(email, resetLink + "\n\nPassword Reset Token / Code: " + rawToken);
             auditService.logAuthEvent(email, "PASSWORD_RESET_REQUESTED", "Password reset email sent");
             log.info("Password reset requested for: {}", email);
         }, () -> {

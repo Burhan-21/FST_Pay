@@ -62,6 +62,12 @@ public class SpendingLimitService {
             child.setParentalRestrictedCategories(categories);
         }
 
+        if (request.getBlockedMerchants() != null) {
+            // Standardize blocked merchants
+            String merchants = request.getBlockedMerchants().toUpperCase().trim();
+            child.setParentalBlockedMerchants(merchants);
+        }
+
         User updatedChild = userRepository.save(child);
         log.info("Updated parental controls for child {}: Enabled={}, MaxTxn={}, Daily={}, Weekly={}, Monthly={}, Categories={}",
                 child.getEmail(),

@@ -11,7 +11,7 @@ This review covers **5 major categories**: security vulnerabilities, logical err
 **Location:** `FstPayApplication.java`  
 **Severity:** CRITICAL  
 **Issue:** 
-- Hardcoded email: `smburhan.personal@gmail.com`
+- Hardcoded email: `alex@fstpay.com`
 - Hardcoded password: `yP6j9yf.VUn7@Md`
 - Exposed on every startup via System.out.println
 - Credentials are baked into compiled JAR
@@ -27,7 +27,7 @@ This review covers **5 major categories**: security vulnerabilities, logical err
 **Issue:**
 ```yaml
 mail:
-  username: smburhan.personal@gmail.com
+  username: alex@fstpay.com
   password: zafmeekunhtkvit  # EXPOSED!
 datasource:
   password: fstpay_secret  # EXPOSED!

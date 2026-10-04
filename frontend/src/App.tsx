@@ -17,6 +17,7 @@ const TransactionsPage = lazy(() => import('./features/transactions/Transactions
 const RewardsPage = lazy(() => import('./features/rewards/RewardsPage'));
 const AnalyticsPage = lazy(() => import('./features/analytics/AnalyticsPage'));
 const AiCoachPage = lazy(() => import('./features/ai-coach/AiCoachPage'));
+const GoalsPage = lazy(() => import('./features/goals/GoalsPage'));
 const SettingsPage = lazy(() => import('./features/settings/SettingsPage'));
 const AdminPage = lazy(() => import('./features/admin/AdminPage'));
 
@@ -25,6 +26,13 @@ const AcceptInvitation = lazy(() => import('./features/parent/AcceptInvitation')
 const ParentDashboard = lazy(() => import('./features/parent/ParentDashboard'));
 const ChildOverview = lazy(() => import('./features/parent/ChildOverview'));
 const ApprovalQueue = lazy(() => import('./features/parent/ApprovalQueue'));
+
+// Legal & common features
+const PrivacyPolicy = lazy(() => import('./features/legal/PrivacyPolicy'));
+const TermsOfService = lazy(() => import('./features/legal/TermsOfService'));
+const CookiePolicy = lazy(() => import('./features/legal/CookiePolicy'));
+const RefundPolicy = lazy(() => import('./features/legal/RefundPolicy'));
+const NotFoundPage = lazy(() => import('./features/common/NotFoundPage'));
 
 // Skeleton fallbacks
 import { 
@@ -83,6 +91,7 @@ export default function App() {
                   </Suspense>
                 }>
                   <Route path="/rewards" element={<RewardsPage />} />
+                  <Route path="/goals" element={<GoalsPage />} />
                 </Route>
 
                 {/* Insights lazy group */}
@@ -146,9 +155,35 @@ export default function App() {
               </Route>
             </Route>
 
-            {/* Default redirect */}
+            {/* Legal public routes */}
+            <Route path="/privacy" element={
+              <Suspense fallback={<div className="min-h-screen bg-[#F7FAFF] dark:bg-surface-950" />}>
+                <PrivacyPolicy />
+              </Suspense>
+            } />
+            <Route path="/terms" element={
+              <Suspense fallback={<div className="min-h-screen bg-[#F7FAFF] dark:bg-surface-950" />}>
+                <TermsOfService />
+              </Suspense>
+            } />
+            <Route path="/cookies" element={
+              <Suspense fallback={<div className="min-h-screen bg-[#F7FAFF] dark:bg-surface-950" />}>
+                <CookiePolicy />
+              </Suspense>
+            } />
+            <Route path="/refund" element={
+              <Suspense fallback={<div className="min-h-screen bg-[#F7FAFF] dark:bg-surface-950" />}>
+                <RefundPolicy />
+              </Suspense>
+            } />
+
+            {/* Default redirect & 404 handler */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={
+              <Suspense fallback={<div className="min-h-screen bg-[#F7FAFF] dark:bg-surface-950" />}>
+                <NotFoundPage />
+              </Suspense>
+            } />
           </Routes>
         </AuthProvider>
       </ThemeProvider>

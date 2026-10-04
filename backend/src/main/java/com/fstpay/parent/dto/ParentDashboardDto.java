@@ -12,6 +12,7 @@ public class ParentDashboardDto {
     private List<ChildSummaryDto> children;
     private BigDecimal totalChildrenBalance;
     private BigDecimal totalPocketMoneySentThisMonth;
+    private BigDecimal parentWalletBalance;
     private long pendingApprovalsCount;
     private List<ParentNotificationDto> recentNotifications;
     private List<ActivityTimelineDto> activityTimeline;

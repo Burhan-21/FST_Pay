@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import TransactionsPage from '../TransactionsPage';
 import { transactionApi, fxApi } from '../../../api/endpoints';
 
@@ -63,7 +64,11 @@ describe('Multi-Currency & FX Converter in TransactionsPage', () => {
   });
 
   it('renders foreign currency badge and exchange rate details for multi-currency transactions', async () => {
-    render(<TransactionsPage />);
+    render(
+      <MemoryRouter>
+        <TransactionsPage />
+      </MemoryRouter>
+    );
 
     await waitFor(() => {
       expect(screen.getByText('Steam Games')).toBeDefined();
@@ -97,7 +102,11 @@ describe('Multi-Currency & FX Converter in TransactionsPage', () => {
       },
     } as never);
 
-    render(<TransactionsPage />);
+    render(
+      <MemoryRouter>
+        <TransactionsPage />
+      </MemoryRouter>
+    );
 
     // Click "Simulate Spend" button
     const simulateButton = screen.getByRole('button', { name: /Simulate Spend/i });
@@ -146,7 +155,11 @@ describe('Multi-Currency & FX Converter in TransactionsPage', () => {
       },
     } as never);
 
-    render(<TransactionsPage />);
+    render(
+      <MemoryRouter>
+        <TransactionsPage />
+      </MemoryRouter>
+    );
 
     // Open modal
     fireEvent.click(screen.getByRole('button', { name: /Simulate Spend/i }));

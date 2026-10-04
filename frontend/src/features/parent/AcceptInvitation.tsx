@@ -9,6 +9,7 @@ import { Loader2, Sparkles, User, Lock, Phone, Calendar, Shield, CheckCircle, Ar
 import PageTransition from '../../components/ui/PageTransition';
 import GlassCard from '../../components/ui/GlassCard';
 import Button from '../../components/ui/Button';
+import ThemeToggle from '../../components/ui/ThemeToggle';
 
 export default function AcceptInvitation() {
   const [searchParams] = useSearchParams();
@@ -115,7 +116,16 @@ export default function AcceptInvitation() {
 
   return (
     <PageTransition>
-      <div className={`min-h-screen flex items-center justify-center p-4 ${isAmoled ? 'bg-black' : 'bg-surface-950'}`}>
+      <div className={`min-h-screen flex items-center justify-center p-4 relative transition-colors duration-200 ${
+        theme === 'amoled'
+          ? 'bg-black text-white'
+          : 'bg-[#F7FAFF] dark:bg-surface-950 text-slate-900 dark:text-white'
+      }`}>
+        {/* Top-Right Theme Switcher */}
+        <div className="absolute top-5 right-5 z-30">
+          <ThemeToggle />
+        </div>
+
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-primary-500/10 rounded-full blur-[150px] animate-float-slow" />
           <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-accent-500/10 rounded-full blur-[120px] animate-float-medium" />
@@ -174,7 +184,7 @@ export default function AcceptInvitation() {
                         type="text"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
-                        placeholder="Jane Doe"
+                        placeholder="Enter name"
                         required
                         className="bg-transparent flex-1 py-3 pr-4 text-white focus:outline-none text-sm"
                       />

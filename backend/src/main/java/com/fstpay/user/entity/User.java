@@ -26,6 +26,7 @@ public class User {
     private String email;
 
     @Column(name = "password_hash", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String passwordHash;
 
     @Column(name = "full_name", nullable = false, length = 100)
@@ -68,6 +69,10 @@ public class User {
     @Builder.Default
     private String parentalRestrictedCategories = "";
 
+    @Column(name = "parental_blocked_merchants", length = 500)
+    @Builder.Default
+    private String parentalBlockedMerchants = "";
+
     @Column(name = "parental_daily_limit", precision = 15, scale = 2)
     @Builder.Default
     private java.math.BigDecimal parentalDailyLimit = java.math.BigDecimal.ZERO;
@@ -81,6 +86,7 @@ public class User {
     private java.math.BigDecimal parentalMonthlyLimit = java.math.BigDecimal.ZERO;
 
     @Column(name = "parental_pin")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String parentalPin;
 
     @Column(name = "parent_name")
@@ -113,6 +119,7 @@ public class User {
     private Boolean biometricEnabled = false;
 
     @Column(name = "totp_secret")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String totpSecret;
 
     @Column(name = "totp_enabled")

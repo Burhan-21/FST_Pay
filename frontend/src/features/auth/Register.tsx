@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 import { Eye, EyeOff, ArrowRight, Mail, Lock, User, Calendar, Loader2, Check, Sparkles, Zap, BarChart3, Trophy, Shield } from 'lucide-react';
 import ReCAPTCHA from 'react-google-recaptcha';
+import ThemeToggle from '../../components/ui/ThemeToggle';
+import OtpInput from '../../components/ui/OtpInput';
+import { authApi } from '../../api/endpoints';
 
 const features = [
   { icon: Zap, text: 'AI-powered budget planning', color: 'from-primary-500 to-purple-500' },
@@ -18,6 +21,7 @@ export default function Register() {
   const { register, verifyOtp } = useAuth();
   const { theme } = useTheme();
 
+  const [role, setRole] = useState<'USER' | 'PARENT'>('USER');
   const [step, setStep] = useState<'details' | 'otp'>('details');
   const [otp, setOtp] = useState('');
   const [fullName, setFullName] = useState('');
@@ -28,8 +32,40 @@ export default function Register() {
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [agreeTerms, setAgreeTerms] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [isResending, setIsResending] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState('');
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const interval = setInterval(() => {
+      setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [resendCooldown]);
+
+  const handleResendCode = async () => {
+    if (resendCooldown > 0 || isResending) return;
+    setError('');
+    setResendSuccess('');
+    setIsResending(true);
+    try {
+      await authApi.resendOtp(email.trim().toLowerCase());
+      setResendSuccess('A new 6-digit code has been sent to your email.');
+      setResendCooldown(60);
+    } catch (err: unknown) {
+      if (axios.isAxiosError<{ message?: string }>(err)) {
+        setError(err.response?.data?.message || 'Failed to resend code. Please try again.');
+      } else {
+        setError('Failed to resend verification code.');
+      }
+    } finally {
+      setIsResending(false);
+    }
+  };
 
   const passwordChecks = [
     { label: '8+ characters', valid: password.length >= 8 },
@@ -40,7 +76,7 @@ export default function Register() {
     { label: 'Passwords match', valid: password === confirmPassword && confirmPassword.length > 0 },
   ];
 
-  const isFormValid = passwordChecks.every((c) => c.valid) && fullName.trim().length > 0 && email.trim().length > 0 && dateOfBirth;
+  const isFormValid = passwordChecks.every((c) => c.valid) && fullName.trim().length > 0 && email.trim().length > 0 && Boolean(dateOfBirth) && agreeTerms;
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,9 +91,9 @@ export default function Register() {
     setError('');
     setIsLoading(true);
     try {
-      const result = await register(cleanFullName, cleanEmail, password, dateOfBirth, tokenToSend);
+      const result = await register(cleanFullName, cleanEmail, password, dateOfBirth, tokenToSend, role);
       if (result.requiresOtp) setStep('otp');
-      else navigate('/dashboard');
+      else navigate(role === 'PARENT' ? '/parent/dashboard' : '/dashboard');
     } catch (err: unknown) {
       if (axios.isAxiosError<{ message?: string; data?: Record<string, string> }>(err)) {
         if (!err.response) {
@@ -90,8 +126,12 @@ export default function Register() {
     setError('');
     setIsLoading(true);
     try {
-      await verifyOtp(cleanEmail, cleanOtp);
-      navigate('/dashboard');
+      const verifiedUser = await verifyOtp(cleanEmail, cleanOtp);
+      if (verifiedUser?.role === 'PARENT' || role === 'PARENT') {
+        navigate('/parent/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err: unknown) {
       if (axios.isAxiosError<{ message?: string }>(err)) {
         setError(err.response?.data?.message || 'Invalid OTP. Please try again.');
@@ -103,11 +143,14 @@ export default function Register() {
 
   if (step === 'otp') {
     return (
-      <div className={`min-h-screen flex items-center justify-center p-6 transition-colors duration-200 ${
+      <div className={`min-h-screen flex items-center justify-center p-6 relative transition-colors duration-200 ${
         theme === 'amoled'
           ? 'bg-black text-white'
           : 'bg-[#F7FAFF] dark:bg-surface-950 text-slate-900 dark:text-white'
       }`}>
+        <div className="absolute top-5 right-5 z-30">
+          <ThemeToggle />
+        </div>
         <div className="max-w-md w-full space-y-6 animate-scale-in bg-white dark:bg-surface-900 amoled:bg-surface-900/60 p-8 rounded-3xl border border-slate-200/80 dark:border-surface-800 shadow-xl">
           <div className="text-center">
             <div className="w-16 h-16 rounded-2xl gradient-card flex items-center justify-center mx-auto mb-4 shadow-xl shadow-primary-500/20">
@@ -125,20 +168,41 @@ export default function Register() {
             </div>
           )}
 
-          <form onSubmit={handleOtpVerify} className="space-y-5">
-            <div>
-              <label htmlFor="otp-input" className="input-label text-slate-700 dark:text-surface-300 font-medium text-xs">Verification Code</label>
-              <input
-                id="otp-input"
-                type="text"
+          <form onSubmit={handleOtpVerify} className="space-y-6">
+            <div className="space-y-3">
+              <label className="input-label text-center block text-slate-700 dark:text-surface-300 font-medium text-xs">
+                Enter 6-Digit Verification Code
+              </label>
+              <OtpInput
                 value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="Enter 6-digit code"
-                required
-                maxLength={6}
-                className="input-field text-center text-3xl font-mono tracking-[0.5em] py-4 bg-white dark:bg-surface-800/60 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-surface-400 caret-primary-600 dark:caret-primary-400 border-slate-200 dark:border-surface-600/40 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                onChange={setOtp}
+                hasError={!!error}
                 autoFocus
               />
+              {resendSuccess && (
+                <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs text-center font-medium">
+                  {resendSuccess}
+                </div>
+              )}
+              <div className="flex items-center justify-between text-xs text-slate-500 dark:text-surface-400 px-1 pt-1">
+                <span>Didn't receive code?</span>
+                <button
+                  type="button"
+                  onClick={handleResendCode}
+                  disabled={isResending || resendCooldown > 0}
+                  className="font-semibold text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isResending ? (
+                    <span className="inline-flex items-center gap-1">
+                      <Loader2 className="w-3 h-3 animate-spin" /> Sending...
+                    </span>
+                  ) : resendCooldown > 0 ? (
+                    <span>Resend code in {resendCooldown}s</span>
+                  ) : (
+                    <span>Resend verification code</span>
+                  )}
+                </button>
+              </div>
             </div>
 
             <button
@@ -170,11 +234,16 @@ export default function Register() {
   }
 
   return (
-    <div className={`min-h-screen flex transition-colors duration-200 ${
+    <div className={`min-h-screen flex relative transition-colors duration-200 ${
       theme === 'amoled'
         ? 'bg-black text-white'
         : 'bg-[#F7FAFF] dark:bg-surface-950 text-slate-900 dark:text-white'
     }`}>
+      {/* Top-Right Theme Switcher */}
+      <div className="absolute top-5 right-5 z-30">
+        <ThemeToggle />
+      </div>
+
       {/* Left Panel */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-accent-600 via-primary-700 to-surface-900" />
@@ -240,6 +309,50 @@ export default function Register() {
           )}
 
           <form onSubmit={handleRegister} className="space-y-4">
+            {/* Account Type Selector */}
+            <div className="page-section">
+              <label className="input-label text-slate-700 dark:text-surface-300 font-medium text-xs mb-1.5 block">
+                Account Type
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setRole('USER')}
+                  className={`p-3 rounded-2xl border text-left flex flex-col gap-1 transition-all ${
+                    role === 'USER'
+                      ? 'border-primary-500 bg-primary-500/10 text-primary-900 dark:text-primary-200 ring-2 ring-primary-500/20 shadow-xs'
+                      : 'border-slate-200 dark:border-surface-700 bg-white dark:bg-surface-800/60 text-slate-600 dark:text-surface-400 hover:border-slate-300 dark:hover:border-surface-600'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs">Teen / Personal</span>
+                    <User className={`w-4 h-4 ${role === 'USER' ? 'text-primary-500' : 'text-slate-400'}`} />
+                  </div>
+                  <span className="text-[11px] leading-tight text-slate-500 dark:text-surface-400">
+                    Smart wallet, virtual card, AI coach & rewards.
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRole('PARENT')}
+                  className={`p-3 rounded-2xl border text-left flex flex-col gap-1 transition-all ${
+                    role === 'PARENT'
+                      ? 'border-primary-500 bg-primary-500/10 text-primary-900 dark:text-primary-200 ring-2 ring-primary-500/20 shadow-xs'
+                      : 'border-slate-200 dark:border-surface-700 bg-white dark:bg-surface-800/60 text-slate-600 dark:text-surface-400 hover:border-slate-300 dark:hover:border-surface-600'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs">Parent / Guardian</span>
+                    <Shield className={`w-4 h-4 ${role === 'PARENT' ? 'text-primary-500' : 'text-slate-400'}`} />
+                  </div>
+                  <span className="text-[11px] leading-tight text-slate-500 dark:text-surface-400">
+                    Family supervision, allowances & spend approvals.
+                  </span>
+                </button>
+              </div>
+            </div>
+
             <div className="page-section">
               <label htmlFor="reg-name" className="input-label text-slate-700 dark:text-surface-300 font-medium text-xs">Full Name</label>
               <div className="flex items-center gap-0 px-0 py-0 bg-white dark:bg-surface-800/60 border border-slate-200 dark:border-surface-600/40 rounded-xl focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20 shadow-xs transition-all">
@@ -281,7 +394,12 @@ export default function Register() {
             </div>
 
             <div className="page-section">
-              <label htmlFor="reg-dob" className="input-label text-slate-700 dark:text-surface-300 font-medium text-xs">Date of Birth</label>
+              <div className="flex items-center justify-between">
+                <label htmlFor="reg-dob" className="input-label text-slate-700 dark:text-surface-300 font-medium text-xs">Date of Birth</label>
+                <span className="text-[11px] text-slate-400 dark:text-surface-400">
+                  {role === 'PARENT' ? 'Must be 18+' : 'Min. 12 years'}
+                </span>
+              </div>
               <div className="flex items-center gap-0 px-0 py-0 bg-white dark:bg-surface-800/60 border border-slate-200 dark:border-surface-600/40 rounded-xl focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20 shadow-xs transition-all">
                 <div className="flex items-center justify-center w-11 shrink-0">
                   <Calendar className="w-4 h-4 text-slate-400 dark:text-surface-400" />
@@ -292,7 +410,11 @@ export default function Register() {
                   value={dateOfBirth}
                   onChange={(e) => setDateOfBirth(e.target.value)}
                   required
-                  max={new Date(new Date().setFullYear(new Date().getFullYear() - 12)).toISOString().split('T')[0]}
+                  max={
+                    role === 'PARENT'
+                      ? new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]
+                      : new Date(new Date().setFullYear(new Date().getFullYear() - 12)).toISOString().split('T')[0]
+                  }
                   className="bg-transparent flex-1 py-3 pr-4 text-slate-900 dark:text-white caret-primary-600 dark:caret-primary-400 text-sm font-medium focus:outline-none [color-scheme:light] dark:[color-scheme:dark]"
                   style={{ color: theme === 'dark' || theme === 'amoled' ? '#ffffff' : '#0f172a' }}
                 />
@@ -377,6 +499,28 @@ export default function Register() {
                 onChange={(token) => setRecaptchaToken(token)}
                 theme={theme === 'light' ? 'light' : 'dark'}
               />
+            </div>
+
+            {/* Registration Consent */}
+            <div className="flex items-start gap-2.5 mt-3 page-section text-xs text-slate-600 dark:text-surface-400">
+              <input
+                id="agree-terms"
+                type="checkbox"
+                checked={agreeTerms}
+                onChange={(e) => setAgreeTerms(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-slate-300 dark:border-surface-700 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                required
+              />
+              <label htmlFor="agree-terms" className="cursor-pointer leading-relaxed select-none">
+                By creating an account, you agree to our{' '}
+                <Link to="/terms" target="_blank" className="font-semibold text-primary-600 dark:text-primary-400 hover:underline">
+                  Terms of Service
+                </Link>{' '}
+                and{' '}
+                <Link to="/privacy" target="_blank" className="font-semibold text-primary-600 dark:text-primary-400 hover:underline">
+                  Privacy Policy
+                </Link>.
+              </label>
             </div>
 
             <button

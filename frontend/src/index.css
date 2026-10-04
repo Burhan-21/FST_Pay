@@ -116,18 +116,18 @@
   --color-primary-900: 214 228 255;
   --color-primary-950: 240 245 255;
 
-  /* Surface Scale (Dark) */
-  --color-surface-50: 2 6 23;
-  --color-surface-100: 15 23 42;
-  --color-surface-200: 30 41 59;
-  --color-surface-300: 51 65 85;
-  --color-surface-400: 71 85 105;
+  /* Surface Scale (Dark) — 50 is lightest, 900 is deepest dark surface */
+  --color-surface-50: 248 250 252;
+  --color-surface-100: 241 245 249;
+  --color-surface-200: 226 232 240;
+  --color-surface-300: 203 213 225;
+  --color-surface-400: 148 163 184;
   --color-surface-500: 100 116 139;
-  --color-surface-600: 203 213 225;
-  --color-surface-700: 226 232 240;
-  --color-surface-800: 241 245 249;
-  --color-surface-900: 248 250 252;
-  --color-surface-950: 255 255 255;
+  --color-surface-600: 71 85 105;
+  --color-surface-700: 51 65 85;
+  --color-surface-800: 26 38 57;
+  --color-surface-900: 15 23 42;
+  --color-surface-950: 11 17 32;
 
   /* Shadows (Dark) */
   --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
@@ -140,7 +140,19 @@
   --color-background: #000000;
   --color-foreground: #ffffff;
   --color-card-bg: rgba(255, 255, 255, 0.03);
-  --color-border: rgba(255, 255, 255, 0.05);
+  --color-border: rgba(255, 255, 255, 0.1);
+
+  --color-surface-50: 248 250 252;
+  --color-surface-100: 241 245 249;
+  --color-surface-200: 226 232 240;
+  --color-surface-300: 203 213 225;
+  --color-surface-400: 148 163 184;
+  --color-surface-500: 100 116 139;
+  --color-surface-600: 71 85 105;
+  --color-surface-700: 38 38 38;
+  --color-surface-800: 20 20 20;
+  --color-surface-900: 10 10 10;
+  --color-surface-950: 0 0 0;
 }
 
 @layer base {
@@ -679,6 +691,31 @@
     color: #94a3b8 !important;
     -webkit-text-fill-color: #94a3b8 !important;
     opacity: 1 !important;
+  }
+
+  /* Autofill states: prevent browser white-on-white or yellow/blue clash */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-text-fill-color: #0f172a !important;
+    box-shadow: 0 0 0 1000px #ffffff inset !important;
+    -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+    transition: background-color 5000s ease-in-out 0s;
+  }
+
+  .dark input:-webkit-autofill,
+  .dark input:-webkit-autofill:hover,
+  .dark input:-webkit-autofill:focus,
+  .dark input:-webkit-autofill:active,
+  .amoled input:-webkit-autofill,
+  .amoled input:-webkit-autofill:hover,
+  .amoled input:-webkit-autofill:focus,
+  .amoled input:-webkit-autofill:active {
+    -webkit-text-fill-color: #ffffff !important;
+    box-shadow: 0 0 0 1000px #1e293b inset !important;
+    -webkit-box-shadow: 0 0 0 1000px #1e293b inset !important;
+    transition: background-color 5000s ease-in-out 0s;
   }
 
   /* Universal password visibility guarantees */

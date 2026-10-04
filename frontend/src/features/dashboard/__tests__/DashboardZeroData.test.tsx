@@ -32,6 +32,11 @@ vi.mock('../../../api/endpoints', () => ({
   analyticsApi: {
     getAnalytics: vi.fn(),
   },
+  aiApi: {
+    getHealthScore: vi.fn(),
+    getTips: vi.fn(),
+    chat: vi.fn(),
+  },
 }));
 
 describe('Dashboard - STRICT Production UI & Zero Demo Data Compliance', () => {
