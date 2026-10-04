@@ -194,7 +194,10 @@ Portions of this codebase were initially created with AI-assisted pair programmi
 
 ---
 
-## 📄 License
+## 📄 License & Intellectual Property
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.  
 Copyright &copy; 2026 Shaikh Mohammed Burhan. All rights reserved.
+
+FST Pay and its source code, architecture, documentation, branding, designs, and related materials are the proprietary intellectual property of **Shaikh Mohammed Burhan**.
+
+This project is proprietary software and is not open source. No portion of this codebase may be copied, reproduced, redistributed, modified, sublicensed, or used commercially without prior written permission from Shaikh Mohammed Burhan. See the [LICENSE](LICENSE) file for complete details and inquiry contact.
