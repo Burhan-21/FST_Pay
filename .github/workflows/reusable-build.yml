@@ -88,14 +88,14 @@ jobs:
       run: cd backend && mvn package -DskipTests -q
 
     - name: Upload JAR Artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: backend-jar-jdk${{ matrix.java-version }}
         path: backend/target/*.jar
         retention-days: 7
 
     - name: Upload Test and Coverage Reports
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       if: always()
       with:
         name: backend-reports-jdk${{ matrix.java-version }}
@@ -144,14 +144,14 @@ jobs:
       run: cd frontend && npm run build
 
     - name: Upload Frontend Artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: frontend-dist
         path: frontend/dist/
         retention-days: 7
 
     - name: Upload Frontend Coverage & Audit Reports
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       if: always()
       with:
         name: frontend-reports
